@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Doblaser CRM · S.A.S.</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+:root{
+  --navy:#0D2B6B; --blue:#1A3F9E; --blue-mid:#2255CC; --blue-light:#E8EEFF;
+  --green:#3B8A0E; --green-light:#EAF8DC;
+  --amber:#854F0B; --amber-light:#FAEEDA;
+  --red:#A32D2D; --red-light:#FCEBEB;
+  --gray:#F5F6FA; --border:#E2E4EA; --border-dark:#C8CAD4;
+  --text:#1A1D2E; --text2:#5A5D72; --text3:#9699B0;
+  --white:#FFFFFF;
+  --shadow:0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --radius:8px; --radius-lg:12px;
+  --sidebar:220px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--gray);color:var(--text);font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+
+/* ── LAYOUT ── */
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar);background:var(--navy);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.main{margin-left:var(--sidebar);flex:1;min-height:100vh}
+.page{display:none;padding:24px}
+.page.active{display:block}
+
+/* ── SIDEBAR ── */
+.sb-brand{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.1)}
+.sb-logo{display:flex;align-items:center;gap:9px}
+.sb-icon{width:32px;height:32px;background:#3B8A0E;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0}
+.sb-name{color:#fff;font-size:15px;font-weight:600;letter-spacing:0.3px}
+.sb-tag{color:rgba(255,255,255,0.45);font-size:10px;margin-top:2px}
+.sb-section{padding:8px 0}
+.sb-label{font-size:9px;font-weight:600;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1.2px;padding:6px 16px 3px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;font-size:13px;color:rgba(255,255,255,0.6);cursor:pointer;transition:all 0.15s;border-left:2.5px solid transparent}
+.nav-item i{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-item:hover{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.9)}
+.nav-item.active{background:rgba(255,255,255,0.12);color:#fff;border-left-color:#3B8A0E;font-weight:500}
+.sb-footer{margin-top:auto;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);font-size:10px;color:rgba(255,255,255,0.3)}
+.sb-version{display:flex;align-items:center;gap:5px}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;flex-direction:column}
+.topbar-title{font-size:16px;font-weight:600;color:var(--navy)}
+.topbar-sub{font-size:11px;color:var(--text3)}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+
+/* ── CARDS & GRIDS ── */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px}
+.card-title{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
+.metric-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px}
+.metric-val{font-size:22px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums}
+.metric-change{font-size:11px;margin-top:4px;color:var(--text3)}
+.metric-change.up{color:var(--green)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;border:1px solid var(--border);background:var(--white);color:var(--text)}
+.btn:hover{background:var(--gray)}
+.btn-primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn-primary:hover{background:#0A2258}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-danger{background:var(--red-light);color:var(--red);border-color:#f3b8b8}
+.btn-danger:hover{background:#f8d5d5}
+.btn-green{background:var(--green-light);color:var(--green);border-color:#c3e6a0}
+.btn-green:hover{background:#d4f0b5}
+
+/* ── TABLES ── */
+.table-wrap{overflow-x:auto;border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--gray)}
+th{text-align:left;padding:8px 12px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#FAFBFF}
+.td-num{font-variant-numeric:tabular-nums;text-align:right}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-blue{background:var(--blue-light);color:var(--blue)}
+.badge-amber{background:var(--amber-light);color:var(--amber)}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-navy{background:#E0E8FF;color:var(--navy)}
+.badge-gray{background:#EBEBEB;color:#666}
+
+/* ── FORMS ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{margin-bottom:12px}
+.form-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;display:block}
+.form-input,.form-select,.form-textarea{width:100%;padding:8px 10px;border:1px solid var(--border-dark);border-radius:var(--radius);font-size:13px;color:var(--text);background:var(--white);font-family:inherit;transition:border-color 0.15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--blue-mid)}
+.form-textarea{resize:vertical;min-height:70px}
+
+/* ── SEARCH BAR ── */
+.search-bar{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.search-input{flex:1;min-width:200px;padding:8px 12px 8px 34px;border:1px solid var(--border-dark);border-radius:var(--radius);font-size:13px;color:var(--text);background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239699B0' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;font-family:inherit}
+.search-input:focus{outline:none;border-color:var(--blue-mid)}
+.filter-select{padding:8px 10px;border:1px solid var(--border-dark);border-radius:var(--radius);font-size:12px;color:var(--text);background:var(--white);cursor:pointer;font-family:inherit}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal-title{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{cursor:pointer;color:var(--text3);font-size:18px;line-height:1;background:none;border:none;padding:0}
+
+/* ── ROP STATUS ── */
+.rop-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block}
+.rop-sin{background:#F1EFE8;color:#5F5E5A}
+.rop-en{background:#E8EEFF;color:var(--blue)}
+.rop-prog{background:var(--amber-light);color:var(--amber)}
+.rop-proc{background:var(--green-light);color:var(--green)}
+
+/* ── COT SHEET ── */
+.cot-header-band{background:var(--navy);border-radius:var(--radius) var(--radius) 0 0;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.cot-brand{display:flex;align-items:center;gap:10px}
+.cot-icon{width:34px;height:34px;background:#3B8A0E;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+.cot-brand-name{color:#fff;font-size:15px;font-weight:700}
+.cot-num-badge{background:rgba(255,255,255,0.18);color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.cot-body{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg);overflow:hidden}
+.cot-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:16px 18px;border-bottom:1px solid var(--border)}
+.cot-meta-row{margin-bottom:8px;display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center}
+.cot-meta-lbl{font-size:11px;font-weight:600;color:var(--text3)}
+.cot-greeting{padding:10px 18px;background:#FAFBFF;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)}
+.cot-items-table{width:100%;border-collapse:collapse}
+.cot-items-table th{background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:7px 10px;text-align:left;border:none}
+.cot-items-table th.right{text-align:right}
+.cot-items-table td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.cot-items-table tr:nth-child(even) td{background:#FAFBFF}
+.cot-cell-in{width:100%;padding:4px 6px;border:1px solid transparent;border-radius:4px;font-size:12px;font-family:inherit;color:var(--text);background:transparent}
+.cot-cell-in:focus{outline:none;border-color:var(--blue-mid);background:#fff}
+.cot-cell-qty,.cot-cell-val{width:70px;text-align:right}
+.cot-calc{font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text);padding-right:4px}
+.cot-totals{padding:12px 18px;background:#FAFBFF;border-top:1px solid var(--border)}
+.cot-total-row{display:flex;justify-content:flex-end;align-items:center;gap:0;margin-bottom:4px}
+.cot-total-lbl{font-size:12px;color:var(--text2);min-width:180px;text-align:right;padding:4px 10px;background:#F0F2F8;border:1px solid var(--border);border-right:none}
+.cot-total-val{font-size:12px;font-weight:600;min-width:130px;text-align:right;padding:4px 12px;border:1px solid var(--border);font-variant-numeric:tabular-nums}
+.cot-total-grand .cot-total-lbl{background:var(--navy);color:#fff;font-weight:700}
+.cot-total-grand .cot-total-val{background:var(--navy);color:#fff;font-size:15px}
+.cot-conditions{padding:12px 18px;border-top:1px solid var(--border)}
+.cot-cond-row{display:grid;grid-template-columns:140px 1fr;gap:6px;margin-bottom:5px;font-size:11px}
+.cot-cond-lbl{font-weight:600;color:var(--text2)}
+.cot-cond-val{color:var(--text)}
+.cot-notes{padding:12px 18px;border-top:1px solid var(--border);background:#FAFBFF}
+.cot-note{font-size:10px;color:var(--text3);margin-bottom:2px;padding-left:10px;position:relative}
+.cot-note::before{content:'•';position:absolute;left:0}
+
+/* ── PROGRESS ── */
+.progress-bar{height:5px;background:#E2E4EA;border-radius:3px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.3s}
+.pf-blue{background:var(--blue-mid)}
+.pf-green{background:var(--green)}
+.pf-amber{background:#BA7517}
+
+/* ── TOAST ── */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:11px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);animation:toast-in 0.25s ease}
+.toast-ok{background:#1B6B1B}
+.toast-err{background:var(--red)}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CHARTS ── */
+.chart-wrap{position:relative;width:100%}
+
+/* ── EMPTY STATE ── */
+.empty-state{padding:40px;text-align:center;color:var(--text3)}
+.empty-state i{font-size:32px;margin-bottom:10px;display:block}
+
+/* ── FUNNEL ── */
+.funnel-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.funnel-lbl{width:120px;font-size:12px;color:var(--text2);text-align:right;flex-shrink:0}
+.funnel-track{flex:1;height:26px;background:var(--gray);border-radius:4px;overflow:hidden}
+.funnel-fill{height:100%;display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;border-radius:4px}
+
+/* ── TIMELINE ── */
+.tl-item{display:flex;gap:12px;margin-bottom:12px}
+.tl-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.tl-body{flex:1}
+.tl-title{font-size:12px;font-weight:500;color:var(--text)}
+.tl-date{font-size:10px;color:var(--text3)}
+
+/* ── SUPABASE STATUS ── */
+.db-status{display:flex;align-items:center;gap:5px;font-size:11px}
+.db-dot{width:7px;height:7px;border-radius:50%}
+.db-dot.ok{background:#3B8A0E}
+.db-dot.err{background:var(--red)}
+.db-dot.pending{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .metric-grid{grid-template-columns:1fr 1fr}
+  .two-col,.three-col{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .metric-grid{grid-template-columns:1fr 1fr}
+  .main{margin-left:0}
+  .sidebar{transform:translateX(-100%)}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <div class="sb-icon"><i class="fa-solid fa-bolt"></i></div>
+      <div>
+        <div class="sb-name">DOBLASER</div>
+        <div class="sb-tag">Doblamos tu productividad</div>
+      </div>
+    </div>
+  </div>
+  <nav>
+    <div class="sb-section">
+      <div class="sb-label">Principal</div>
+      <div class="nav-item active" onclick="goPage('dashboard',this)"><i class="fa-solid fa-chart-line"></i> Dashboard</div>
+      <div class="nav-item" onclick="goPage('ventas',this)"><i class="fa-solid fa-receipt"></i> Registro de ventas</div>
+      <div class="nav-item" onclick="goPage('rop',this)"><i class="fa-solid fa-list-check"></i> ROP — Producción</div>
+      <div class="nav-item" onclick="goPage('cotizacion',this)"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</div>
+      <div class="nav-item" onclick="goPage('leads',this)"><i class="fa-solid fa-users"></i> Leads / Clientes</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Análisis</div>
+      <div class="nav-item" onclick="goPage('metricas',this)"><i class="fa-solid fa-chart-bar"></i> Métricas</div>
+    </div>
+  </nav>
+  <div class="sb-footer">
+    <div class="db-status" id="db-status">
+      <div class="db-dot pending" id="db-dot"></div>
+      <span id="db-label">Conectando...</span>
+    </div>
+    <div class="sb-version" style="margin-top:6px">CRM v1.0 · 2026</div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+<!-- ── DASHBOARD ── -->
+<div class="page active" id="page-dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Dashboard</div>
+      <div class="topbar-sub" id="dash-date"></div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="loadAll()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+    </div>
+  </div>
+  <div style="padding:24px">
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Ventas totales 2026</div>
+        <div class="metric-val" id="dash-total">—</div>
+        <div class="metric-change up" id="dash-nventas">— ventas</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Comisiones acumuladas</div>
+        <div class="metric-val" id="dash-comision">—</div>
+        <div class="metric-change">Tasa 2% sobre ventas</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Ticket promedio</div>
+        <div class="metric-val" id="dash-ticket">—</div>
+        <div class="metric-change">COP por venta</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Órdenes activas (ROP)</div>
+        <div class="metric-val" id="dash-rop">—</div>
+        <div class="metric-change up" id="dash-rop2">Sin procesar + En proceso</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Últimas ventas</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Cotización</th><th>Valor</th><th>Estado</th></tr></thead>
+            <tbody id="dash-ventas-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Actividad reciente · ROP</div>
+        <div id="dash-rop-timeline"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:10px">
+          <div style="flex:1;text-align:center;background:var(--green-light);border-radius:8px;padding:10px">
+            <div style="font-size:20px;font-weight:700;color:var(--green)" id="stat-proc">—</div>
+            <div style="font-size:10px;color:var(--green);font-weight:600">Procesados</div>
+          </div>
+          <div style="flex:1;text-align:center;background:var(--blue-light);border-radius:8px;padding:10px">
+            <div style="font-size:20px;font-weight:700;color:var(--navy)" id="stat-en">—</div>
+            <div style="font-size:10px;color:var(--navy);font-weight:600">En proceso</div>
+          </div>
+          <div style="flex:1;text-align:center;background:var(--amber-light);border-radius:8px;padding:10px">
+            <div style="font-size:20px;font-weight:700;color:var(--amber)" id="stat-sin">—</div>
+            <div style="font-size:10px;color:var(--amber);font-weight:600">Sin procesar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── VENTAS ── -->
+<div class="page" id="page-ventas">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Registro de ventas</div>
+      <div class="topbar-sub" id="ventas-sub">Cargando...</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-venta')"><i class="fa-solid fa-plus"></i> Nueva venta</button>
+    </div>
+  </div>
+  <div style="padding:24px">
+    <div class="search-bar">
+      <input class="search-input" id="search-ventas" placeholder="Buscar cliente, cotización, estado..." oninput="filterVentas()"/>
+      <select class="filter-select" id="filter-estado-ventas" onchange="filterVentas()">
+        <option value="">Todos los estados</option>
+        <option>Facturado</option><option>Entregado</option><option>En producción</option>
+      </select>
+      <select class="filter-select" id="filter-mes-ventas" onchange="filterVentas()">
+        <option value="">Todos los meses</option>
+        <option value="03">Marzo</option><option value="04">Abril</option>
+        <option value="05">Mayo</option><option value="06">Junio</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Fecha</th><th>Cliente</th><th>Cotización</th>
+            <th class="right" style="text-align:right">Valor COP</th>
+            <th class="right" style="text-align:right">Comisión 2%</th>
+            <th>F. Entrega</th><th>Estado</th><th>Notas</th><th></th>
+          </tr></thead>
+          <tbody id="ventas-tbody"></tbody>
+        </table>
+      </div>
+      <div id="ventas-empty" class="empty-state" style="display:none"><i class="fa-solid fa-receipt"></i>No se encontraron ventas</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ROP ── -->
+<div class="page" id="page-rop">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">ROP — Registro de órdenes de producción</div>
+      <div class="topbar-sub" id="rop-sub">Cargando...</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-rop')"><i class="fa-solid fa-plus"></i> Nueva orden</button>
+    </div>
+  </div>
+  <div style="padding:24px">
+    <div class="search-bar">
+      <input class="search-input" id="search-rop" placeholder="Buscar cliente, cotización, asesor, material..." oninput="filterROP()"/>
+      <select class="filter-select" id="filter-estado-rop" onchange="filterROP()">
+        <option value="">Todos los estados</option>
+        <option>Sin procesar</option><option>En proceso</option>
+        <option>Programado</option><option>Procesado</option>
+      </select>
+      <select class="filter-select" id="filter-asesor-rop" onchange="filterROP()">
+        <option value="">Todos los asesores</option>
+        <option>Daniel</option><option>Susana</option><option>Hugo</option><option>Esteban</option>
+      </select>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="rop-tag rop-sin">⬜ Sin procesar</span>
+        <span class="rop-tag rop-en">🔵 En proceso</span>
+        <span class="rop-tag rop-prog">🟡 Programado</span>
+        <span class="rop-tag rop-proc">🟢 Procesado</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Aprobación</th><th>Cliente</th><th>Cotización / OC</th>
+            <th>Material / Suministro</th><th>Asesor</th>
+            <th>Entrega aprox.</th><th>Estado</th><th>Observaciones</th><th></th>
+          </tr></thead>
+          <tbody id="rop-tbody"></tbody>
+        </table>
+      </div>
+      <div id="rop-empty" class="empty-state" style="display:none"><i class="fa-solid fa-list-check"></i>No se encontraron órdenes</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── COTIZACIONES ── -->
+<div class="page" id="page-cotizacion">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Nueva cotización</div>
+      <div class="topbar-sub">Formato oficial Doblaser · DB-XXXX · IVA 19%</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="limpiarCot()"><i class="fa-solid fa-broom"></i> Limpiar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCot()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+      <button class="btn btn-green btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimir / PDF</button>
+    </div>
+  </div>
+  <div style="padding:24px">
+    <div class="cot-header-band">
+      <div class="cot-brand">
+        <div class="cot-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div>
+          <div class="cot-brand-name">DOBLASER S.A.S.</div>
+          <div style="color:rgba(255,255,255,0.55);font-size:11px">NIT · La Estrella, Antioquia</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="cot-num-badge" id="cot-num-display">DB-1788</div>
+        <div style="color:rgba(255,255,255,0.5);font-size:10px;margin-top:4px">Fecha: <span id="cot-hoy"></span></div>
+      </div>
+    </div>
+    <div class="cot-body">
+      <div class="cot-meta-grid">
+        <div>
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">N° Cotización</span>
+            <input class="form-input" id="cot-num" value="DB-1788" oninput="document.getElementById('cot-num-display').textContent=this.value" style="font-size:12px;padding:5px 8px"/>
+          </div>
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">Empresa</span>
+            <input class="form-input" id="cot-empresa" placeholder="Nombre del cliente..." style="font-size:12px;padding:5px 8px"/>
+          </div>
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">Contacto</span>
+            <input class="form-input" id="cot-contacto" placeholder="Nombre del contacto..." style="font-size:12px;padding:5px 8px"/>
+          </div>
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">E-mail</span>
+            <input class="form-input" id="cot-email" type="email" placeholder="correo@empresa.com" style="font-size:12px;padding:5px 8px"/>
+          </div>
+        </div>
+        <div style="padding-left:16px">
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">Fecha generación</span>
+            <span style="font-size:12px;color:var(--text2)" id="cot-fecha-gen"></span>
+          </div>
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">Asesor</span>
+            <select class="form-select" id="cot-asesor" style="font-size:12px;padding:5px 8px">
+              <option>Daniel</option><option>Susana</option><option>Hugo</option><option>Esteban</option>
+            </select>
+          </div>
+          <div class="cot-meta-row">
+            <span class="cot-meta-lbl">Estado</span>
+            <select class="form-select" id="cot-estado-sel" style="font-size:12px;padding:5px 8px">
+              <option>Borrador</option><option>Enviada</option><option>Aprobada</option><option>Rechazada</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="cot-greeting">Respetado(a) señor(a) — Gracias por confiar en nosotros. Adjunto envío oferta económica para la prestación del servicio solicitado.</div>
+      <table class="cot-items-table">
+        <thead>
+          <tr>
+            <th style="width:28px">#</th>
+            <th style="min-width:110px">Proceso</th>
+            <th>Descripción</th>
+            <th class="right" style="width:65px">Cant.</th>
+            <th class="right" style="width:110px">Valor unit.</th>
+            <th class="right" style="width:115px">Valor total</th>
+          </tr>
+        </thead>
+        <tbody id="cot-items-tbody"></tbody>
+      </table>
+      <div class="cot-totals">
+        <div style="margin-bottom:10px">
+          <div class="form-label" style="font-size:11px">Observaciones</div>
+          <textarea class="form-textarea" id="cot-obs" rows="2" placeholder="Notas adicionales para el cliente..." style="font-size:12px"></textarea>
+        </div>
+        <div class="cot-total-row">
+          <span class="cot-total-lbl">Total antes de IVA</span>
+          <span class="cot-total-val" id="cot-subtotal">$ 0</span>
+        </div>
+        <div class="cot-total-row">
+          <span class="cot-total-lbl">IVA 19%</span>
+          <span class="cot-total-val" id="cot-iva">$ 0</span>
+        </div>
+        <div class="cot-total-row cot-total-grand">
+          <span class="cot-total-lbl">Valor total</span>
+          <span class="cot-total-val" id="cot-total">$ 0</span>
+        </div>
+      </div>
+      <div class="cot-conditions">
+        <div class="cot-cond-row"><span class="cot-cond-lbl">Forma de pago</span><span class="cot-cond-val">100% Contraentrega — Bancolombia cuenta de ahorros 00700008291</span></div>
+        <div class="cot-cond-row"><span class="cot-cond-lbl">Tiempo de entrega</span><span class="cot-cond-val">7 días hábiles después de aprobada la cotización</span></div>
+        <div class="cot-cond-row"><span class="cot-cond-lbl">Transporte</span><span class="cot-cond-val">No incluye (el cliente recoge en instalaciones). En caso de requerirlo tiene un costo adicional.</span></div>
+        <div class="cot-cond-row"><span class="cot-cond-lbl">Validez de la oferta</span><span class="cot-cond-val">15 días. Luego sujeto a cambios de mercado, se requiere recotización entre las partes.</span></div>
+      </div>
+      <div class="cot-notes">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px">Notas</div>
+        <div class="cot-note">Los precios aplican para las características indicadas en la cotización.</div>
+        <div class="cot-note">Los precios estarán sujetos a cambios según el stock en el mercado al momento de enviar la cotización.</div>
+        <div class="cot-note">Tenga en cuenta que el material puede tener reacciones al momento del corte; si tiene inquietudes por favor consulte con su asesor.</div>
+        <div class="cot-note">En caso de garantía por favor consultar con el asesor.</div>
+        <div class="cot-note">En caso de que los clientes suministren los materiales, después de 15 días, si la cotización no ha sido autorizada para procesar el material, se incurren en gastos de bodegaje.</div>
+        <div class="cot-note">Para entrega del material tener presente estar al día en cartera.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── LEADS ── -->
+<div class="page" id="page-leads">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Leads y clientes</div>
+      <div class="topbar-sub" id="leads-sub">Cargando...</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-lead')"><i class="fa-solid fa-plus"></i> Nuevo lead</button>
+    </div>
+  </div>
+  <div style="padding:24px">
+    <div class="search-bar">
+      <input class="search-input" id="search-leads" placeholder="Buscar empresa, municipio, sector..." oninput="filterLeads()"/>
+      <select class="filter-select" id="filter-cal" onchange="filterLeads()">
+        <option value="">Todas las calificaciones</option>
+        <option>Caliente</option><option>Tibio</option><option>Frio</option><option>NR</option>
+      </select>
+      <select class="filter-select" id="filter-estado-lead" onchange="filterLeads()">
+        <option value="">Todos los estados</option>
+        <option>Por contactar</option><option>Contactado</option>
+        <option>En negociación</option><option>Ganado</option><option>Descartado</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Empresa</th><th>Municipio</th><th>Teléfono</th><th>WhatsApp</th>
+            <th>Sector</th><th>Calificación</th><th>Estado</th><th>Asesor</th><th>Notas</th><th></th>
+          </tr></thead>
+          <tbody id="leads-tbody"></tbody>
+        </table>
+      </div>
+      <div id="leads-empty" class="empty-state" style="display:none"><i class="fa-solid fa-users"></i>No se encontraron leads</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MÉTRICAS ── -->
+<div class="page" id="page-metricas">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Métricas de ventas</div>
+      <div class="topbar-sub">Datos reales Doblaser S.A.S · 2026</div>
+    </div>
+  </div>
+  <div style="padding:24px">
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Mejor venta</div>
+        <div class="metric-val" id="met-mejor">—</div>
+        <div class="metric-change" id="met-mejor-cli">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Ventas facturadas</div>
+        <div class="metric-val" id="met-fact">—</div>
+        <div class="metric-change">Estado: Facturado</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mejor mes</div>
+        <div class="metric-val" id="met-mes">—</div>
+        <div class="metric-change up">Mayor volumen de ventas</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Leads calientes</div>
+        <div class="metric-val" id="met-hot">—</div>
+        <div class="metric-change">Listos para contactar</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Ventas mensuales COP</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="chart-meses" role="img" aria-label="Ventas mensuales Doblaser 2026"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top clientes por ventas</div>
+        <div id="met-top-clients" style="margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Distribución de leads</div>
+        <div class="chart-wrap" style="height:180px"><canvas id="chart-leads" role="img" aria-label="Leads por calificación"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ROP por estado</div>
+        <div id="met-rop-bars" style="margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+<div class="modal-overlay" id="modal-venta">
+  <div class="modal">
+    <div class="modal-title">Nueva venta <button class="modal-close" onclick="closeModal('modal-venta')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">N° (automático)</label><input class="form-input" id="v-n" type="number" placeholder="29"/></div>
+      <div class="form-group"><label class="form-label">Fecha de venta</label><input class="form-input" id="v-fecha" type="date"/></div>
+      <div class="form-group"><label class="form-label">Cliente *</label><input class="form-input" id="v-cliente" placeholder="Nombre del cliente"/></div>
+      <div class="form-group"><label class="form-label">N° Cotización / OC *</label><input class="form-input" id="v-cot" placeholder="DB 1789"/></div>
+      <div class="form-group"><label class="form-label">Valor de la venta COP *</label><input class="form-input" id="v-valor" type="number" placeholder="0"/></div>
+      <div class="form-group"><label class="form-label">Comisión 2% (auto)</label><input class="form-input" id="v-comision" type="number" placeholder="0" readonly style="background:var(--gray)"/></div>
+      <div class="form-group"><label class="form-label">Fecha de entrega</label><input class="form-input" id="v-fentrega" type="date"/></div>
+      <div class="form-group"><label class="form-label">Estado</label>
+        <select class="form-select" id="v-estado">
+          <option>Facturado</option><option>Entregado</option><option>En producción</option><option>Pendiente</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-textarea" id="v-notas" placeholder="Observaciones adicionales..."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVenta()"><i class="fa-solid fa-floppy-disk"></i> Guardar venta</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-rop">
+  <div class="modal">
+    <div class="modal-title">Nueva orden de producción <button class="modal-close" onclick="closeModal('modal-rop')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Fecha aprobación</label><input class="form-input" id="r-fecha" type="date"/></div>
+      <div class="form-group"><label class="form-label">Cliente *</label><input class="form-input" id="r-cliente" placeholder="Nombre del cliente"/></div>
+      <div class="form-group"><label class="form-label">N° Cotización / OC</label><input class="form-input" id="r-cot" placeholder="DB 1789 / OC 001"/></div>
+      <div class="form-group"><label class="form-label">Material / Suministro</label><input class="form-input" id="r-mat" placeholder="CLIENTE / DOBLASER"/></div>
+      <div class="form-group"><label class="form-label">Asesor</label>
+        <select class="form-select" id="r-asesor">
+          <option>Daniel</option><option>Susana</option><option>Hugo</option><option>Esteban</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Fecha entrega aprox.</label><input class="form-input" id="r-entrega" placeholder="dd/mm/yyyy o 'lunes 22'"/></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Estado</label>
+        <select class="form-select" id="r-estado">
+          <option>Sin procesar</option><option>En proceso</option><option>Programado</option><option>Procesado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Observaciones / Alertas</label><textarea class="form-textarea" id="r-obs" placeholder="Detalles del material, instrucciones especiales..."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-rop')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveROP()"><i class="fa-solid fa-floppy-disk"></i> Guardar orden</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-lead">
+  <div class="modal">
+    <div class="modal-title">Nuevo lead <button class="modal-close" onclick="closeModal('modal-lead')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Empresa *</label><input class="form-input" id="l-emp" placeholder="Nombre de la empresa"/></div>
+      <div class="form-group"><label class="form-label">Municipio</label><input class="form-input" id="l-mun" placeholder="Medellín (Guayabal)"/></div>
+      <div class="form-group"><label class="form-label">Teléfono</label><input class="form-input" id="l-tel" placeholder="+57 300 0000000"/></div>
+      <div class="form-group"><label class="form-label">WhatsApp</label>
+        <select class="form-select" id="l-wa"><option>Si</option><option>No</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Sector / Actividad</label><input class="form-input" id="l-sec" placeholder="Metalmecanica general"/></div>
+      <div class="form-group"><label class="form-label">Calificación</label>
+        <select class="form-select" id="l-cal"><option>Caliente</option><option>Tibio</option><option>Frio</option><option>NR</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Estado</label>
+        <select class="form-select" id="l-est">
+          <option>Por contactar</option><option>Contactado</option><option>En negociación</option><option>Ganado</option><option>Descartado</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Asesor</label>
+        <select class="form-select" id="l-asesor">
+          <option value="">Sin asignar</option><option>Daniel</option><option>Susana</option><option>Hugo</option><option>Esteban</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-textarea" id="l-notas" placeholder="Observaciones, referidos, contexto..."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeModal('modal-lead')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveLead()"><i class="fa-solid fa-floppy-disk"></i> Guardar lead</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-rop">
+  <div class="modal">
+    <div class="modal-title">Editar estado ROP <button class="modal-close" onclick="closeModal('modal-edit-rop')">✕</button></div>
+    <input type="hidden" id="edit-rop-id"/>
+    <div class="form-group"><label class="form-label">Cambiar estado</label>
+      <select class="form-select" id="edit-rop-estado">
+        <option>Sin procesar</option><option>En proceso</option><option>Programado</option><option>Procesado</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Observaciones</label>
+      <textarea class="form-textarea" id="edit-rop-obs"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-danger btn-sm" onclick="deleteROP()"><i class="fa-solid fa-trash"></i> Eliminar</button>
+      <button class="btn" onclick="closeModal('modal-edit-rop')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateROP()"><i class="fa-solid fa-floppy-disk"></i> Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-venta">
+  <div class="modal">
+    <div class="modal-title">Editar venta <button class="modal-close" onclick="closeModal('modal-edit-venta')">✕</button></div>
+    <input type="hidden" id="edit-v-id"/>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Estado</label>
+        <select class="form-select" id="edit-v-estado">
+          <option>Facturado</option><option>Entregado</option><option>En producción</option><option>Pendiente</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Notas</label><input class="form-input" id="edit-v-notas"/></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-danger btn-sm" onclick="deleteVenta()"><i class="fa-solid fa-trash"></i> Eliminar</button>
+      <button class="btn" onclick="closeModal('modal-edit-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateVenta()"><i class="fa-solid fa-floppy-disk"></i> Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIGURACIÓN SUPABASE — REEMPLAZA ESTOS DOS VALORES
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://agyddfzmvfaonjqrwozb.supabase.co';
+const SUPABASE_KEY = 'process.env.SUPABASE_KEY';
+// ══════════════════════════════════════════════════════
+
+const { createClient } = supabase;
+let db = null;
+let useLocal = false; // fallback a datos locales si no hay Supabase
+
+// ── DATOS SEMILLA (tus datos reales de los Excel) ──
+const SEED_VENTAS = [{"n":1,"fecha":"2026-04-14","cliente":"LAVANDERÍA ILUNION","cotizacion":"DB 1665","valor":1020237,"comision":20404.74,"fechaEntrega":"2026-04-23","estado":"Facturado","notas":""},{"n":2,"fecha":"2026-03-20","cliente":"MONTAJES METALMECANICOS","cotizacion":"DB 1667","valor":945000,"comision":18900,"fechaEntrega":"2026-03-20","estado":"Facturado","notas":""},{"n":3,"fecha":"2026-04-06","cliente":"SAUL ROJAS","cotizacion":"DB 1676","valor":141721,"comision":2834.42,"fechaEntrega":"2026-04-06","estado":"Facturado","notas":""},{"n":4,"fecha":"2026-04-14","cliente":"MONTAJES METALMECANICOS","cotizacion":"DB 1688","valor":1125000,"comision":22500,"fechaEntrega":"2026-04-14","estado":"Facturado","notas":""},{"n":5,"fecha":"2026-04-20","cliente":"ALEXIS","cotizacion":"DB 1695","valor":342059,"comision":6841.18,"fechaEntrega":"2026-04-20","estado":"Facturado","notas":""},{"n":6,"fecha":"2026-04-23","cliente":"IVAN BAUTISTA","cotizacion":"DB 1696","valor":162059,"comision":3241.18,"fechaEntrega":"2026-04-23","estado":"Entregado","notas":"PAGO SIN IVA"},{"n":7,"fecha":"2026-04-16","cliente":"JOHN RODRIGUEZ","cotizacion":"DB 1699","valor":341370,"comision":6827.4,"fechaEntrega":"2026-04-16","estado":"Entregado","notas":"PAGO SIN IVA"},{"n":8,"fecha":"2026-04-29","cliente":"FUNDEALEAMOS","cotizacion":"DB 1706","valor":121824,"comision":2436.48,"fechaEntrega":"2026-04-29","estado":"Facturado","notas":""},{"n":9,"fecha":"2026-05-15","cliente":"3S INGENIERÍA ESPECIALIZADA","cotizacion":"DB 1689","valor":5053167,"comision":101063.34,"fechaEntrega":"2026-06-02","estado":"Facturado","notas":""},{"n":10,"fecha":"2026-05-06","cliente":"FUNDEALEAMOS","cotizacion":"DB 1710","valor":1080000,"comision":21600,"fechaEntrega":"2026-05-06","estado":"Facturado","notas":""},{"n":11,"fecha":"2026-05-06","cliente":"ALEXIS","cotizacion":"DB 1713","valor":277592,"comision":5551.84,"fechaEntrega":"2026-05-06","estado":"Facturado","notas":""},{"n":12,"fecha":"2026-05-25","cliente":"ALEXIS","cotizacion":"DB 1745","valor":433812,"comision":8676.24,"fechaEntrega":"2026-05-25","estado":"Facturado","notas":""},{"n":13,"fecha":"2026-05-11","cliente":"YEISON VELOSA","cotizacion":"DB 1714","valor":257646,"comision":5152.92,"fechaEntrega":"2026-05-11","estado":"Facturado","notas":""},{"n":14,"fecha":"2026-05-06","cliente":"3S INGENIERÍA ESPECIALIZADA","cotizacion":"DB 1715","valor":545500,"comision":10910,"fechaEntrega":"2026-05-06","estado":"Facturado","notas":""},{"n":15,"fecha":"2026-05-20","cliente":"PLUS CONTROL INGENIERÍA","cotizacion":"DB 1738","valor":774902,"comision":15498.04,"fechaEntrega":"2026-05-20","estado":"Facturado","notas":""},{"n":16,"fecha":"2026-05-12","cliente":"IVAN BAUTISTA","cotizacion":"DB 1726","valor":121554,"comision":2431.08,"fechaEntrega":"2026-05-12","estado":"Facturado","notas":""},{"n":17,"fecha":"2026-05-25","cliente":"IVAN BAUTISTA","cotizacion":"DB 1744","valor":162072,"comision":3241.44,"fechaEntrega":"2026-05-25","estado":"Facturado","notas":""},{"n":18,"fecha":"2026-05-11","cliente":"MAPER","cotizacion":"DB 1722","valor":233647,"comision":4672.94,"fechaEntrega":"2026-05-11","estado":"Facturado","notas":""},{"n":19,"fecha":"2026-05-11","cliente":"MAPER","cotizacion":"DB 1720","valor":952146,"comision":19042.92,"fechaEntrega":"2026-05-11","estado":"Facturado","notas":""},{"n":20,"fecha":"2026-05-29","cliente":"EDIXON INCARTE","cotizacion":"DB 1751","valor":381475,"comision":7629.5,"fechaEntrega":"2026-06-18","estado":"Facturado","notas":""},{"n":21,"fecha":"2026-05-02","cliente":"ILUNION","cotizacion":"DB 1747","valor":323333,"comision":6466.66,"fechaEntrega":"2026-06-16","estado":"Entregado","notas":"en espera"},{"n":22,"fecha":"2026-06-01","cliente":"INTEGRAZIONI","cotizacion":"DB 1747","valor":645235,"comision":12904.7,"fechaEntrega":"2026-06-17","estado":"Entregado","notas":"PAGADO"},{"n":23,"fecha":"2026-06-01","cliente":"INTEGRAZIONI","cotizacion":"DB 1753","valor":303127,"comision":6062.54,"fechaEntrega":"2026-06-18","estado":"Entregado","notas":"SIN PAGAR"},{"n":24,"fecha":"2026-06-16","cliente":"IVAN BAUTISTA","cotizacion":"DB 1776","valor":202590,"comision":4051.8,"fechaEntrega":"2026-06-18","estado":"En producción","notas":"SIN PAGAR"},{"n":25,"fecha":"2026-06-01","cliente":"ABDUL KHALIL","cotizacion":"OC 001","valor":2162000,"comision":43240,"fechaEntrega":"2026-06-09","estado":"Facturado","notas":""},{"n":26,"fecha":"2026-06-09","cliente":"ABDUL KHALIL","cotizacion":"OC 002","valor":2700000,"comision":54000,"fechaEntrega":"2026-06-11","estado":"Facturado","notas":""},{"n":27,"fecha":"2026-06-12","cliente":"LUIS RENDON","cotizacion":"COT 1773","valor":190000,"comision":3800,"fechaEntrega":"2026-06-12","estado":"Entregado","notas":"PAGO SIN IVA"},{"n":28,"fecha":"2026-05-28","cliente":"EDGAR CUERVO","cotizacion":"DB 1752","valor":120000,"comision":2400,"fechaEntrega":"2026-05-28","estado":"Entregado","notas":"PAGO SIN IVA"},{"n":29,"fecha":"","cliente":"ABDUL KHALIL","cotizacion":"OC 003","valor":2700000,"comision":54000,"fechaEntrega":"","estado":"En producción","notas":"A LA ESPERA"}];
+
+const SEED_LEADS = [{"empresa":"Industrias Famec S.A.S","municipio":"Medellin (Guayabal)","telefono":"+57 305 2248970","whatsapp":"Si","sector":"Mecanizado y diseno industrial","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"IMRECOL","municipio":"Medellin (Guayabal)","telefono":"+57 300 4406699","whatsapp":"Si","sector":"Contratista industrial / metalmecanica","calificacion":"NR","estado":"Descartado","asesor":"Daniel","notas":"Dejó en visto el mensaje."},{"empresa":"METALMECANICA INDUPAT","municipio":"Medellin (Castilla)","telefono":"+57 604 3627495","whatsapp":"No","sector":"Metalmecanica general","calificacion":"NR","estado":"Descartado","asesor":"","notas":""},{"empresa":"Metalmecanica y Control","municipio":"Medellin (Guayabal)","telefono":"+57 4444213","whatsapp":"No","sector":"Metalmecanica y control industrial","calificacion":"Frio","estado":"Por contactar","asesor":"","notas":"Telefono fijo, verificar numero de celular"},{"empresa":"Aserin SAS","municipio":"Medellin (Laureles)","telefono":"+57 604 4482043","whatsapp":"No","sector":"Suministro de materiales y estructuras","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Mebum SAS","municipio":"Medellin (Castilla)","telefono":"+57 316 8319354","whatsapp":"Si","sector":"Mecanizado de piezas complejas / ingenieria","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Indenox SAS","municipio":"Medellin (Guayabal)","telefono":"+57 301 4578294","whatsapp":"Si","sector":"Corte laser, diseno y estructuras metalicas","calificacion":"Frio","estado":"Descartado","asesor":"Daniel","notas":"Son competencia"},{"empresa":"Ideas Metalmecanicas","municipio":"Medellin (Guayabal)","telefono":"+57 311 7459824","whatsapp":"Si","sector":"Metalmecanica general","calificacion":"NR","estado":"Descartado","asesor":"Daniel","notas":"Número equivocado"},{"empresa":"Concivilaceros SAS","municipio":"Medellin (Guayabal)","telefono":"Sin telefono","whatsapp":"No","sector":"Construccion en acero","calificacion":"Frio","estado":"Por contactar","asesor":"","notas":"Sin telefono publico, buscar contacto adicional"},{"empresa":"Corte y Doblez Metalmecanica","municipio":"Medellin (Belen)","telefono":"+57 301 4001151","whatsapp":"Si","sector":"Corte y doblez, escaleras industriales","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Metalmecanica Lualpe SAS","municipio":"Itagui","telefono":"+57 604 4449761","whatsapp":"No","sector":"Metalmecanica general","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Metalmecanica Jerry","municipio":"Itagui (Santa Maria II)","telefono":"+57 313 6458552","whatsapp":"Si","sector":"Metalmecanica general","calificacion":"Tibio","estado":"Contactado","asesor":"Daniel","notas":"Terceriza y tiene proveedor"},{"empresa":"Leguz SAS Itagui","municipio":"Itagui (Germania)","telefono":"+57 604 5203600","whatsapp":"No","sector":"Ornamentacion industrial, doblez de tubos","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Su propio negocio es doblez/corte - cliente potencial"},{"empresa":"Demetalicos Metal Shelving","municipio":"Itagui","telefono":"+57 317 6398112","whatsapp":"Si","sector":"Estanteria y mobiliario metalico","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Metalicos Jotavel","municipio":"Itagui (Samaria)","telefono":"+57 4480988","whatsapp":"No","sector":"Diseno y fabricacion de mobiliario metalico","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":"Buenas resenas de innovacion"},{"empresa":"JPV Industrias Metalicas SAS","municipio":"Itagui","telefono":"+57 318 6147524","whatsapp":"Si","sector":"Industria metalica general","calificacion":"Tibio","estado":"Contactado","asesor":"Daniel","notas":"Le interesa tener informacion de nuestros servicios"},{"empresa":"Impomin Planta Metalmecanica","municipio":"Itagui","telefono":"+57 314 6403931","whatsapp":"Si","sector":"Planta metalmecanica","calificacion":"Tibio","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Industria Metalurgica Saycar","municipio":"Itagui","telefono":"+57 604 2779347","whatsapp":"No","sector":"Repuestos para maquinaria industrial","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":"Cliente recurrente de mecanizado"},{"empresa":"Metaloide S.A.S.","municipio":"Copacabana","telefono":"+57 313 6452966","whatsapp":"Si","sector":"Fabricacion metalica, diseno de producto","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Construcciones Edinyer","municipio":"Bello","telefono":"+57 300 4958371","whatsapp":"Si","sector":"Estructuras metalicas / construccion","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Metalicas Valentin","municipio":"Bello (Panamericano)","telefono":"+57 300 6827645","whatsapp":"Si","sector":"Fabricacion metalica","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Totalmontajes S.A.S","municipio":"Bello (Ciudad Niquia)","telefono":"+57 604 4446806","whatsapp":"No","sector":"Montajes industriales","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"METALESCO","municipio":"Copacabana","telefono":"+57 310 3733161","whatsapp":"Si","sector":"Fabricacion metalica","calificacion":"NR","estado":"Contactado","asesor":"Daniel","notas":""},{"empresa":"Amperio Ingenieria","municipio":"Bello (Florencia)","telefono":"+57 350 4075380","whatsapp":"Si","sector":"Ingenieria electromecanica, puentes grua","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Tubos y Laminas S.A.","municipio":"Bello (La Gabriela)","telefono":"+57 604 3229709","whatsapp":"No","sector":"Distribucion de tubos, laminas y hierro","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Proveedor - posible canal de referidos"},{"empresa":"Metalicas Gonzalez","municipio":"Copacabana","telefono":"+57 315 5843923","whatsapp":"Si","sector":"Equipos en acero inoxidable sector alimentos","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Createch","municipio":"Bello (Estacion Primera)","telefono":"+57 604 5577418","whatsapp":"No","sector":"Ingenieria, diseno y desarrollo maquinaria","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":"Empresa de ingenieria para grandes industrias"},{"empresa":"SF Techos y Estructuras Metalicas","municipio":"Medellin (Aranjuez)","telefono":"+57 310 6031476","whatsapp":"Si","sector":"Techos y estructuras metalicas","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Fabricacion Estructuras Metalicas Aranjuez","municipio":"Medellin (Aranjuez)","telefono":"+57 319 2235524","whatsapp":"Si","sector":"Estructuras metalicas","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Metalicas y Construcciones CR","municipio":"Medellin (Aranjuez)","telefono":"+57 301 4071893","whatsapp":"Si","sector":"Construccion metalica","calificacion":"Frio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Metalicas La Esperanza","municipio":"Medellin (La Candelaria)","telefono":"+57 313 7081910","whatsapp":"Si","sector":"Estructuras metalicas, mayorista","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Estruduque SAS","municipio":"Medellin (La America)","telefono":"+57 320 8099505","whatsapp":"Si","sector":"Estructuras metalicas","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Estructuras Metalicas Itagui","municipio":"Itagui","telefono":"+57 300 2650077","whatsapp":"Si","sector":"Techos, fachadas, puertas, rejas, escaleras","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Estrumontajes Estructuras Metalicas","municipio":"Medellin (Belen)","telefono":"+57 321 5045931","whatsapp":"Si","sector":"Estructuras metalicas","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Ferroverso SAS","municipio":"Medellin (Laureles)","telefono":"+57 301 5056460","whatsapp":"Si","sector":"Pergolas y estructuras metalicas/madera","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Carlobi Cerrajeria Industrial","municipio":"Medellin (La Candelaria)","telefono":"+57 316 6910043","whatsapp":"Si","sector":"Cortinas y rejas enrollables metalicas","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":""},{"empresa":"STEELMETAL","municipio":"Medellin (Guayabal)","telefono":"+57 300 7208537","whatsapp":"Si","sector":"Mobiliario metalico","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Muebles Metalicos Metal Royal","municipio":"Itagui (Vegas del Parque)","telefono":"+57 4481727","whatsapp":"No","sector":"Mobiliario metalico","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Modulares y Estanterias Garces","municipio":"Medellin (Guayabal)","telefono":"+57 604 5576183","whatsapp":"No","sector":"Estanterias y modulares metalicos","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Metal Industries Two Thousand","municipio":"Itagui","telefono":"+57 4487050","whatsapp":"No","sector":"Mobiliario y estanteria metalica industrial","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Empresa consolidada, excelente reputacion"},{"empresa":"Metal Shelves Medellin","municipio":"Medellin (Belen)","telefono":"+57 318 2062262","whatsapp":"Si","sector":"Estanteria metalica, modelo inclusion social","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Ferroindustrial S.A","municipio":"Itagui","telefono":"+57 604 4449900","whatsapp":"No","sector":"Distribucion de acero, aluminio, lamina","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Proveedor materia prima - posible aliado"},{"empresa":"Tapas y Tanques SAS","municipio":"Medellin (La Candelaria)","telefono":"+57 604 4797326","whatsapp":"No","sector":"Fabricacion de tapas y tanques metalicos","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Multinox SAS","municipio":"Medellin (Aranjuez)","telefono":"+57 604 4441521","whatsapp":"No","sector":"Acero inoxidable","calificacion":"Tibio","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Montajes Soluciones Industriales","municipio":"Medellin (Castilla)","telefono":"+57 300 5359176","whatsapp":"Si","sector":"Montajes industriales, calderas","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":""},{"empresa":"Industria Metalmecanica Antioquena","municipio":"La Estrella","telefono":"+57 604 4481869","whatsapp":"No","sector":"Metalmecanica general","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Misma zona que Doblaser - facilidad logistica"},{"empresa":"Industrias SDT La Estrella","municipio":"La Estrella","telefono":"+57 604 4281520","whatsapp":"No","sector":"Fabricacion tableros y gabinetes electricos","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Requiere lamina con cortes precisos - ubicacion local"},{"empresa":"SAIT","municipio":"Sabaneta","telefono":"+57 604 3010506","whatsapp":"No","sector":"Mecanizado de piezas pesadas, prensas hidraulicas","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Empresa de gran capacidad industrial"},{"empresa":"DIBTEC S.A.S. Sede Caribe","municipio":"Girardota","telefono":"+57 604 4444748","whatsapp":"No","sector":"Transformacion de acero, ingenieria metalmecanica","calificacion":"Caliente","estado":"Por contactar","asesor":"","notas":"Cubre todo el proceso - cliente corporativo"}];
+
+// ── Estado local ──
+let ventas = [], rop = [], leads = [], cotizaciones = [];
+let chartMeses = null, chartLeads = null;
+
+// ── Helpers ──
+const COP = v => new Intl.NumberFormat('es-CO', {style:'currency',currency:'COP',minimumFractionDigits:0,maximumFractionDigits:0}).format(v);
+const short = s => s && s.length > 28 ? s.slice(0,27)+'…' : (s||'');
+
+function toast(msg, ok=true){
+  const d = document.createElement('div');
+  d.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err');
+  d.textContent = msg;
+  document.getElementById('toasts').appendChild(d);
+  setTimeout(() => d.remove(), 3500);
+}
+
+function estadoBadge(est){
+  const m = {
+    'Facturado':'badge-green','Entregado':'badge-navy',
+    'En producción':'badge-blue','Pendiente':'badge-gray',
+    'Sin procesar':'badge-gray','En proceso':'badge-blue',
+    'Programado':'badge-amber','Procesado':'badge-green'
+  };
+  return `<span class="badge ${m[est]||'badge-gray'}">${est||'—'}</span>`;
+}
+
+function calBadge(c){
+  if(c==='Caliente') return '<span class="badge badge-red">Caliente</span>';
+  if(c==='Tibio') return '<span class="badge badge-amber">Tibio</span>';
+  if(c==='Frio') return '<span class="badge badge-blue">Frío</span>';
+  return '<span class="badge badge-gray">NR</span>';
+}
+
+function ropTag(est){
+  const m={'Sin procesar':'rop-sin','En proceso':'rop-en','Programado':'rop-prog','Procesado':'rop-proc'};
+  return `<span class="rop-tag ${m[est]||'rop-sin'}">${est}</span>`;
+}
+
+// ── SUPABASE INIT ──
+async function initDB(){
+  setDBStatus('pending','Conectando...');
+  if(!SUPABASE_URL.includes('supabase.co') || SUPABASE_URL.includes('TU_PROYECTO')){
+    useLocal = true;
+    setDBStatus('err','Modo local (sin Supabase)');
+    ventas = JSON.parse(JSON.stringify(SEED_VENTAS));
+    leads = JSON.parse(JSON.stringify(SEED_LEADS));
+    rop = [];
+    await loadAll();
+    return;
+  }
+  try{
+    db = createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Test connection
+    const {error} = await db.from('ventas').select('n').limit(1);
+    if(error && error.code==='42P01'){
+      // Tables don't exist yet, seed them
+      await seedDB();
+    } else if(error){
+      throw error;
+    }
+    setDBStatus('ok','Conectado · Supabase');
+    await loadAll();
+  } catch(e){
+    useLocal = true;
+    setDBStatus('err','Error BD · Modo local');
+    ventas = JSON.parse(JSON.stringify(SEED_VENTAS));
+    leads = JSON.parse(JSON.stringify(SEED_LEADS));
+    rop = [];
+    await loadAll();
+  }
+}
+
+async function seedDB(){
+  // Insert seed ventas
+  await db.from('ventas').insert(SEED_VENTAS.map(v=>({
+    n:v.n, fecha:v.fecha||null, cliente:v.cliente, cotizacion:v.cotizacion,
+    valor:v.valor, comision:v.comision, fecha_entrega:v.fechaEntrega||null,
+    estado:v.estado, notas:v.notas
+  })));
+  // Insert seed leads
+  await db.from('leads').insert(SEED_LEADS.map(l=>({
+    empresa:l.empresa, municipio:l.municipio, telefono:l.telefono,
+    whatsapp:l.whatsapp, sector:l.sector, calificacion:l.calificacion,
+    estado:l.estado, asesor:l.asesor, notas:l.notas
+  })));
+  setDBStatus('ok','BD inicializada · Supabase');
+}
+
+function setDBStatus(s, msg){
+  const dot = document.getElementById('db-dot');
+  const lbl = document.getElementById('db-label');
+  dot.className = 'db-dot ' + s;
+  lbl.textContent = msg;
+}
+
+// ── LOAD DATA ──
+async function loadAll(){
+  await Promise.all([loadVentas(), loadROP(), loadLeads()]);
+  renderDashboard();
+  renderMetricas();
+}
+
+async function loadVentas(){
+  if(useLocal) return renderVentas();
+  const {data,error} = await db.from('ventas').select('*').order('n',{ascending:true});
+  if(!error) ventas = (data||[]).map(r=>({
+    id:r.id, n:r.n, fecha:r.fecha||'', cliente:r.cliente, cotizacion:r.cotizacion,
+    valor:r.valor, comision:r.comision, fechaEntrega:r.fecha_entrega||'',
+    estado:r.estado, notas:r.notas||''
+  }));
+  renderVentas();
+}
+
+async function loadROP(){
+  if(useLocal){ renderROP(); return; }
+  const {data,error} = await db.from('rop').select('*').order('id',{ascending:false});
+  if(!error) rop = (data||[]).map(r=>({
+    id:r.id, fecha:r.fecha||'', cliente:r.cliente, cotizacion:r.cotizacion||'',
+    material:r.material||'', asesor:r.asesor||'', entrega:r.entrega||'',
+    obs:r.obs||'', estado:r.estado||'Sin procesar', detalle:r.detalle||''
+  }));
+  renderROP();
+}
+
+async function loadLeads(){
+  if(useLocal) return renderLeads();
+  const {data,error} = await db.from('leads').select('*').order('id',{ascending:true});
+  if(!error) leads = (data||[]).map(r=>({
+    id:r.id, empresa:r.empresa, municipio:r.municipio||'', telefono:r.telefono||'',
+    whatsapp:r.whatsapp||'No', sector:r.sector||'', calificacion:r.calificacion||'NR',
+    estado:r.estado||'Por contactar', asesor:r.asesor||'', notas:r.notas||''
+  }));
+  renderLeads();
+}
+
+// ── RENDER: VENTAS ──
+function renderVentas(list){
+  const arr = list !== undefined ? list : ventas;
+  const tb = document.getElementById('ventas-tbody');
+  const em = document.getElementById('ventas-empty');
+  document.getElementById('ventas-sub').textContent = `${ventas.length} ventas · COP ${COP(ventas.reduce((s,v)=>s+v.valor,0))} acumulado`;
+  if(!arr.length){ tb.innerHTML=''; em.style.display=''; return; }
+  em.style.display='none';
+  tb.innerHTML = arr.map(v=>`<tr>
+    <td style="color:var(--text3);font-size:11px">${v.n}</td>
+    <td style="white-space:nowrap;font-size:11px">${v.fecha}</td>
+    <td style="font-weight:500">${v.cliente}</td>
+    <td style="font-size:11px;color:var(--blue)">${v.cotizacion}</td>
+    <td class="td-num" style="font-weight:600">${COP(v.valor)}</td>
+    <td class="td-num" style="font-size:11px;color:var(--text2)">${COP(v.comision)}</td>
+    <td style="font-size:11px;white-space:nowrap">${v.fechaEntrega}</td>
+    <td>${estadoBadge(v.estado)}</td>
+    <td style="font-size:11px;color:var(--text3);max-width:100px">${short(v.notas)}</td>
+    <td><button class="btn btn-sm" onclick="editVenta('${v.id||v.n}')"><i class="fa-solid fa-pen"></i></button></td>
+  </tr>`).join('');
+}
+
+function filterVentas(){
+  const q = document.getElementById('search-ventas').value.toLowerCase();
+  const est = document.getElementById('filter-estado-ventas').value;
+  const mes = document.getElementById('filter-mes-ventas').value;
+  renderVentas(ventas.filter(v=>{
+    const txt = (v.cliente+v.cotizacion+v.estado+v.notas).toLowerCase();
+    return txt.includes(q) && (!est||v.estado===est) && (!mes||v.fecha.includes('-'+mes+'-'));
+  }));
+}
+
+// ── RENDER: ROP ──
+function renderROP(list){
+  const arr = list !== undefined ? list : rop;
+  const tb = document.getElementById('rop-tbody');
+  const em = document.getElementById('rop-empty');
+  const total = rop.length;
+  document.getElementById('rop-sub').textContent = `${total} registros · Dic 2025–Jun 2026`;
+  if(!arr.length){ tb.innerHTML=''; em.style.display=''; return; }
+  em.style.display='none';
+  tb.innerHTML = arr.map(r=>`<tr>
+    <td style="font-size:11px;white-space:nowrap;color:var(--text3)">${r.fecha}</td>
+    <td style="font-weight:500">${r.cliente}</td>
+    <td style="font-size:11px;color:var(--blue)">${r.cotizacion}</td>
+    <td style="font-size:11px;max-width:110px">${short(r.material)}</td>
+    <td style="font-size:11px">${r.asesor}</td>
+    <td style="font-size:11px;max-width:100px">${short(r.entrega)}</td>
+    <td>${ropTag(r.estado)}${r.detalle?`<br><span style="font-size:9px;color:var(--text3)">${short(r.detalle)}</span>`:''}</td>
+    <td style="font-size:11px;color:var(--text3);max-width:160px">${short(r.obs)}</td>
+    <td><button class="btn btn-sm" onclick="editROP('${r.id||''}','${r.estado}','${(r.obs||'').replace(/'/g,'\\')}')"><i class="fa-solid fa-pen"></i></button></td>
+  </tr>`).join('');
+}
+
+function filterROP(){
+  const q = document.getElementById('search-rop').value.toLowerCase();
+  const est = document.getElementById('filter-estado-rop').value;
+  const asesor = document.getElementById('filter-asesor-rop').value;
+  renderROP(rop.filter(r=>{
+    const txt = (r.cliente+r.cotizacion+r.asesor+r.material+r.obs).toLowerCase();
+    return txt.includes(q) && (!est||r.estado===est) && (!asesor||r.asesor.toLowerCase().includes(asesor.toLowerCase()));
+  }));
+}
+
+// ── RENDER: LEADS ──
+function renderLeads(list){
+  const arr = list !== undefined ? list : leads;
+  const tb = document.getElementById('leads-tbody');
+  const em = document.getElementById('leads-empty');
+  document.getElementById('leads-sub').textContent = `${leads.length} empresas · Sector metalmecánico`;
+  if(!arr.length){ tb.innerHTML=''; em.style.display=''; return; }
+  em.style.display='none';
+  tb.innerHTML = arr.map(l=>`<tr>
+    <td style="font-weight:500">${l.empresa}</td>
+    <td style="font-size:11px">${l.municipio}</td>
+    <td style="font-size:11px">${l.telefono}</td>
+    <td style="text-align:center">${l.whatsapp==='Si'?'<span class="badge badge-green">✓ Sí</span>':'<span class="badge badge-gray">No</span>'}</td>
+    <td style="font-size:11px;max-width:130px">${short(l.sector)}</td>
+    <td>${calBadge(l.calificacion)}</td>
+    <td>${estadoBadge(l.estado)}</td>
+    <td style="font-size:11px">${l.asesor}</td>
+    <td style="font-size:11px;color:var(--text3);max-width:120px">${short(l.notas)}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteLead('${l.id||''}','${l.empresa.replace(/'/g,'\\').replace(/"/g,'\\"')}')"><i class="fa-solid fa-trash"></i></button></td>
+  </tr>`).join('');
+}
+
+function filterLeads(){
+  const q = document.getElementById('search-leads').value.toLowerCase();
+  const cal = document.getElementById('filter-cal').value;
+  const est = document.getElementById('filter-estado-lead').value;
+  renderLeads(leads.filter(l=>{
+    const txt = (l.empresa+l.municipio+l.sector+l.notas+l.asesor).toLowerCase();
+    return txt.includes(q) && (!cal||l.calificacion===cal) && (!est||l.estado===est);
+  }));
+}
+
+// ── RENDER: DASHBOARD ──
+function renderDashboard(){
+  const total = ventas.reduce((s,v)=>s+v.valor,0);
+  const com = ventas.reduce((s,v)=>s+v.comision,0);
+  const ticket = ventas.length ? total/ventas.length : 0;
+  const ropActivas = rop.filter(r=>r.estado==='Sin procesar'||r.estado==='En proceso').length;
+  document.getElementById('dash-total').textContent = COP(total);
+  document.getElementById('dash-nventas').textContent = ventas.length + ' ventas registradas';
+  document.getElementById('dash-comision').textContent = COP(com);
+  document.getElementById('dash-ticket').textContent = COP(ticket);
+  document.getElementById('dash-rop').textContent = ropActivas;
+
+  // Stats ROP
+  const proc = rop.filter(r=>r.estado==='Procesado').length;
+  const en = rop.filter(r=>r.estado==='En proceso').length;
+  const sin = rop.filter(r=>r.estado==='Sin procesar').length;
+  document.getElementById('stat-proc').textContent = proc;
+  document.getElementById('stat-en').textContent = en;
+  document.getElementById('stat-sin').textContent = sin;
+
+  // Recent ventas
+  const recVentas = [...ventas].slice(-5).reverse();
+  document.getElementById('dash-ventas-tbody').innerHTML = recVentas.map(v=>`<tr>
+    <td style="font-weight:500;font-size:12px">${short(v.cliente,20)}</td>
+    <td style="font-size:11px;color:var(--blue)">${v.cotizacion}</td>
+    <td class="td-num" style="font-size:12px;font-weight:600">${COP(v.valor)}</td>
+    <td>${estadoBadge(v.estado)}</td>
+  </tr>`).join('');
+
+  // ROP timeline
+  const recROP = [...rop].slice(0,5);
+  document.getElementById('dash-rop-timeline').innerHTML = recROP.length ?
+    recROP.map(r=>`<div class="tl-item">
+      <div class="tl-dot" style="background:${r.estado==='Procesado'?'#3B8A0E':r.estado==='En proceso'?'#1A3F9E':r.estado==='Programado'?'#BA7517':'#9699B0'}"></div>
+      <div class="tl-body">
+        <div class="tl-title">${r.cliente} — ${r.cotizacion||'Sin OC'}</div>
+        <div class="tl-date">${r.fecha} · ${r.asesor} · ${r.estado}</div>
+      </div>
+    </div>`).join('') :
+    '<div style="color:var(--text3);font-size:12px;padding:12px 0">Sin órdenes en ROP aún</div>';
+
+  // Fecha
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+// ── RENDER: MÉTRICAS ──
+function renderMetricas(){
+  if(!ventas.length) return;
+  const mejor = ventas.reduce((a,b)=>b.valor>a.valor?b:a);
+  document.getElementById('met-mejor').textContent = COP(mejor.valor);
+  document.getElementById('met-mejor-cli').textContent = mejor.cliente;
+  const fact = ventas.filter(v=>v.estado==='Facturado').reduce((s,v)=>s+v.valor,0);
+  document.getElementById('met-fact').textContent = COP(fact);
+  const hot = leads.filter(l=>l.calificacion==='Caliente').length;
+  document.getElementById('met-hot').textContent = hot;
+
+  // Por mes
+  const meses = {3:0,4:0,5:0,6:0};
+  ventas.forEach(v=>{ if(v.fecha){ const m=parseInt(v.fecha.split('-')[1]); if(meses[m]!==undefined) meses[m]+=v.valor; } });
+  const mesMax = Object.entries(meses).sort((a,b)=>b[1]-a[1])[0];
+  const nomMes = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'];
+  document.getElementById('met-mes').textContent = nomMes[mesMax[0]];
+
+  // Chart meses
+  if(chartMeses) chartMeses.destroy();
+  const ctxM = document.getElementById('chart-meses');
+  if(ctxM) chartMeses = new Chart(ctxM, {
+    type:'bar',
+    data:{
+      labels:['Marzo','Abril','Mayo','Junio'],
+      datasets:[{label:'Ventas',data:[meses[3],meses[4],meses[5],meses[6]],
+        backgroundColor:['#378ADD','#185FA5','#0D2B6B','#3B8A0E'],borderRadius:5,borderSkipped:false}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+(v/1000000).toFixed(1)+'M',font:{size:10},color:'#9699B0'},grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{grid:{display:false},ticks:{font:{size:11},color:'#9699B0'}}}}
+  });
+
+  // Top clients
+  const clientMap = {};
+  ventas.forEach(v=>{ clientMap[v.cliente]=(clientMap[v.cliente]||0)+v.valor; });
+  const top = Object.entries(clientMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxV = top[0]?top[0][1]:1;
+  document.getElementById('met-top-clients').innerHTML = top.map(([c,v])=>`
+    <div class="funnel-row">
+      <div class="funnel-lbl">${short(c,15)}</div>
+      <div class="funnel-track">
+        <div class="funnel-fill" style="width:${Math.round(v/maxV*100)}%;background:var(--navy)">${COP(v)}</div>
+      </div>
+    </div>`).join('');
+
+  // Chart leads
+  const calCount = {Caliente:0,Tibio:0,Frio:0,NR:0};
+  leads.forEach(l=>{ if(calCount[l.calificacion]!==undefined) calCount[l.calificacion]++; else calCount.NR++; });
+  if(chartLeads) chartLeads.destroy();
+  const ctxL = document.getElementById('chart-leads');
+  if(ctxL) chartLeads = new Chart(ctxL, {
+    type:'doughnut',
+    data:{labels:['Caliente','Tibio','Frío','Sin calificar'],
+      datasets:[{data:[calCount.Caliente,calCount.Tibio,calCount.Frio,calCount.NR],
+        backgroundColor:['#E24B4A','#BA7517','#185FA5','#9699B0'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}}
+  });
+
+  // ROP por estado
+  const ropEst = {'Sin procesar':0,'En proceso':0,'Programado':0,'Procesado':0};
+  rop.forEach(r=>{ if(ropEst[r.estado]!==undefined) ropEst[r.estado]++; });
+  const ropMax = Math.max(...Object.values(ropEst),1);
+  const ropColors = {'Sin procesar':'#9699B0','En proceso':'#185FA5','Programado':'#BA7517','Procesado':'#3B8A0E'};
+  document.getElementById('met-rop-bars').innerHTML = Object.entries(ropEst).map(([k,v])=>`
+    <div class="funnel-row">
+      <div class="funnel-lbl">${k}</div>
+      <div class="funnel-track">
+        <div class="funnel-fill" style="width:${Math.round(v/ropMax*100)}%;background:${ropColors[k]}">${v}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── COTIZACIÓN ──
+const COT_ROWS = 12;
+function initCot(){
+  const hoy = new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('cot-fecha-gen').textContent = hoy;
+  document.getElementById('cot-hoy').textContent = hoy;
+  const tb = document.getElementById('cot-items-tbody');
+  tb.innerHTML = Array.from({length:COT_ROWS},(_,i)=>`<tr>
+    <td class="td-num" style="color:var(--text3);font-size:11px;background:var(--gray)">${i+1}</td>
+    <td><input class="cot-cell-in" id="ci-proc-${i}" placeholder="Proceso..." aria-label="Proceso ${i+1}"/></td>
+    <td><input class="cot-cell-in" id="ci-desc-${i}" placeholder="Descripción..." aria-label="Descripción ${i+1}"/></td>
+    <td><input class="cot-cell-in cot-cell-qty" id="ci-qty-${i}" type="number" min="0" value="" oninput="calcCot()" aria-label="Cantidad ${i+1}"/></td>
+    <td><input class="cot-cell-in cot-cell-val" id="ci-vu-${i}" type="number" min="0" value="" oninput="calcCot()" aria-label="Valor unit ${i+1}"/></td>
+    <td><span class="cot-calc" id="ci-vt-${i}">—</span></td>
+  </tr>`).join('');
+  calcCot();
+}
+
+function calcCot(){
+  let sub = 0;
+  for(let i=0;i<COT_ROWS;i++){
+    const qty = parseFloat(document.getElementById('ci-qty-'+i)?.value)||0;
+    const vu = parseFloat(document.getElementById('ci-vu-'+i)?.value)||0;
+    const vt = qty * vu;
+    const el = document.getElementById('ci-vt-'+i);
+    if(el) el.textContent = vt > 0 ? COP(vt) : '—';
+    sub += vt;
+  }
+  const iva = sub * 0.19;
+  document.getElementById('cot-subtotal').textContent = COP(sub);
+  document.getElementById('cot-iva').textContent = COP(iva);
+  document.getElementById('cot-total').textContent = COP(sub+iva);
+}
+
+function limpiarCot(){
+  document.getElementById('cot-empresa').value='';
+  document.getElementById('cot-contacto').value='';
+  document.getElementById('cot-email').value='';
+  document.getElementById('cot-obs').value='';
+  for(let i=0;i<COT_ROWS;i++){
+    ['proc','desc','qty','vu'].forEach(f=>{
+      const el = document.getElementById('ci-'+f+'-'+i);
+      if(el) el.value='';
+    });
+  }
+  calcCot();
+}
+
+async function guardarCot(){
+  const empresa = document.getElementById('cot-empresa').value.trim();
+  if(!empresa){ toast('Ingresa el nombre del cliente',false); return; }
+  const total = document.getElementById('cot-total').textContent;
+  const num = document.getElementById('cot-num').value;
+  if(!useLocal && db){
+    const items = Array.from({length:COT_ROWS},(_,i)=>({
+      proceso: document.getElementById('ci-proc-'+i)?.value||'',
+      descripcion: document.getElementById('ci-desc-'+i)?.value||'',
+      cantidad: parseFloat(document.getElementById('ci-qty-'+i)?.value)||0,
+      valor_unit: parseFloat(document.getElementById('ci-vu-'+i)?.value)||0
+    })).filter(it=>it.descripcion||it.cantidad);
+    const {error} = await db.from('cotizaciones').insert([{
+      numero: num,
+      empresa: empresa,
+      contacto: document.getElementById('cot-contacto').value,
+      email: document.getElementById('cot-email').value,
+      asesor: document.getElementById('cot-asesor').value,
+      estado: document.getElementById('cot-estado-sel').value,
+      observaciones: document.getElementById('cot-obs').value,
+      items: JSON.stringify(items),
+      total_str: total,
+      fecha_gen: new Date().toISOString().slice(0,10)
+    }]);
+    if(error){ toast('Error guardando: '+error.message,false); return; }
+  }
+  toast(`Cotización ${num} guardada · ${empresa}`);
+}
+
+// ── MODALS ──
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click',e=>{ if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+
+// ── SAVE VENTA ──
+document.getElementById('v-valor').addEventListener('input',function(){
+  document.getElementById('v-comision').value = (parseFloat(this.value)||0)*0.02;
+});
+
+async function saveVenta(){
+  const cliente = document.getElementById('v-cliente').value.trim();
+  const cotizacion = document.getElementById('v-cot').value.trim();
+  const valor = parseFloat(document.getElementById('v-valor').value)||0;
+  if(!cliente||!cotizacion||!valor){ toast('Completa cliente, cotización y valor',false); return; }
+  const nv = {
+    n: parseInt(document.getElementById('v-n').value)||(ventas.length?Math.max(...ventas.map(v=>v.n||0))+1:1),
+    fecha: document.getElementById('v-fecha').value,
+    cliente, cotizacion, valor,
+    comision: Math.round(valor*0.02*100)/100,
+    fechaEntrega: document.getElementById('v-fentrega').value,
+    estado: document.getElementById('v-estado').value,
+    notas: document.getElementById('v-notas').value
+  };
+  if(!useLocal && db){
+    const {data,error} = await db.from('ventas').insert([{
+      n:nv.n, fecha:nv.fecha||null, cliente:nv.cliente, cotizacion:nv.cotizacion,
+      valor:nv.valor, comision:nv.comision, fecha_entrega:nv.fechaEntrega||null,
+      estado:nv.estado, notas:nv.notas
+    }]).select();
+    if(error){ toast('Error: '+error.message,false); return; }
+    if(data) nv.id = data[0].id;
+  }
+  ventas.push(nv);
+  closeModal('modal-venta');
+  renderVentas(); renderDashboard(); renderMetricas();
+  toast('Venta #'+nv.n+' guardada');
+}
+
+// ── EDIT / DELETE VENTA ──
+function editVenta(idOrN){
+  const v = ventas.find(x=>(x.id&&String(x.id)===String(idOrN))||String(x.n)===String(idOrN));
+  if(!v) return;
+  document.getElementById('edit-v-id').value = v.id||v.n;
+  document.getElementById('edit-v-estado').value = v.estado;
+  document.getElementById('edit-v-notas').value = v.notas;
+  openModal('modal-edit-venta');
+}
+async function updateVenta(){
+  const id = document.getElementById('edit-v-id').value;
+  const est = document.getElementById('edit-v-estado').value;
+  const notas = document.getElementById('edit-v-notas').value;
+  const v = ventas.find(x=>(x.id&&String(x.id)===String(id))||String(x.n)===String(id));
+  if(!v) return;
+  v.estado = est; v.notas = notas;
+  if(!useLocal && db && v.id){
+    const {error} = await db.from('ventas').update({estado:est,notas}).eq('id',v.id);
+    if(error){ toast('Error: '+error.message,false); return; }
+  }
+  closeModal('modal-edit-venta');
+  renderVentas(); renderDashboard();
+  toast('Venta actualizada');
+}
+async function deleteVenta(){
+  if(!confirm('¿Eliminar esta venta?')) return;
+  const id = document.getElementById('edit-v-id').value;
+  const idx = ventas.findIndex(x=>(x.id&&String(x.id)===String(id))||String(x.n)===String(id));
+  if(idx===-1) return;
+  const v = ventas[idx];
+  if(!useLocal && db && v.id){ await db.from('ventas').delete().eq('id',v.id); }
+  ventas.splice(idx,1);
+  closeModal('modal-edit-venta');
+  renderVentas(); renderDashboard(); renderMetricas();
+  toast('Venta eliminada');
+}
+
+// ── SAVE ROP ──
+async function saveROP(){
+  const cliente = document.getElementById('r-cliente').value.trim();
+  if(!cliente){ toast('Ingresa el nombre del cliente',false); return; }
+  const nr = {
+    fecha: document.getElementById('r-fecha').value,
+    cliente, cotizacion: document.getElementById('r-cot').value,
+    material: document.getElementById('r-mat').value,
+    asesor: document.getElementById('r-asesor').value,
+    entrega: document.getElementById('r-entrega').value,
+    estado: document.getElementById('r-estado').value,
+    obs: document.getElementById('r-obs').value, detalle:''
+  };
+  if(!useLocal && db){
+    const {data,error} = await db.from('rop').insert([nr]).select();
+    if(error){ toast('Error: '+error.message,false); return; }
+    if(data) nr.id = data[0].id;
+  }
+  rop.unshift(nr);
+  closeModal('modal-rop');
+  renderROP(); renderDashboard();
+  toast('Orden ROP guardada · '+cliente);
+  ['r-fecha','r-cliente','r-cot','r-mat','r-entrega','r-obs'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+}
+
+// ── EDIT / DELETE ROP ──
+function editROP(id, estado, obs){
+  document.getElementById('edit-rop-id').value = id;
+  document.getElementById('edit-rop-estado').value = estado;
+  document.getElementById('edit-rop-obs').value = obs;
+  openModal('modal-edit-rop');
+}
+async function updateROP(){
+  const id = document.getElementById('edit-rop-id').value;
+  const estado = document.getElementById('edit-rop-estado').value;
+  const obs = document.getElementById('edit-rop-obs').value;
+  const r = rop.find(x=>String(x.id)===String(id));
+  if(r){ r.estado=estado; r.obs=obs; }
+  if(!useLocal && db && id){ await db.from('rop').update({estado,obs}).eq('id',id); }
+  closeModal('modal-edit-rop');
+  renderROP(); renderDashboard(); renderMetricas();
+  toast('ROP actualizado');
+}
+async function deleteROP(){
+  if(!confirm('¿Eliminar esta orden?')) return;
+  const id = document.getElementById('edit-rop-id').value;
+  const idx = rop.findIndex(x=>String(x.id)===String(id));
+  if(idx!==-1){
+    const r = rop[idx];
+    if(!useLocal && db && r.id){ await db.from('rop').delete().eq('id',r.id); }
+    rop.splice(idx,1);
+  }
+  closeModal('modal-edit-rop');
+  renderROP(); renderDashboard(); renderMetricas();
+  toast('Orden eliminada');
+}
+
+// ── SAVE LEAD ──
+async function saveLead(){
+  const empresa = document.getElementById('l-emp').value.trim();
+  if(!empresa){ toast('Ingresa el nombre de la empresa',false); return; }
+  const nl = {
+    empresa, municipio:document.getElementById('l-mun').value,
+    telefono:document.getElementById('l-tel').value,
+    whatsapp:document.getElementById('l-wa').value,
+    sector:document.getElementById('l-sec').value,
+    calificacion:document.getElementById('l-cal').value,
+    estado:document.getElementById('l-est').value,
+    asesor:document.getElementById('l-asesor').value,
+    notas:document.getElementById('l-notas').value
+  };
+  if(!useLocal && db){
+    const {data,error} = await db.from('leads').insert([nl]).select();
+    if(error){ toast('Error: '+error.message,false); return; }
+    if(data) nl.id = data[0].id;
+  }
+  leads.push(nl);
+  closeModal('modal-lead');
+  renderLeads(); renderMetricas();
+  toast('Lead guardado · '+empresa);
+  ['l-emp','l-mun','l-tel','l-sec','l-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+}
+
+// ── DELETE LEAD ──
+async function deleteLead(id, empresa){
+  if(!confirm('¿Eliminar '+empresa+'?')) return;
+  const idx = leads.findIndex(l=>String(l.id)===String(id)||l.empresa===empresa);
+  if(idx!==-1){
+    const l = leads[idx];
+    if(!useLocal && db && l.id){ await db.from('leads').delete().eq('id',l.id); }
+    leads.splice(idx,1);
+  }
+  renderLeads(); renderMetricas();
+  toast('Lead eliminado');
+}
+
+// ── NAVIGATION ──
+function goPage(id, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='metricas') setTimeout(renderMetricas,50);
+}
+
+// ── INIT ──
+initCot();
+initDB();
+</script>
+</body>
+</html>
