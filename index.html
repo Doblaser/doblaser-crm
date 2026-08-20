@@ -821,6 +821,7 @@ td.c,th.c{text-align:center}
       <a data-view="resumen" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Resumen</a>
       <a data-view="ventas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Ventas <span class="count" id="c-ventas">0</span></a>
       <a data-view="rop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>ROP <span class="count" id="c-rop">0</span></a>
+      <a data-view="ropHistorial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>Historial de órdenes <span class="count" id="c-ropHist">0</span></a>
       <a data-view="inventario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Inventario <span class="count" id="c-inv">0</span></a>
       <div class="lbl">Comercial</div>
       <a data-view="cotizaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="13" y2="18"/></svg>Cotizaciones <span class="count" id="c-cot">0</span></a>
@@ -888,8 +889,8 @@ const SEED=JSON.parse(atob("eyJ2ZW50YXMiOiBbeyJpZCI6ICJWMSIsICJmZWNoYSI6ICIyMDI2
 
 const ASESORES=['Daniel','Susana','Esteban','Yuliana'];
 const ASESOR_OPC=['Daniel','Susana','Esteban','Yuliana','Sin asignar'];
-const ALL_VIEWS=['resumen','ventas','rop','inventario','cotizaciones','leads','estadisticas','precios','papelera','sugerencias','piezascli'];
-const VIEW_LBL={resumen:'Resumen',ventas:'Ventas',rop:'ROP',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
+const ALL_VIEWS=['resumen','ventas','rop','ropHistorial','inventario','cotizaciones','leads','estadisticas','precios','papelera','sugerencias','piezascli'];
+const VIEW_LBL={resumen:'Resumen',ventas:'Ventas',rop:'ROP',ropHistorial:'Historial de órdenes',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
 const PERFILES_DEF=[
   {name:'Susana',role:'Gerente',views:ALL_VIEWS.slice()},
   {name:'Esteban',role:'Director operativo',views:['rop','inventario','cotizaciones','precios']},
@@ -1303,6 +1304,7 @@ const META={
   resumen:{title:'Resumen',sub:'Panel general de operación comercial',add:false,search:false},
   ventas:{title:'Ventas',sub:'Registro y seguimiento de ventas',add:'Registrar venta',search:true},
   rop:{title:'ROP',sub:'Registro de órdenes de producción',add:'Nueva ROP',search:true},
+  ropHistorial:{title:'Historial de órdenes',sub:'Órdenes ya facturadas y pagadas — se sacan del ROP activo para no acumular filas',add:false,search:true},
   cotizaciones:{title:'Cotizaciones',sub:'Calculadora de costos integrada por ítem · formato Doblaser',add:'Nueva cotización',search:true},
   leads:{title:'Clientes / Leads',sub:'Base de prospectos del Valle de Aburrá',add:'Nuevo cliente',search:true},
   estadisticas:{title:'Estadísticas',sub:'Análisis mensual y anual de ventas',add:false,search:false},
@@ -1316,6 +1318,8 @@ function updateCounts(){
   const ev=document.getElementById('c-ventas');if(!ev)return;
   ev.textContent=CACHE.ventas.length;
   document.getElementById('c-rop').textContent=CACHE.rop.filter(r=>r.estado!=='Procesado').length;
+  const crh=document.getElementById('c-ropHist');
+  if(crh){const n=CACHE.rop.filter(ropCerrada).length;crh.textContent=n;crh.style.display=n?'':'none';}
   document.getElementById('c-leads').textContent=CACHE.leads.length;
   document.getElementById('c-cot').textContent=CACHE.cotizaciones.length;
   const ci=document.getElementById('c-inv');if(ci)ci.textContent=(CACHE.inventario||[]).length;
@@ -1364,7 +1368,7 @@ const ventaMatch=x=>{
 function render(){
   if(window._charts){window._charts.forEach(c=>{try{c.destroy()}catch(e){}});window._charts=[];}
   const c=document.getElementById('content');
-  const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli};
+  const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,ropHistorial:renderRopHistorial,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli};
   if(VISTAS[VIEW])c.innerHTML=VISTAS[VIEW]();
   if(VIEW==='estadisticas')drawStats();
 }
@@ -1438,19 +1442,27 @@ function renderRop(){
     <div class="kpi"><div class="k-top"><div><div class="k-lbl">Atrasadas</div><div class="k-val tnum ${atrasadas?'inv-neg':''}">${atrasadas}</div></div><div class="k-ico ${atrasadas?'red':'green'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div></div><div class="k-meta">Pasaron la fecha de entrega</div></div>
     <div class="kpi"><div class="k-top"><div><div class="k-lbl">Por vencer</div><div class="k-val tnum ${porVencer?'due-soon-txt':''}">${porVencer}</div></div><div class="k-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div></div><div class="k-meta">Entrega en ≤${ROP_DUE_SOON} días</div></div>
   </div>`;
-  const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${!ropHist?'on':''}" onclick="ropHist=false;render()">Activas</button><button class="${ropHist?'on':''}" onclick="ropHist=true;render()">Historial completo</button></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button></div></div>`;
-  const cut=Date.now()-30*86400000;
-  const activa=x=>!ropFacturada(x)&&(!ROP_DONE.includes(x.estado)||(()=>{const d=x.entrega||x.ingreso;if(!d)return false;const ts=new Date(d+'T00:00:00').getTime();return isFinite(ts)&&ts>=cut;})());
-  const vrows=ropHist?rows:rows.filter(activa);
+  const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button></div></div>`;
+  const vrows=rows.filter(x=>!ropCerrada(x));
   const ocultas=rows.length-vrows.length;
-  const hint=(!ropHist&&ocultas>0)?`<div class="board-hint">${ocultas} órdenes facturadas o terminadas hace más de 30 días están ocultas — use el filtro Historial completo para verlas.</div>`:'';
+  const hint=ocultas>0?`<div class="board-hint">${ocultas} órdenes ya facturadas y pagadas se movieron a <b>Historial de órdenes</b> — no aparecen aquí.</div>`:'';
   if(ropMode==='tablero'){
     return kpis+toolbar+hint+renderRopBoard(vrows);
   }
-  return kpis+toolbar+hint+
-  panel('Órdenes de producción (ROP)',`${vrows.length} de ${CACHE.rop.length} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
-  ${vrows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}</td><td class="hide-sm">${cotLinkCell(x)}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(9)}
+  return kpis+toolbar+hint+ropTableHTML(vrows,CACHE.rop.length);
+}
+function ropTableHTML(rows,total){
+  return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
+  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}</td><td class="hide-sm">${cotLinkCell(x)}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(9)}
   </tbody></table>`);
+}
+let ropFilterH='Todas';
+function renderRopHistorial(){
+  const rows=CACHE.rop.filter(match).filter(x=>ropCerrada(x)).filter(x=>ropFilterH==='Todas'||x.estado===ropFilterH)
+    .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
+  const toolbar=`<div class="toolbar"><div class="seg" id="ropSegH">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilterH?'on':''}" onclick="ropFilterH='${e}';render()">${e}</button>`).join('')}</div></div>`;
+  const hint=`<div class="board-hint">Órdenes ya facturadas y pagadas — se sacaron del ROP activo para no acumular filas. Se pueden abrir igual para consulta.</div>`;
+  return toolbar+hint+ropTableHTML(rows,CACHE.rop.length);
 }
 function renderRopBoard(rows){
   return `<div class="kanban">${ROP_ESTADOS.map(col=>{
@@ -1540,7 +1552,7 @@ function ropVentaDe(r){
   /* órdenes viejas (antes de que existiera el vínculo ropId) solo se pueden
      encontrar por el número de cotización compartido */
   if(r.cotId){
-    const c=(CACHE.cotizaciones||[]).find(c=>c.id===r.cotId);
+    const c=(CACHE.cotizaciones||[]).find(c=>String(c.id)===String(r.cotId));
     if(c&&c.numero)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===c.numero);
   }
   if(r.aprobacion)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===r.aprobacion);
@@ -1549,7 +1561,8 @@ function ropVentaDe(r){
 /* una orden facturada ya no tiene nada pendiente en producción: se saca de la
    vista activa del ROP (lista y tablero) para no dejar la fila creciendo para
    siempre, pero sigue existiendo — "Historial completo" la sigue mostrando */
-function ropFacturada(r){const v=ropVentaDe(r);return !!(v&&v.facturada);}
+function ropPagada(v){return !!(v&&(+v.abonado||0)>=(+v.valor||0)&&(+v.valor||0)>0);}
+function ropCerrada(r){const v=ropVentaDe(r);return !!(v&&v.facturada&&ropPagada(v));}
 function createVentaFromRop(id){
   const r=CACHE.rop.find(x=>x.id===id);if(!r){toast('Orden no encontrada');return}
   if(r.cotId){toast('Esta orden ya tiene cotización — la venta se registra desde ahí');return}
