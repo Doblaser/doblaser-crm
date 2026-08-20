@@ -641,8 +641,11 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .foto-layer{background:rgba(10,8,8,.9);align-items:center;justify-content:center}
 .foto-grande-box{position:relative;max-width:96vw;text-align:center;background:none;box-shadow:none;padding:0;display:flex;flex-direction:column;align-items:center}
 .foto-grande-scroll{max-width:96vw;max-height:88vh;overflow:auto;border-radius:10px;display:flex;align-items:center;justify-content:center}
-.foto-grande-box img{display:block;width:min(90vw,640px);height:auto;max-height:85vh;object-fit:contain;box-shadow:0 24px 60px rgba(0,0,0,.4);cursor:zoom-in}
-.foto-grande-box img.zoom{width:auto;height:auto;max-width:none;max-height:none;cursor:zoom-out}
+/* nunca se agranda más allá de su resolución real (eso es lo que se veía
+   borroso) — solo se limita el tamaño máximo. Una foto chica se ve chica
+   pero nítida, en vez de grande y pixelada. */
+.foto-grande-box img{display:block;max-width:min(90vw,700px);max-height:85vh;object-fit:contain;box-shadow:0 24px 60px rgba(0,0,0,.4);cursor:zoom-in;image-rendering:auto}
+.foto-grande-box img.zoom{max-width:none;max-height:none;cursor:zoom-out}
 .foto-grande-nombre{color:#fff;font-weight:600;margin-top:14px;font-size:15px}
 .foto-cerrar{position:fixed;top:16px;right:16px;color:#fff;background:rgba(255,255,255,.14);z-index:2}
 .foto-cerrar:hover{background:rgba(255,255,255,.24)}
