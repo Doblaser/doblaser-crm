@@ -185,6 +185,7 @@ tr:hover .row-act{opacity:1}
 .notif-ic-pago{background:#fffbeb;color:#92400e}
 .notif-ic-sugerencia{background:#f0fdf4;color:#166534}
 .notif-ic-mensaje{background:#fdf2f8;color:#a21caf}
+.notif-ic-listo{background:#f0fdf4;color:#166534}
 .notif-toasts{position:fixed;bottom:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:320px}
 .notif-toast{background:var(--card,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:11px 12px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;animation:notifIn .25s ease}
 @keyframes notifIn{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -1406,7 +1407,7 @@ function renderVentas(){
   const porCobrar=rows.reduce((a,x)=>a+Math.max(0,(+x.valor||0)-(+x.abonado||0)),0);
   const sub=`${rows.length} registro(s)`+(porCobrar>0?` · por cobrar ${COP(porCobrar)}`:'');
   return panel('Registro de ventas',sub,`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Descripción</th><th>Servicio</th><th class="num">Valor</th><th class="num">Abonado</th><th class="num">Saldo</th><th>Cotiz.</th><th>Factura</th><th>Asesor</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const val=+x.valor||0,ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}</td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span></td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
+  ${rows.map(x=>{const val=+x.valor||0,ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}</td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
   </tbody></table>`);
 }
 
@@ -1480,6 +1481,7 @@ function ropCard(x){
     <div class="kcard-cli">${esc(x.cliente)}</div>
     <div class="kcard-meta">${cotLinkCell(x)}${x.entrega?`<span class="muted"> · ${fmtDate(x.entrega)}</span>`:''}</div>
     <div class="kcard-stages">${dots}<span class="kprog">${pr.done}/${pr.total}</span></div>
+    <div class="pbar" style="margin-top:6px"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div>
     ${pzChip}
     ${nov?`<div class="kcard-novedad" title="${esc(nov.texto)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>${esc(nov.texto)}</span></div>`:''}
     <div class="kcard-foot" onclick="event.stopPropagation()">
@@ -1522,7 +1524,7 @@ async function createRopFromCot(id){
   const sub=cotTotal(c).sub;
   let extra='';
   if(!CACHE.ventas.some(v=>v.cotizacion&&v.cotizacion===c.numero)){
-    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel'});
+    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id});
     extra=' · venta registrada ('+COP(sub)+' sin IVA)';
   }
   if(c.estado!=='Aprobada')await saveRow('cotizaciones',{...c,estado:'Aprobada'});
@@ -1550,6 +1552,7 @@ function createVentaFromRop(id){
     set('f_descripcion',descPartes.join(' — '));
     set('f_asesor',r.asesor||'Daniel');
     set('f_ropId',r.id);
+    set('f_ordenCompra',r.aprobacion||'');
     if(Array.isArray(r.piezas)&&r.piezas.length){
       ventaPiezas=r.piezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:0}));
       renderVentaPz();
@@ -2716,6 +2719,7 @@ function facturaHTML(v){
     <div class="doc"><div class="lbl">CUENTA DE COBRO</div><div class="num">${esc(v.cliente)||''}</div>
       <div class="row"><span>Fecha:</span> <b>${fmtDate(v.fecha||today())}</b></div>
       ${rEl?`<div class="row"><span>Orden:</span> <b>${esc(rEl.rop)}</b></div>`:''}
+      ${v.ordenCompra?`<div class="row"><span>Orden de compra:</span> <b>${esc(v.ordenCompra)}</b></div>`:''}
       <div class="row"><span>Asesor:</span> <b>${esc(v.asesor)||'\u2014'}</b></div></div>
   </div>
   <div class="cli"><span>Cliente:</span> <b>${esc(v.cliente)}</b>${v.nit?` \u00b7 NIT ${esc(v.nit)}`:''}${v.descripcion?`<div style="margin-top:4px">${esc(v.descripcion)}</div>`:''}</div>
@@ -2860,6 +2864,7 @@ function formVenta(r){r=r||{};return `<div class="fgrid">
   <div class="field full"><label>Servicios — puede elegir varios</label><div class="serv-chips" id="servChips">${SERVICIOS.map(s=>{const on=ventaServs(r).includes(s);return `<label class="serv-chip ${on?'on':''}"><input type="checkbox" value="${esc(s)}" ${on?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${esc(s)}</label>`;}).join('')}</div></div>
   <div class="field"><label>NIT</label><input id="f_nit" value="${esc(r.nit)}"></div>
   <div class="field"><label>N° Cotización</label><input id="f_cotizacion" value="${esc(r.cotizacion)}" placeholder="DB-0000"></div>
+  <div class="field"><label>Orden de compra (OC)</label><input id="f_ordenCompra" value="${esc(r.ordenCompra)}" placeholder="Ej. OC 668"></div>
   <div class="field full"><label>Descripción</label><textarea id="f_descripcion">${esc(r.descripcion)}</textarea></div>
   <div class="field"><label>Valor (sin IVA)</label><input type="number" id="f_valor" value="${r.valor||''}"></div>
   <div class="field"><label>Abonado (pagos recibidos)</label><input type="number" id="f_abonado" value="${r.abonado||''}" placeholder="0 = sin abonos"></div>
@@ -3583,7 +3588,7 @@ const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
 const numv=id=>{const e=document.getElementById(id);return e?(+e.value||0):0};
 async function saveForm(){
   const{t,id}=editing;let row={id:id||uid()};
-  if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0}))};}
+  if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),ordenCompra:val('f_ordenCompra'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0}))};}
   else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}row={...row,rop:val('f_rop'),estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
@@ -4148,6 +4153,7 @@ const NOTIF_ICONS={
   pago:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
   sugerencia:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   mensaje:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16l-4-4H4z"/></svg>',
+  listo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
 };
 function pushNotif(tipo,texto,ref){
   const entry={id:uid(),tipo,texto,ts:new Date().toISOString(),leida:false,ref:ref||null};
@@ -4258,10 +4264,29 @@ document.addEventListener('click',e=>{
 });
 /* avisos que salen de un INSERT en vivo (venta nueva, ROP nueva, sugerencia nueva).
    Si el que insertó fue el propio usuario, no se le avisa a sí mismo. */
+/* solo a este equipo le avisa que una orden quedó lista para que el
+   cliente pase a recogerla — Yuliana (contable) no la necesita */
+const ROP_LISTO_NOTIFICAR=['Samuel','Esteban','Susana','Daniel'];
+function notifListoSiPuede(texto,ref){
+  const u=currentUser();if(!u||!ROP_LISTO_NOTIFICAR.includes(u.name))return;
+  const perfil=PERFILES.find(p=>p.name===u.name);
+  const permitidos=(perfil&&Array.isArray(perfil.notifs))?perfil.notifs:NOTIF_TIPOS;
+  if(!permitidos.includes('listo'))return;
+  pushNotif('listo',texto,ref);
+}
 function notifDesdeCambio(t,payload){
-  if(!payload||payload.eventType!=='INSERT')return;
+  if(!payload)return;
   const row=payload.new;if(!row)return;
   const u=currentUser();if(!u)return;
+  if(t==='rop'&&row.estado==='Procesado'&&ROP_LISTO_NOTIFICAR.includes(u.name)){
+    const vistosL=new Set(JSON.parse(localStorage.getItem('db_alertados_listo')||'[]'));
+    if(!vistosL.has(String(row.id))){
+      vistosL.add(String(row.id));
+      localStorage.setItem('db_alertados_listo',JSON.stringify([...vistosL]));
+      notifListoSiPuede('Lista para recoger: '+(row.rop||'')+' — '+(row.cliente||''),{view:'rop',id:row.id});
+    }
+  }
+  if(payload.eventType!=='INSERT')return;
   const quien=(row.createdBy||row.autor||'').trim();
   if(quien&&quien===u.name)return;
   if(t==='ventas'){
@@ -4307,6 +4332,16 @@ function scanAlertas(){
       }
     });
     localStorage.setItem('db_alertados_pago',JSON.stringify(ids));
+  }
+  if(ROP_LISTO_NOTIFICAR.includes(u.name)&&Array.isArray(CACHE.rop)){
+    const listas=CACHE.rop.filter(x=>x.estado==='Procesado');
+    const ids=listas.map(x=>String(x.id));
+    const yaInicListo=localStorage.getItem('db_alertados_listo')!==null;
+    const vistos=new Set(JSON.parse(localStorage.getItem('db_alertados_listo')||'[]'));
+    if(yaInicListo)listas.forEach(r=>{
+      if(!vistos.has(String(r.id)))notifListoSiPuede('Lista para recoger: '+(r.rop||'')+' — '+(r.cliente||''),{view:'rop',id:r.id});
+    });
+    localStorage.setItem('db_alertados_listo',JSON.stringify(ids));
   }
 }
 function startNotifPolling(){clearInterval(window._notifInt);window._notifInt=setInterval(scanAlertas,5*60000);}
@@ -4622,8 +4657,8 @@ const DEF_PASS='doblaser2026';
 const fmtDateTime=s=>{try{return new Date(s).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return ''}};
 function currentUser(){return LS.get('user',null)}
 function isAdmin(){const u=currentUser();return !!u&&(u.name==='Daniel'||/Gerente/i.test(u.role||''))}
-const NOTIF_TIPOS=['venta','rop','atraso','pago','sugerencia'];
-const NOTIF_TIPO_LBL={venta:'Nueva venta',rop:'Nueva ROP',atraso:'Orden atrasada',pago:'Pago pendiente',sugerencia:'Sugerencia nueva'};
+const NOTIF_TIPOS=['venta','rop','atraso','pago','sugerencia','listo'];
+const NOTIF_TIPO_LBL={venta:'Nueva venta',rop:'Nueva ROP',atraso:'Orden atrasada',pago:'Pago pendiente',sugerencia:'Sugerencia nueva',listo:'Lista para recoger'};
 function normPerfil(p){
   const d=PERFILES_DEF.find(x=>x.name===p.name);
   let v=p.views;
