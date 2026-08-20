@@ -3592,8 +3592,14 @@ async function saveForm(){
   else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}row={...row,rop:val('f_rop'),estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
-    const numero=val('f_numero');
-    if(numero&&CACHE.cotizaciones.some(c=>c.numero===numero&&c.id!==id)){toast('Ya existe la cotización '+numero+'. Usa otro número.');return}
+    let numero=val('f_numero');
+    if(numero&&CACHE.cotizaciones.some(c=>c.numero===numero&&c.id!==id)){
+      const nuevo=nextCot();
+      set('f_numero',nuevo);
+      numero=nuevo;
+      alert('El número '+val('f_numero')+' ya lo usó otra cotización mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
+      return;
+    }
     if(COT_MODE==='prod'){
       row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),margen:i.calc.margen}}))};
     }else{
