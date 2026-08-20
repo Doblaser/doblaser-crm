@@ -1534,7 +1534,18 @@ async function createRopFromCot(id){
 /* órdenes sin cotización (material del cliente: ALGAMAR, DEFENDER...) no
    generan venta solas — hay que mandarlas a Ventas a mano cuando se
    entregan, porque el valor no sale de ninguna cotización. */
-function ropVentaDe(r){return (CACHE.ventas||[]).find(v=>v.ropId&&String(v.ropId)===String(r.id));}
+function ropVentaDe(r){
+  const porId=(CACHE.ventas||[]).find(v=>v.ropId&&String(v.ropId)===String(r.id));
+  if(porId)return porId;
+  /* órdenes viejas (antes de que existiera el vínculo ropId) solo se pueden
+     encontrar por el número de cotización compartido */
+  if(r.cotId){
+    const c=(CACHE.cotizaciones||[]).find(c=>c.id===r.cotId);
+    if(c&&c.numero)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===c.numero);
+  }
+  if(r.aprobacion)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===r.aprobacion);
+  return null;
+}
 /* una orden facturada ya no tiene nada pendiente en producción: se saca de la
    vista activa del ROP (lista y tablero) para no dejar la fila creciendo para
    siempre, pero sigue existiendo — "Historial completo" la sigue mostrando */
