@@ -1540,12 +1540,14 @@ async function guardarPerdida(id,motivo){
   CACHE.cotizaciones=await getAll('cotizaciones');render();updateCounts();
   toast('Cotización '+(c.numero||'')+' marcada como perdida');
 }
-/* tasa de cierre: solo cuenta lo que ya tuvo desenlace */
+/* Tasa de cierre: solo cuenta lo que ya tuvo desenlace. Mientras no haya
+   ni una sola cotización marcada como perdida, el porcentaje daría 100% —
+   un número falso — así que en ese caso no se muestra ninguno. */
 function cotConversion(rows){
   const ganadas=rows.filter(c=>c.estado==='Aprobada').length;
   const perdidas=rows.filter(c=>['Perdida','Rechazada'].includes(c.estado)).length;
   const cerradas=ganadas+perdidas;
-  return{ganadas,perdidas,cerradas,pct:cerradas?Math.round(ganadas/cerradas*100):null};
+  return{ganadas,perdidas,cerradas,pct:(perdidas>0&&cerradas)?Math.round(ganadas/cerradas*100):null};
 }
 /* Clientes que compraban con un ritmo y se callaron. No pide llenar ningún
    dato nuevo: sale solo de las ventas, que es lo único que siempre se registra.
@@ -1878,7 +1880,10 @@ function renderCot(){
   const seg=`<div class="toolbar"><div class="seg">${['Todas','Borrador','Enviada','Aprobada','Perdida'].map(e=>`<button class="${e===cotFilter?'on':''}" onclick="cotFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><button class="btn ghost sm" onclick="openFormProd()">+ Cotización de producto</button></div>`;
   const cv=cotConversion(CACHE.cotizaciones||[]);
   const sinCerrar=(CACHE.cotizaciones||[]).filter(c=>['Borrador','Enviada'].includes(c.estado||'Borrador')).length;
-  const subCot=`${rows.length} · IVA 19%`+(cv.pct!==null?` · cierre ${cv.pct}% (${cv.ganadas} de ${cv.cerradas})`:'')+(sinCerrar?` · ${sinCerrar} sin desenlace`:'');
+  const subCot=`${rows.length} · IVA 19%`
+    +(cv.pct!==null?` · cierre ${cv.pct}% (${cv.ganadas} de ${cv.cerradas})`:'')
+    +(sinCerrar?` · ${sinCerrar} sin desenlace`:'')
+    +(cv.pct===null&&cv.ganadas?` · falta marcar las perdidas para saber la tasa de cierre`:'');
   return seg+panel('Cotizaciones',subCot,`<table><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">Total</th><th>Estado</th><th>Asesor</th><th></th></tr></thead><tbody>
   ${rows.map(x=>{const t=cotTotal(x);return `<tr><td><span class="code">${esc(x.numero)}</span>${x.tipo==='producto'?' <span class="venc-tag" style="background:#ede9fe;border-color:#ddd6fe;color:#6d28d9">producto</span>':''}${venc(x)?' <span class="venc-tag" title="Vencida">vencida</span>':''}</td><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}${(x.estado==='Perdida'||x.estado==='Rechazada')&&x.motivo?`<div class="muted" style="font-size:11px">Motivo: ${esc(x.motivo)}</div>`:''}</td><td class="num tnum">${COP(t.sub)}</td><td class="num tnum muted">${COP(t.iva)}</td><td class="num tnum"><strong>${COP(t.total)}</strong></td><td><span class="pill ${estPill[x.estado]||'st-sin'}"><span class="d"></span>${x.estado}</span></td><td>${av(x.asesor)}</td><td><div class="row-act">${['Borrador','Enviada'].includes(x.estado||'Borrador')?`<button class="ic-btn cot-perder" title="No se ganó — marcar perdida" onclick="event.stopPropagation();marcarPerdida('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></button>`:''}<button class="ic-btn compartir" title="Compartir cotización" onclick="compartirCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><button class="ic-btn" title="Imprimir / PDF" onclick="printCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="ic-btn" title="Repetir cotización" onclick="repeatCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button><button class="ic-btn" title="Enviar a producción (ROP)" onclick="createRopFromCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><path d="M5 20V8l5-4v16"/><path d="M19 20V10l-9-6"/></svg></button><button class="ic-btn" title="Editar" onclick="openForm('cotizaciones','${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button><button class="ic-btn del" title="Eliminar" onclick="confirmDel('cotizaciones','${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div></td></tr>`}).join('')||emptyRow(9)}
   </tbody></table>`);
