@@ -4937,19 +4937,9 @@ async function saveUsuarios(){
 }
 /* ---- fotos de perfil ---- */
 function pickAvatar(cb){
-  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-  inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;
-    if(f.size>8*1024*1024){toast('La imagen es muy grande (máx 8 MB)');return;}
-    const r=new FileReader();
-    r.onload=()=>{const img=new Image();img.onload=()=>{
-      const sz=480,c=document.createElement('canvas');c.width=sz;c.height=sz;const ctx=c.getContext('2d');
-      const scale=Math.max(sz/img.width,sz/img.height),w=img.width*scale,h=img.height*scale;
-      ctx.drawImage(img,(sz-w)/2,(sz-h)/2,w,h);
-      try{cb(c.toDataURL('image/jpeg',0.88));}catch(e){toast('No se pudo procesar la imagen');}
-    };img.onerror=()=>toast('No se pudo leer la imagen');img.src=r.result;};
-    r.readAsDataURL(f);
-  };
-  inp.click();
+  pickImageRaw(dataUrl=>{
+    abrirEncuadre(dataUrl,cropped=>cb(cropped));
+  });
 }
 async function setProfileAvatar(name,dataUrl){
   PERFILES=PERFILES.map(p=>p.name===name?{...p,avatar:dataUrl}:p);
