@@ -186,6 +186,7 @@ tr:hover .row-act{opacity:1}
 .notif-ic-sugerencia{background:#f0fdf4;color:#166534}
 .notif-ic-mensaje{background:#fdf2f8;color:#a21caf}
 .notif-ic-listo{background:#f0fdf4;color:#166534}
+.notif-ic-sinFactura{background:#fef2f2;color:#b91c1c}
 .notif-toasts{position:fixed;bottom:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:320px}
 .notif-toast{background:var(--card,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:11px 12px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;animation:notifIn .25s ease}
 @keyframes notifIn{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -620,6 +621,16 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .confirm-layer.show{display:flex}
 .confirm-box{background:var(--card);border-radius:14px;max-width:420px;width:100%;
   padding:24px 22px 18px;box-shadow:0 24px 60px rgba(0,0,0,.32);text-align:center}
+.gsearch-box{padding:16px;max-width:520px;width:100%;text-align:left}
+.gsearch-input{width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2,#fff);font-size:14px;margin-bottom:10px}
+.gsearch-results{max-height:50vh;overflow-y:auto}
+.gsearch-item{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;cursor:pointer}
+.gsearch-item:hover{background:var(--panel-2,rgba(0,0,0,.05))}
+.gsearch-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+.gsearch-tx{min-width:0}
+.gsearch-tx b{font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gsearch-tx span{font-size:11px;color:var(--ink-3)}
+.gsearch-empty{padding:20px 6px;text-align:center;color:var(--ink-3);font-size:12.5px}
 .crop-box{padding:18px;max-width:300px}
 .crop-title{font-size:13px;font-weight:600;margin-bottom:12px;color:var(--ink-2)}
 .crop-viewport{width:260px;height:260px;max-width:100%;overflow:hidden;position:relative;
@@ -858,6 +869,7 @@ td.c,th.c{text-align:center}
       <div class="spacer"></div>
       <div class="presence" id="presence"></div>
       <button class="notif-bell" id="msgBtn" onclick="abrirChat()" title="Chat con un compañero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="notif-badge" id="msgBadge" style="display:none">0</span></button>
+      <button class="notif-bell" id="globalSearchBtn" onclick="abrirBusquedaGlobal()" title="Buscar en todo (ventas, ROP, cotizaciones, clientes)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <div class="notif-wrap">
         <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" title="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
         <div class="notif-panel" id="notifPanel" style="display:none">
@@ -866,6 +878,7 @@ td.c,th.c{text-align:center}
         </div>
       </div>
       <div class="search" id="searchBox" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="searchInput" placeholder="Buscar..." oninput="render()"></div>
+      <button class="btn ghost" id="exportBtn" style="display:none" title="Exportar a Excel (CSV)" onclick="exportarActual()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
       <button class="btn" id="addBtn" style="display:none" onclick="openForm()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span id="addLbl">Nuevo</span></button>
     </header>
     <main class="content" id="content"></main>
@@ -1052,9 +1065,42 @@ async function loadCloudConfig(){
     if(bu&&bu.v){const a=typeof bu.v==='string'?JSON.parse(bu.v):bu.v;if(Array.isArray(a)&&a.length){BURROS.length=0;a.forEach(x=>BURROS.push(x));}}
     if(pt&&pt.v){const a=typeof pt.v==='string'?JSON.parse(pt.v):pt.v;if(Array.isArray(a)){PROD_TPL=a;try{localStorage.setItem('db_prod_tpl',JSON.stringify(a));}catch(e){}}}
   }catch(e){}
+  PRECIOS_SNAP={tarifas:{...TARIFAS},materiales:JSON.parse(JSON.stringify(MATERIALES))};
 }
-function saveTarifas(){localStorage.setItem('db_tarifas',JSON.stringify(TARIFAS));cloudSaveConfig('tarifas',TARIFAS);}
-function saveMateriales(){localStorage.setItem('db_materiales',JSON.stringify(MATERIALES));cloudSaveConfig('materiales',MATERIALES);}
+/* ---- historial de cambios de precio: compara contra la última foto
+   conocida (la que se cargó de Supabase, o la del último guardado) y
+   deja un registro por cada campo que cambió ---- */
+let PRECIOS_SNAP={tarifas:{},materiales:[]};
+const TARIFA_LBL={laserAire:'Corte láser — Aire ($/min)',laserOxigeno:'Corte láser — Oxígeno ($/min)',
+  mLaser:'Utilidad — Corte láser (%)',mProcesos:'Utilidad — Procesos (%)',mTerceros:'Utilidad — Terceros (%)',
+  mMP:'Utilidad — Material (%)',densidad:'Densidad'};
+const TARIFA_PCT=new Set(['mLaser','mProcesos','mTerceros','mMP']);
+async function logPrecioCambio(campo,antes,despues){
+  if(!USING_SB||!sb)return;
+  const u=currentUser();
+  try{await sb.from('historial_precios').insert({quien:u?u.name:'—',campo,valor_anterior:String(antes),valor_nuevo:String(despues)});}catch(e){}
+}
+function saveTarifas(){
+  Object.keys(TARIFA_LBL).forEach(k=>{
+    const antes=PRECIOS_SNAP.tarifas[k],despues=TARIFAS[k];
+    if(antes===undefined||+antes===+despues)return;
+    const fmt=v=>TARIFA_PCT.has(k)?fac2pct(v)+'%':v;
+    logPrecioCambio(TARIFA_LBL[k],fmt(antes),fmt(despues));
+  });
+  PRECIOS_SNAP.tarifas={...TARIFAS};
+  localStorage.setItem('db_tarifas',JSON.stringify(TARIFAS));cloudSaveConfig('tarifas',TARIFAS);
+}
+function saveMateriales(){
+  const antes=PRECIOS_SNAP.materiales||[];
+  MATERIALES.forEach(m=>{
+    const a=antes.find(x=>x.mat===m.mat);
+    if(!a)logPrecioCambio('Material nuevo: '+m.mat,'—',COP(m.kg)+'/kg');
+    else if(+a.kg!==+m.kg)logPrecioCambio(m.mat+' ($/kg)',COP(a.kg),COP(m.kg));
+  });
+  antes.forEach(a=>{if(!MATERIALES.some(m=>m.mat===a.mat))logPrecioCambio('Material eliminado: '+a.mat,COP(a.kg)+'/kg','—');});
+  PRECIOS_SNAP.materiales=JSON.parse(JSON.stringify(MATERIALES));
+  localStorage.setItem('db_materiales',JSON.stringify(MATERIALES));cloudSaveConfig('materiales',MATERIALES);
+}
 
 /* ---- Supabase + respaldo local ---- */
 let sb=null,USING_SB=false;
@@ -1312,13 +1358,13 @@ let VIEW='resumen',CACHE={ventas:[],rop:[],leads:[],cotizaciones:[],inventario:[
 let cotItems=[];
 const META={
   resumen:{title:'Resumen',sub:'Panel general de operación comercial',add:false,search:false},
-  ventas:{title:'Ventas',sub:'Registro y seguimiento de ventas',add:'Registrar venta',search:true},
-  rop:{title:'ROP',sub:'Registro de órdenes de producción',add:'Nueva ROP',search:true},
-  ropHistorial:{title:'Historial de órdenes',sub:'Órdenes ya facturadas y pagadas — se sacan del ROP activo para no acumular filas',add:false,search:true},
+  ventas:{title:'Ventas',sub:'Registro y seguimiento de ventas',add:'Registrar venta',search:true,export:true},
+  rop:{title:'ROP',sub:'Registro de órdenes de producción',add:'Nueva ROP',search:true,export:true},
+  ropHistorial:{title:'Historial de órdenes',sub:'Órdenes ya facturadas y pagadas — se sacan del ROP activo para no acumular filas',add:false,search:true,export:true},
   cotizaciones:{title:'Cotizaciones',sub:'Calculadora de costos integrada por ítem · formato Doblaser',add:'Nueva cotización',search:true},
   leads:{title:'Clientes / Leads',sub:'Base de prospectos del Valle de Aburrá',add:'Nuevo cliente',search:true},
   estadisticas:{title:'Estadísticas',sub:'Análisis mensual y anual de ventas',add:false,search:false},
-  inventario:{title:'Inventario de material',sub:'Stock de láminas y retales · entradas y salidas con trazabilidad',add:'Nuevo movimiento',search:true},
+  inventario:{title:'Inventario de material',sub:'Stock de láminas y retales · entradas y salidas con trazabilidad',add:'Nuevo movimiento',search:true,export:true},
   precios:{title:'Lista de precios',sub:'Tarifas de servicio y materia prima',add:false,search:false},
   papelera:{title:'Papelera',sub:'Todo lo que se elimina queda aquí · se puede restaurar',add:false,search:true},
   sugerencias:{title:'Sugerencias',sub:'Ideas y mejoras que deja el equipo · las tratamos aquí',add:false,search:true},
@@ -1353,6 +1399,7 @@ function setView(v){
   const m=META[v];document.getElementById('vTitle').textContent=m.title;document.getElementById('vSub').textContent=m.sub;
   document.getElementById('addBtn').style.display=m.add?'inline-flex':'none';document.getElementById('addLbl').textContent=m.add||'';
   document.getElementById('searchBox').style.display=m.search?'flex':'none';document.getElementById('searchInput').value='';
+  document.getElementById('exportBtn').style.display=m.export?'inline-flex':'none';
   toggleMenu(false);render();
   /* al entrar a cotizaciones se van cargando las librerías del PDF en segundo
      plano, para que el primer 'Compartir' no tenga que esperarlas */
@@ -1363,6 +1410,14 @@ function setView(v){
     };
     (window.requestIdleCallback||(f=>setTimeout(f,1500)))(pre);
   }
+  if(v==='precios'){cargarHistorialPrecios().then(()=>{if(VIEW==='precios')render();});}
+}
+let HIST_PRECIOS=[];
+async function cargarHistorialPrecios(){
+  if(!USING_SB||!sb){HIST_PRECIOS=[];return}
+  try{const{data,error}=await sb.from('historial_precios').select('*').order('id',{ascending:false}).limit(80);
+    if(!error&&data)HIST_PRECIOS=data;
+  }catch(e){}
 }
 const q=()=>(document.getElementById('searchInput').value||'').toLowerCase().trim();
 const match=o=>{const s=q();return !s||JSON.stringify(o).toLowerCase().includes(s)};
@@ -2163,6 +2218,13 @@ function renderPrecios(){
       ${MATERIALES.map((m,i)=>`<tr><td><input class="txt" value="${esc(m.mat)}" oninput="MATERIALES[${i}].mat=this.value"></td><td class="num"><input type="number" value="${m.kg}" oninput="MATERIALES[${i}].kg=+this.value||0"></td><td><button class="ic-btn del" onclick="matDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td></tr>`).join('')}
     </tbody></table></div>
     <div class="lp-note">Valores de referencia editables. Se usan como sugerencia en la calculadora — ajústalos al stock del momento. <button class="btn ghost sm" style="margin-left:8px" onclick="saveMateriales();toast('Materiales guardados')">Guardar materiales</button></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><h3>Historial de cambios</h3><div class="spacer"></div><span class="hint">Quién cambió qué y cuándo</span></div>
+    <div class="price-list tbl-wrap">${HIST_PRECIOS.length?`<table><thead><tr><th>Fecha</th><th>Quién</th><th>Campo</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+      ${HIST_PRECIOS.map(h=>`<tr><td class="muted">${fmtDate((h.ts||'').slice(0,10))} ${(h.ts||'').slice(11,16)}</td><td>${esc(h.quien||'—')}</td><td>${esc(h.campo||'')}</td><td class="muted">${esc(h.valor_anterior||'')}</td><td><b>${esc(h.valor_nuevo||'')}</b></td></tr>`).join('')}
+    </tbody></table>`:'<div class="lp-note">Todavía no hay cambios registrados — se guarda uno cada vez que se modifica una tarifa o un material y se presiona guardar.</div>'}</div>
   </div>`;
 }
 function gv(id){const el=document.getElementById(id);if(!el)return 0;const n=parseFloat(el.value);return isNaN(n)?0:n;}
@@ -4224,6 +4286,7 @@ function subscribeRealtime(){
    ========================================================= */
 let NOTIFS=[];
 const VENTA_DUE_DIAS=15;
+const ROP_FACTURA_DUE_DIAS=5;
 function notifKey(){const u=currentUser();return 'db_notifs_'+(u?u.name:'anon');}
 function loadNotifs(){try{NOTIFS=JSON.parse(localStorage.getItem(notifKey())||'[]');}catch(e){NOTIFS=[];}}
 function saveNotifs(){try{localStorage.setItem(notifKey(),JSON.stringify(NOTIFS.slice(0,100)));}catch(e){}}
@@ -4235,6 +4298,7 @@ const NOTIF_ICONS={
   sugerencia:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   mensaje:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16l-4-4H4z"/></svg>',
   listo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
+  sinFactura:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="13" y2="18"/></svg>',
 };
 function pushNotif(tipo,texto,ref){
   const entry={id:uid(),tipo,texto,ts:new Date().toISOString(),leida:false,ref:ref||null};
@@ -4413,6 +4477,23 @@ function scanAlertas(){
       }
     });
     localStorage.setItem('db_alertados_pago',JSON.stringify(ids));
+  }
+  if(canView('ventas')&&Array.isArray(CACHE.rop)){
+    const hoyTs=new Date(today()+'T00:00:00').getTime();
+    const sinFacturar=CACHE.rop.filter(x=>{
+      if(x.estado!=='Entregado'||ropCerrada(x))return false;
+      const v=ropVentaDe(x);if(v&&v.facturada)return false;
+      const d=x.entrega||x.ingreso;if(!d)return false;
+      const ts=new Date(d+'T00:00:00').getTime();if(!isFinite(ts))return false;
+      return Math.floor((hoyTs-ts)/86400000)>=ROP_FACTURA_DUE_DIAS;
+    });
+    const ids=sinFacturar.map(x=>String(x.id));
+    const yaInicSF=localStorage.getItem('db_alertados_sinFactura')!==null;
+    const vistos=new Set(JSON.parse(localStorage.getItem('db_alertados_sinFactura')||'[]'));
+    if(yaInicSF)sinFacturar.forEach(r=>{
+      if(!vistos.has(String(r.id)))notifSiPuede('ventas','sinFactura','Orden entregada hace más de '+ROP_FACTURA_DUE_DIAS+' días sin facturar: '+(r.rop||'')+' — '+(r.cliente||''),{view:'rop',id:r.id});
+    });
+    localStorage.setItem('db_alertados_sinFactura',JSON.stringify(ids));
   }
   if(ROP_LISTO_NOTIFICAR.includes(u.name)&&Array.isArray(CACHE.rop)){
     const listas=CACHE.rop.filter(x=>x.estado==='Procesado');
@@ -4621,6 +4702,68 @@ function pickImageRaw(cb){
   };
   inp.click();
 }
+/* =========================================================
+   Búsqueda global — un solo cuadro que busca a la vez en Ventas,
+   ROP, Cotizaciones y Clientes/Leads, y lleva directo al registro
+   ========================================================= */
+const GSEARCH_TIPOS={
+  ventas:{lbl:'Venta',view:'ventas',color:'#e6edfd',ic:'#1d4ed8',get:v=>({t:(v.cliente||'')+' — '+(v.descripcion||v.cotizacion||''),s:(v.fecha||'')})},
+  rop:{lbl:'ROP',view:'rop',color:'#ede9fe',ic:'#6d28d9',get:r=>({t:(r.rop||'')+' — '+(r.cliente||''),s:r.estado||''})},
+  cotizaciones:{lbl:'Cotización',view:'cotizaciones',color:'#fffbeb',ic:'#92400e',get:c=>({t:(c.numero||'')+' — '+(c.cliente||''),s:c.estado||''})},
+  leads:{lbl:'Cliente',view:'leads',color:'#f0fdf4',ic:'#166534',get:l=>({t:l.empresa||l.contacto||'',s:l.municipio||''})},
+};
+const GSEARCH_ICONS={
+  ventas:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  rop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><path d="M5 20V8l5-4v16"/><path d="M19 20V10l-9-6"/></svg>',
+  cotizaciones:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  leads:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+};
+function abrirBusquedaGlobal(){
+  let c=document.getElementById('gsearchLayer');
+  if(!c){
+    c=document.createElement('div');c.id='gsearchLayer';c.className='confirm-layer';
+    c.innerHTML=`<div class="confirm-box gsearch-box">
+      <input type="text" class="gsearch-input" id="gsearchInput" placeholder="Buscar por cliente, número, descripción…" oninput="gsearchRun()">
+      <div class="gsearch-results" id="gsearchResults"><div class="gsearch-empty">Escribe para buscar en Ventas, ROP, Cotizaciones y Clientes a la vez</div></div>
+    </div>`;
+    document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)cerrarBusquedaGlobal();});
+  }
+  c.classList.add('show');
+  setTimeout(()=>{const inp=document.getElementById('gsearchInput');if(inp){inp.value='';inp.focus();}},30);
+  document.getElementById('gsearchResults').innerHTML='<div class="gsearch-empty">Escribe para buscar en Ventas, ROP, Cotizaciones y Clientes a la vez</div>';
+}
+function cerrarBusquedaGlobal(){const c=document.getElementById('gsearchLayer');if(c)c.classList.remove('show');}
+function gsearchRun(){
+  const box=document.getElementById('gsearchResults');if(!box)return;
+  const q=(document.getElementById('gsearchInput').value||'').trim().toLowerCase();
+  if(!q){box.innerHTML='<div class="gsearch-empty">Escribe para buscar en Ventas, ROP, Cotizaciones y Clientes a la vez</div>';return}
+  const out=[];
+  Object.keys(GSEARCH_TIPOS).forEach(tipo=>{
+    const cfg=GSEARCH_TIPOS[tipo];
+    if(!canView(cfg.view))return;
+    (CACHE[tipo]||[]).forEach(row=>{
+      if(JSON.stringify(row).toLowerCase().includes(q)){
+        const d=cfg.get(row);
+        out.push({tipo,id:row.id,titulo:d.t,sub:cfg.lbl+' · '+d.s});
+      }
+    });
+  });
+  if(!out.length){box.innerHTML='<div class="gsearch-empty">Sin resultados para «'+esc(q)+'»</div>';return}
+  box.innerHTML=out.slice(0,40).map(r=>{
+    const cfg=GSEARCH_TIPOS[r.tipo];
+    return `<div class="gsearch-item" onclick="gsearchIr('${r.tipo}','${r.id}')">
+      <span class="gsearch-ic" style="background:${cfg.color};color:${cfg.ic}">${GSEARCH_ICONS[r.tipo]}</span>
+      <span class="gsearch-tx"><b>${esc(r.titulo)}</b><span>${esc(r.sub)}</span></span>
+    </div>`;
+  }).join('');
+}
+function gsearchIr(tipo,id){
+  cerrarBusquedaGlobal();
+  const cfg=GSEARCH_TIPOS[tipo];if(!cfg)return;
+  setView(cfg.view);
+  setTimeout(()=>openForm(tipo,id),60);
+}
 /* encuadre manual de fotos (como WhatsApp al enviar una imagen): el usuario
    arrastra para mover y usa el control para acercar/alejar dentro de un
    marco fijo, y al confirmar se recorta justo lo que se ve en el marco */
@@ -4692,6 +4835,52 @@ function cropConfirmar(){
     if(onListo)onListo(dataUrl);
   };
   full.src=img.src;
+}
+
+/* =========================================================
+   Exportar a Excel (CSV con separador ; para que Excel en español
+   lo abra bien de una) — exporta lo que se está viendo en la
+   pantalla, respetando el filtro de búsqueda activo
+   ========================================================= */
+function csvEsc(v){v=(v==null?'':String(v));return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function descargarCSV(filename,rows,cols){
+  const header=cols.map(c=>csvEsc(c.label)).join(';');
+  const body=rows.map(r=>cols.map(c=>csvEsc(typeof c.get==='function'?c.get(r):r[c.key])).join(';')).join('\n');
+  const blob=new Blob(['﻿'+header+'\n'+body],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+function exportarActual(){
+  const t=VIEW;let rows,cols,filename;
+  if(t==='ventas'){
+    rows=CACHE.ventas.filter(ventaMatch);
+    cols=[{label:'Fecha',key:'fecha'},{label:'Cliente',key:'cliente'},{label:'NIT',key:'nit'},
+      {label:'Descripción',key:'descripcion'},{label:'Servicios',get:r=>(r.servicios||[]).join(', ')},
+      {label:'Cotización',key:'cotizacion'},{label:'Orden de compra',key:'ordenCompra'},
+      {label:'Valor',key:'valor'},{label:'Abonado',key:'abonado'},{label:'Saldo',get:r=>(+r.valor||0)-(+r.abonado||0)},
+      {label:'Facturada',get:r=>r.facturada?'Sí':'No'},{label:'Asesor',key:'asesor'}];
+    filename='ventas_'+today()+'.csv';
+  }else if(t==='rop'||t==='ropHistorial'){
+    const cerradas=t==='ropHistorial';
+    rows=CACHE.rop.filter(match).filter(x=>!!ropCerrada(x)===cerradas);
+    cols=[{label:'ROP',key:'rop'},{label:'Cliente',key:'cliente'},
+      {label:'Cotización',get:r=>{const c=ropCotOf(r);return c?c.numero:(r.aprobacion||'')}},
+      {label:'Estado',key:'estado'},{label:'Ingreso',key:'ingreso'},{label:'Entrega',key:'entrega'},
+      {label:'Avance %',get:r=>ropProgress(r).pct},{label:'Asesor',key:'asesor'}];
+    filename=(cerradas?'historial_ordenes_':'rop_activas_')+today()+'.csv';
+  }else if(t==='inventario'){
+    rows=CACHE.inventario.filter(match);
+    cols=[{label:'Tipo',key:'tipo'},{label:'Dueño',key:'dueno'},{label:'Clase',key:'clase'},
+      {label:'Material',key:'material'},{label:'Calibre',key:'calibre'},{label:'Largo',key:'largo'},
+      {label:'Ancho',key:'ancho'},{label:'Cantidad',key:'cantidad'},{label:'Cliente',key:'cliente'},
+      {label:'ROP',key:'rop'},{label:'Proveedor',key:'proveedor'},{label:'Costo',key:'costo'},
+      {label:'Ubicación',key:'ubicacion'},{label:'Fecha',key:'fecha'},{label:'Notas',key:'notas'}];
+    filename='inventario_'+today()+'.csv';
+  }else{toast('No hay exportación para esta vista');return}
+  if(!rows.length){toast('No hay filas para exportar');return}
+  descargarCSV(filename,rows,cols);
+  toast('Exportado: '+filename);
 }
 
 /* verificar que la base tenga las columnas nuevas */
@@ -4828,8 +5017,8 @@ const DEF_PASS='doblaser2026';
 const fmtDateTime=s=>{try{return new Date(s).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return ''}};
 function currentUser(){return LS.get('user',null)}
 function isAdmin(){const u=currentUser();return !!u&&(u.name==='Daniel'||/Gerente/i.test(u.role||''))}
-const NOTIF_TIPOS=['venta','rop','atraso','pago','sugerencia','listo'];
-const NOTIF_TIPO_LBL={venta:'Nueva venta',rop:'Nueva ROP',atraso:'Orden atrasada',pago:'Pago pendiente',sugerencia:'Sugerencia nueva',listo:'Lista para recoger'};
+const NOTIF_TIPOS=['venta','rop','atraso','pago','sugerencia','listo','sinFactura'];
+const NOTIF_TIPO_LBL={venta:'Nueva venta',rop:'Nueva ROP',atraso:'Orden atrasada',pago:'Pago pendiente',sugerencia:'Sugerencia nueva',listo:'Lista para recoger',sinFactura:'Orden entregada sin facturar'};
 function normPerfil(p){
   const d=PERFILES_DEF.find(x=>x.name===p.name);
   let v=p.views;
