@@ -620,6 +620,16 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .confirm-layer.show{display:flex}
 .confirm-box{background:var(--card);border-radius:14px;max-width:420px;width:100%;
   padding:24px 22px 18px;box-shadow:0 24px 60px rgba(0,0,0,.32);text-align:center}
+.crop-box{padding:18px;max-width:300px}
+.crop-title{font-size:13px;font-weight:600;margin-bottom:12px;color:var(--ink-2)}
+.crop-viewport{width:260px;height:260px;max-width:100%;overflow:hidden;position:relative;
+  border-radius:10px;background:#111;margin:0 auto;touch-action:none;cursor:grab;user-select:none}
+.crop-viewport.dragging{cursor:grabbing}
+.crop-viewport img{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;user-select:none}
+.crop-zoom{width:260px;max-width:100%;margin:14px auto 4px;display:block}
+.crop-hint{font-size:11px;color:var(--ink-3);margin-bottom:10px}
+.crop-actions{display:flex;gap:8px;margin-top:14px}
+.crop-actions .btn{flex:1}
 .confirm-ic{width:46px;height:46px;border-radius:50%;background:#fef2f2;color:#dc2626;
   display:grid;place-items:center;margin:0 auto 12px}
 .confirm-ic svg{width:24px;height:24px}
@@ -4502,7 +4512,11 @@ function chatInsertarEmoji(e){
   t.focus();t.selectionStart=t.selectionEnd=start+e.length;
   document.getElementById('chatEmojiPop').style.display='none';
 }
-function chatPickImagen(){pickImageResized(dataUrl=>{CHAT_IMG_PEND=dataUrl;chatMostrarPreview(dataUrl);},900);}
+function chatPickImagen(){
+  pickImageRaw(dataUrl=>{
+    abrirEncuadre(dataUrl,cropped=>{CHAT_IMG_PEND=cropped;chatMostrarPreview(cropped);});
+  });
+}
 function chatMostrarPreview(url){
   const box=document.getElementById('chatImgPreview');if(!box)return;
   box.style.display='flex';
@@ -4583,6 +4597,92 @@ function pickImageResized(cb,maxDim){
     r.readAsDataURL(f);
   };
   inp.click();
+}
+/* como pickImageResized, pero sin recortar/reducir todavía — se usa cuando
+   el usuario va a encuadrar la foto a mano después */
+function pickImageRaw(cb){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{
+    const f=inp.files&&inp.files[0];if(!f)return;
+    if(f.size>10*1024*1024){toast('La imagen es muy grande (máx 10 MB)');return;}
+    const r=new FileReader();
+    r.onload=()=>cb(r.result);
+    r.onerror=()=>toast('No se pudo leer la imagen');
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+/* encuadre manual de fotos (como WhatsApp al enviar una imagen): el usuario
+   arrastra para mover y usa el control para acercar/alejar dentro de un
+   marco fijo, y al confirmar se recorta justo lo que se ve en el marco */
+let CROP={};
+function abrirEncuadre(srcUrl,onListo){
+  let c=document.getElementById('cropLayer');
+  if(!c){
+    c=document.createElement('div');c.id='cropLayer';c.className='confirm-layer';
+    c.innerHTML=`<div class="confirm-box crop-box">
+      <div class="crop-title">Encuadra la foto</div>
+      <div class="crop-viewport" id="cropViewport"><img id="cropImg" src=""></div>
+      <input type="range" class="crop-zoom" id="cropZoom" min="1" max="4" step="0.01" value="1" oninput="cropSetZoom(this.value)">
+      <div class="crop-hint">Arrastra para mover · usa la barra para acercar</div>
+      <div class="crop-actions">
+        <button type="button" class="btn ghost" onclick="cerrarEncuadre()">Cancelar</button>
+        <button type="button" class="btn" onclick="cropConfirmar()">Usar foto</button>
+      </div>
+    </div>`;
+    document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)cerrarEncuadre();});
+  }
+  c.classList.add('show');
+  const vp=document.getElementById('cropViewport'),imgEl=document.getElementById('cropImg');
+  const img=new Image();
+  img.onload=()=>{
+    const VP=260;
+    const scaleMin=Math.max(VP/img.width,VP/img.height);
+    CROP={img:imgEl,natW:img.width,natH:img.height,vp:VP,scaleMin,zoom:1,x:0,y:0,onListo,dragging:false};
+    imgEl.src=srcUrl;
+    document.getElementById('cropZoom').value=1;
+    CROP.x=(VP-img.width*scaleMin)/2;CROP.y=(VP-img.height*scaleMin)/2;
+    cropAplicar();
+    cropWireDrag(vp);
+  };
+  img.src=srcUrl;
+}
+function cropAplicar(){
+  const{img,natW,natH,scaleMin,zoom,vp}=CROP;
+  const s=scaleMin*zoom;
+  const w=natW*s,h=natH*s;
+  CROP.x=Math.min(0,Math.max(vp-w,CROP.x));
+  CROP.y=Math.min(0,Math.max(vp-h,CROP.y));
+  img.style.width=w+'px';img.style.height=h+'px';
+  img.style.transform=`translate(${CROP.x}px,${CROP.y}px)`;
+}
+function cropSetZoom(v){CROP.zoom=+v||1;cropAplicar();}
+function cropWireDrag(vp){
+  let sx=0,sy=0,ox=0,oy=0;
+  const down=(x,y)=>{CROP.dragging=true;vp.classList.add('dragging');sx=x;sy=y;ox=CROP.x;oy=CROP.y;};
+  const move=(x,y)=>{if(!CROP.dragging)return;CROP.x=ox+(x-sx);CROP.y=oy+(y-sy);cropAplicar();};
+  const up=()=>{CROP.dragging=false;vp.classList.remove('dragging');};
+  vp.onpointerdown=e=>{vp.setPointerCapture(e.pointerId);down(e.clientX,e.clientY);};
+  vp.onpointermove=e=>move(e.clientX,e.clientY);
+  vp.onpointerup=up;vp.onpointercancel=up;
+}
+function cerrarEncuadre(){const c=document.getElementById('cropLayer');if(c)c.classList.remove('show');}
+function cropConfirmar(){
+  const{img,natW,natH,scaleMin,zoom,vp,x,y,onListo}=CROP;
+  const s=scaleMin*zoom;
+  const OUT=640;
+  const cv=document.createElement('canvas');cv.width=OUT;cv.height=OUT;
+  const ctx=cv.getContext('2d');
+  const sx=-x/s,sy=-y/s,sw=vp/s,sh=vp/s;
+  const full=new Image();
+  full.onload=()=>{
+    ctx.drawImage(full,sx,sy,sw,sh,0,0,OUT,OUT);
+    let dataUrl;try{dataUrl=cv.toDataURL('image/jpeg',0.85);}catch(e){toast('No se pudo recortar la imagen');return;}
+    cerrarEncuadre();
+    if(onListo)onListo(dataUrl);
+  };
+  full.src=img.src;
 }
 
 /* verificar que la base tenga las columnas nuevas */
