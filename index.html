@@ -1183,7 +1183,7 @@ function avisarMigracion(cols){
 async function marcarPagada(id,pagar){
   const v=(CACHE.ventas||[]).find(x=>String(x.id)===String(id));
   if(!v)return;
-  const val=+v.valor||0;
+  const val=(+v.valor||0)*(1+IVA);
   const u=currentUser();
   const quien=u?u.name:'—';
   const hacer=async()=>{
@@ -1198,7 +1198,7 @@ async function marcarPagada(id,pagar){
   };
   if(pagar){
     pedirConfirmacion('¿Marcar esta venta como pagada?',
-      (v.cliente||'')+'\n'+(v.descripcion||'')+'\n\nValor: '+COP(val)+
+      (v.cliente||'')+'\n'+(v.descripcion||'')+'\n\nValor con IVA: '+COP(val)+
       ((+v.abonado||0)>0?'\nAbonado hasta ahora: '+COP(+v.abonado||0):'')+
       '\n\nQueda registrada a tu nombre con la fecha de hoy.',hacer,'Marcar pagada');
   }else{
@@ -1478,8 +1478,8 @@ function renderResumen(){
   </div>
   <div class="grid2">
     <div class="panel"><div class="panel-h"><h3>Ventas recientes</h3><div class="spacer"></div><button class="btn ghost sm" onclick="setView('ventas')">Ver todas</button></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th class="num">Valor</th><th>Asesor</th></tr></thead><tbody>
-      ${v.slice(0,6).map(x=>`<tr><td class="muted">${fmtDate(x.fecha)}</td><td><strong>${esc(x.cliente)}</strong></td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(x.valor)}</td><td>${av(x.asesor)}</td></tr>`).join('')||emptyRow(5)}
+      <div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th class="num">Valor con IVA</th><th>Asesor</th></tr></thead><tbody>
+      ${v.slice(0,6).map(x=>`<tr><td class="muted">${fmtDate(x.fecha)}</td><td><strong>${esc(x.cliente)}</strong></td><td>${ventaServTags(x)}</td><td class="num tnum">${COP((+x.valor||0)*(1+IVA))}</td><td>${av(x.asesor)}</td></tr>`).join('')||emptyRow(5)}
       </tbody></table></div></div>
     <div class="panel"><div class="panel-h"><h3>Estado de producción</h3></div><div style="padding:18px 20px">
       ${estados.map(s=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:13px"><span class="pill ${ropClass(s.e)}" style="width:118px"><span class="d"></span>${s.e}</span><div style="flex:1;height:8px;background:var(--line-2);border-radius:6px;overflow:hidden"><div style="height:100%;width:${r.length?s.n/r.length*100:0}%;background:${ropBar(s.e)}"></div></div><strong class="tnum" style="width:28px;text-align:right">${s.n}</strong></div>`).join('')}
@@ -1493,10 +1493,10 @@ const ropBar=e=>({'Sin procesar':'#9ca3af','En proceso':'#b45309','Programado':'
 
 function renderVentas(){
   const rows=CACHE.ventas.filter(ventaMatch);
-  const porCobrar=rows.reduce((a,x)=>a+Math.max(0,(+x.valor||0)-(+x.abonado||0)),0);
+  const porCobrar=rows.reduce((a,x)=>a+Math.max(0,(+x.valor||0)*(1+IVA)-(+x.abonado||0)),0);
   const sub=`${rows.length} registro(s)`+(porCobrar>0?` · por cobrar ${COP(porCobrar)}`:'');
-  return panel('Registro de ventas',sub,`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Descripción</th><th>Servicio</th><th class="num">Valor</th><th class="num">Abonado</th><th class="num">Saldo</th><th>Cotiz.</th><th>Factura</th><th>Asesor</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const val=+x.valor||0,ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}</td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${x.soportePago?`<button class="ic-btn" title="Ver soporte de pago" onclick="event.stopPropagation();verFotoGrande('${x.soportePago}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>`:''}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
+  return panel('Registro de ventas',sub,`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Descripción</th><th>Servicio</th><th class="num">Valor con IVA</th><th class="num">Abonado</th><th class="num">Saldo</th><th>Cotiz.</th><th>Factura</th><th>Asesor</th><th></th></tr></thead><tbody>
+  ${rows.map(x=>{const valSin=+x.valor||0,val=valSin*(1+IVA),ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}<div class="muted" style="font-size:10.5px">sin IVA: ${COP(valSin)}</div></td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${x.soportePago?`<button class="ic-btn" title="Ver soporte de pago" onclick="event.stopPropagation();verFotoGrande('${x.soportePago}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>`:''}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
   </tbody></table>`);
 }
 
@@ -1623,7 +1623,7 @@ async function createRopFromCot(id){
   if(!CACHE.ventas.some(v=>v.cotizacion&&v.cotizacion===c.numero)){
     const piezasFactura=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0,precio:+it.vu||0}));
     await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id,piezasFactura});
-    extra=' · venta registrada ('+COP(sub)+' sin IVA)';
+    extra=' · venta registrada ('+COP(sub*(1+IVA))+' con IVA)';
   }
   if(c.estado!=='Aprobada')await saveRow('cotizaciones',{...c,estado:'Aprobada'});
   await loadAll();toast('Orden '+row.rop+' creada'+extra);setView('rop');
@@ -2843,6 +2843,7 @@ function facturaHTML(v){
   }).join(''):`<tr><td class="c">1</td><td>${esc(v.descripcion)||'\u2014'}</td><td class="c">\u2014</td><td class="num">\u2014</td><td class="num"><b>${COP(v.valor||0)}</b></td></tr>`;
   const totalDesglose=piezas.reduce((a,p)=>a+(+p.cant||0)*(+p.precio||0),0);
   const total=piezas.length?totalDesglose:(+v.valor||0);
+  const totalConIva=total*(1+IVA);
   const difiere=piezas.length&&Math.round(totalDesglose)!==Math.round(+v.valor||0);
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(cleanFileName('Cuenta de cobro '+(v.cliente||'')+' - '+(v.fecha||today())))}</title>
 <style>
@@ -2879,8 +2880,12 @@ function facturaHTML(v){
   <div class="cli"><span>Cliente:</span> <b>${esc(v.cliente)}</b>${v.nit?` \u00b7 NIT ${esc(v.nit)}`:''}${v.descripcion?`<div style="margin-top:4px">${esc(v.descripcion)}</div>`:''}</div>
   ${procesos.length?`<div class="procesos">${procesos.map(p=>`<span class="proc-tag">${esc(p)}</span>`).join('')}</div>`:''}
   <table class="items"><thead><tr><th class="c" style="width:26px">#</th><th>Descripci\u00f3n</th><th class="c" style="width:60px">Cant.</th><th class="num" style="width:100px">Precio und.</th><th class="num" style="width:110px">Subtotal</th></tr></thead><tbody>${rows}</tbody>
-  <tfoot><tr><td colspan="4" style="text-align:right">Total</td><td class="num tot">${COP(total)}</td></tr></tfoot></table>
-  ${difiere?`<div class="aviso">El valor registrado en Ventas (${COP(+v.valor||0)}) es distinto a la suma de este desglose (${COP(totalDesglose)}). Revisa antes de entregar a contabilidad.</div>`:''}
+  <tfoot>
+    <tr><td colspan="4" style="text-align:right;color:#888">Subtotal (sin IVA)</td><td class="num" style="color:#888">${COP(total)}</td></tr>
+    <tr><td colspan="4" style="text-align:right;color:#888">IVA 19%</td><td class="num" style="color:#888">${COP(total*IVA)}</td></tr>
+    <tr><td colspan="4" style="text-align:right;font-weight:800">Total a pagar (con IVA)</td><td class="num tot">${COP(totalConIva)}</td></tr>
+  </tfoot></table>
+  ${difiere?`<div class="aviso">El valor registrado en Ventas sin IVA (${COP(+v.valor||0)}) es distinto a la suma de este desglose sin IVA (${COP(totalDesglose)}). Revisa antes de entregar a contabilidad.</div>`:''}
   <div class="note">Documento interno para trazabilidad de cobro \u2014 no constituye factura electr\u00f3nica DIAN.</div>
 </body></html>`;
 }
@@ -3024,7 +3029,7 @@ function formVenta(r){r=r||{};return `<div class="fgrid">
   <div class="field"><label>N° Cotización</label><input id="f_cotizacion" value="${esc(r.cotizacion)}" placeholder="DB-0000"></div>
   <div class="field"><label>Orden de compra (OC)</label><input id="f_ordenCompra" value="${esc(r.ordenCompra)}" placeholder="Ej. OC 668"></div>
   <div class="field full"><label>Descripción</label><textarea id="f_descripcion">${esc(r.descripcion)}</textarea></div>
-  <div class="field"><label>Valor (sin IVA)</label><input type="number" id="f_valor" value="${r.valor||''}"></div>
+  <div class="field"><label>Valor (sin IVA)</label><input type="number" id="f_valor" value="${r.valor||''}" oninput="ventaValorConIva()"><div class="muted" style="font-size:11px;margin-top:3px">Total con IVA (lo que paga el cliente): <b id="f_valorConIva">${COP((+r.valor||0)*(1+IVA))}</b></div></div>
   <div class="field"><label>Abonado (pagos recibidos)</label><input type="number" id="f_abonado" value="${r.abonado||''}" placeholder="0 = sin abonos"></div>
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
   <input type="hidden" id="f_ropId" value="${esc(r.ropId)}">
@@ -3175,6 +3180,10 @@ function rpFromCot(){
    cada pieza y a qué precio, además de los procesos de la orden ---- */
 let ventaPiezas=[];
 let ventaSoportePago=null;
+function ventaValorConIva(){
+  const e=document.getElementById('f_valorConIva');if(!e)return;
+  e.textContent=COP((+val('f_valor')||0)*(1+IVA));
+}
 function renderVentaSoporte(){
   const box=document.getElementById('ventaSoporteBox');if(!box)return;
   box.innerHTML=ventaSoportePago
@@ -5010,7 +5019,7 @@ function exportarActual(){
     cols=[{label:'Fecha',key:'fecha'},{label:'Cliente',key:'cliente'},{label:'NIT',key:'nit'},
       {label:'Descripción',key:'descripcion'},{label:'Servicios',get:r=>(r.servicios||[]).join(', ')},
       {label:'Cotización',key:'cotizacion'},{label:'Orden de compra',key:'ordenCompra'},
-      {label:'Valor',key:'valor'},{label:'Abonado',key:'abonado'},{label:'Saldo',get:r=>(+r.valor||0)-(+r.abonado||0)},
+      {label:'Valor con IVA',get:r=>(+r.valor||0)*(1+IVA)},{label:'Valor sin IVA',key:'valor'},{label:'Abonado',key:'abonado'},{label:'Saldo',get:r=>(+r.valor||0)*(1+IVA)-(+r.abonado||0)},
       {label:'Facturada',get:r=>r.facturada?'Sí':'No'},{label:'Asesor',key:'asesor'}];
     filename='ventas_'+today()+'.csv';
   }else if(t==='rop'||t==='ropHistorial'){
@@ -5099,8 +5108,8 @@ async function exportBackup(){
     ['Ventas',csvOf(full.ventas,[
       {h:'Fecha',f:r=>r.fecha||''},{h:'Cliente',f:r=>r.cliente||''},{h:'NIT',f:r=>r.nit||''},
       {h:'Descripci\u00f3n',f:r=>r.descripcion||''},{h:'Servicios',f:r=>ventaServs(r).join(' + ')},
-      {h:'Valor sin IVA',f:r=>+r.valor||0},{h:'Abonado',f:r=>+r.abonado||0},{h:'Saldo',f:r=>(+r.valor||0)-(+r.abonado||0)},
-      {h:'Pagada',f:r=>((+r.abonado||0)>=(+r.valor||0)&&(+r.valor||0)>0)?'S\u00ed':'No'},
+      {h:'Valor con IVA',f:r=>(+r.valor||0)*(1+IVA)},{h:'Valor sin IVA',f:r=>+r.valor||0},{h:'Abonado',f:r=>+r.abonado||0},{h:'Saldo',f:r=>(+r.valor||0)*(1+IVA)-(+r.abonado||0)},
+      {h:'Pagada',f:r=>((+r.abonado||0)>=(+r.valor||0)*(1+IVA)&&(+r.valor||0)>0)?'S\u00ed':'No'},
       {h:'Fecha de pago',f:r=>r.fechaPago||''},{h:'Pagado por',f:r=>r.pagoPor||''},
       {h:'Cotizaci\u00f3n',f:r=>r.cotizacion||''},{h:'Asesor',f:r=>r.asesor||''}])],
     ['Cotizaciones',csvOf(full.cotizaciones,[
@@ -5275,28 +5284,8 @@ function openUsuarios(){
       <div class="up-fast"><button type="button" class="btn ghost sm" onclick="permAll(${i},true)">Marcar todas</button><button type="button" class="btn ghost sm" onclick="permAll(${i},false)">Ninguna</button></div></div>
       <div class="usr-perms"><div class="up-t">Notificaciones que le llegan a la campana — el chat le llega siempre, aparte de esto</div><div class="up-chips" id="usrNotifs_${i}">${NOTIF_TIPOS.map(t=>{const on=(p.notifs||NOTIF_TIPOS).includes(t);return `<label class="serv-chip ${on?'on':''}"><input type="checkbox" value="${t}" ${on?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${esc(NOTIF_TIPO_LBL[t])}</label>`;}).join('')}</div></div>
     </div>`).join('')}`;
-  document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cerrar</button><button class="btn ghost" onclick="descargarRespaldo()">Descargar respaldo completo</button><button class="btn" onclick="saveUsuarios()">Guardar cambios</button>`;
+  document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cerrar</button><button class="btn" onclick="saveUsuarios()">Guardar cambios</button>`;
   document.getElementById('overlay').classList.add('show');
-}
-/* respaldo completo: trae todo fresco de Supabase (con getAllFull, no la
-   versión recortada que usa la lista de cotizaciones) y lo empaca en un
-   solo archivo — red de seguridad extra aparte de lo que ya cuida Supabase */
-async function descargarRespaldo(){
-  if(!isAdmin()){toast('Solo Daniel o la gerencia pueden descargar el respaldo');return}
-  toast('Preparando respaldo — puede tardar unos segundos…');
-  try{
-    const tablas=['ventas','rop','leads','cotizaciones','inventario','papelera','sugerencias','piezascli'];
-    const datos={};
-    for(const t of tablas)datos[t]=await getAllFull(t);
-    datos.perfiles=PERFILES.map(p=>({name:p.name,role:p.role,views:p.views,notifs:p.notifs}));
-    datos.tarifas=TARIFAS;datos.materiales=MATERIALES;datos.clientesMat=CLIENTES_MAT;
-    const paquete={generado:new Date().toISOString(),generadoPor:(currentUser()||{}).name||'—',datos};
-    const blob=new Blob([JSON.stringify(paquete,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='respaldo_crm_doblaser_'+today()+'.json';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-    toast('Respaldo descargado — no incluye contraseñas por seguridad');
-  }catch(e){toast('No se pudo generar el respaldo');}
 }
 function permAll(i,on){document.querySelectorAll('#usrViews_'+i+' input').forEach(c=>{c.checked=on;c.parentElement.classList.toggle('on',on);});}
 async function saveUsuarios(){
