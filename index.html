@@ -187,6 +187,8 @@ tr:hover .row-act{opacity:1}
 .notif-ic-mensaje{background:#fdf2f8;color:#a21caf}
 .notif-ic-listo{background:#f0fdf4;color:#166534}
 .notif-ic-sinFactura{background:#fef2f2;color:#b91c1c}
+.notif-ic-cotVencida{background:#fffbeb;color:#92400e}
+.notif-ic-novedad{background:#fee2e2;color:#b91c1c}
 .notif-toasts{position:fixed;bottom:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:320px}
 .notif-toast{background:var(--card,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:11px 12px;display:flex;gap:9px;align-items:flex-start;cursor:pointer;animation:notifIn .25s ease}
 @keyframes notifIn{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -728,6 +730,9 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .ci-head .ci-n{font-weight:700;color:var(--wine);font-size:13px;text-align:center}
 .ci-head>input,.ci-head>select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:var(--card);color:var(--ink)}
 .ci-q{display:flex;flex-direction:column;gap:2px}
+.ci-spec{display:flex;gap:8px;padding:0 12px 10px 47px}
+.ci-spec input{flex:1;font-size:12px;padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2,#fff);color:var(--ink-2)}
+@media(max-width:980px){.ci-spec{padding-left:12px;flex-wrap:wrap}}
 .ci-q label{font-size:9.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
 .ci-q input{width:100%;padding:6px 7px;border:1px solid var(--line);border-radius:7px;font-size:13px;text-align:right}
 .ci-vu,.ci-vt{text-align:right;line-height:1.2}
@@ -1945,7 +1950,7 @@ function pct2fac(p){const f=1-(+p||0)/100;return f>0.0001?f:0.0001;}
 function blankCalc(){return{lmin:0,gas:'aire',lcustom:0,golpes:0,vgolpe:0,mig:0,vmig:0,marca:0,vmarca:0,otros:0,
   ttipo:'',tcant:0,tvu:0,mcant:0,mpeso:0,pkg:0,largo:0,ancho:0,cal:0,transp:0,
   mLaser:'',mProcesos:'',mTerceros:'',mMp:''};}
-function blankItem(){return{proc:'',procs:[],desc:'',cant:1,vu:0,_open:true,_procManual:false,calc:blankCalc()};}
+function blankItem(){return{proc:'',procs:[],desc:'',material:'',calibre:'',cant:1,vu:0,_open:true,_procManual:false,calc:blankCalc()};}
 /* costo + margen de un ítem -> exactamente como AW25..AW32 del Excel */
 function lineParts(it){
   const c=it.calc||blankCalc();
@@ -2487,7 +2492,7 @@ function openForm(t,id){
   if(t==='cotizaciones'){
     if(row&&row.tipo==='producto'){openFormProd(id);return;}
     COT_MODE='serv';
-    cotItems=row&&row.items&&row.items.length?row.items.map(it=>{const procs=Array.isArray(it.procs)?it.procs:(it.proc&&it.proc!=='Mixto'?it.proc.split(' + ').map(s=>s.trim()).filter(Boolean):[]);return{proc:procs.join(' + '),procs,desc:it.desc||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{})};}):[blankItem()];renderCotItems();
+    cotItems=row&&row.items&&row.items.length?row.items.map(it=>{const procs=Array.isArray(it.procs)?it.procs:(it.proc&&it.proc!=='Mixto'?it.proc.split(' + ').map(s=>s.trim()).filter(Boolean):[]);return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{})};}):[blankItem()];renderCotItems();
     if(!id){const bh=draftBannerHTML();if(bh){const mb=document.getElementById('mBody');mb.insertAdjacentHTML('afterbegin',bh);}}}
   if(t==='rop'){
     ropConsumo=(row&&Array.isArray(row.consumo))?row.consumo.map(c=>({material:c.material||MAT_INV[0],calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0})):[];
@@ -3004,7 +3009,7 @@ async function repeatCot(id){
   document.getElementById('modal').classList.add('wide');
   document.getElementById('mBody').innerHTML=formCot(copia);
   document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveForm()">Guardar</button>`;
-  cotItems=(c.items&&c.items.length?c.items:[]).map(it=>{const procs=Array.isArray(it.procs)?it.procs:[];return{proc:procs.join(' + '),procs,desc:it.desc||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{})};});
+  cotItems=(c.items&&c.items.length?c.items:[]).map(it=>{const procs=Array.isArray(it.procs)?it.procs:[];return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{})};});
   if(!cotItems.length)cotItems=[blankItem()];
   renderCotItems();
   document.getElementById('overlay').classList.add('show');
@@ -3697,6 +3702,10 @@ function renderCotItems(){
         <button class="btn ghost xs ci-toggle" onclick="cotToggle(${i})">${it._open?'Ocultar ▴':'Calcular ▾'}</button>
         <button class="ic-btn del" title="Eliminar ítem" onclick="cotDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
+      <div class="ci-spec">
+        <input value="${esc(it.material)}" oninput="ciHead(${i},'material',this.value)" placeholder="Material (ej. Acero inoxidable 304)">
+        <input value="${esc(it.calibre)}" oninput="ciHead(${i},'calibre',this.value)" placeholder="Calibre / espesor (ej. Cal. 20 · 0.9mm)">
+      </div>
       <div class="ci-calc ${it._open?'open':''}">
         <div class="ci-procsec">
           <h5>Procesos del ítem <span style="font-weight:400;text-transform:none;color:var(--ink-3)">— elige uno o varios</span></h5>
@@ -3792,7 +3801,7 @@ async function saveForm(){
     if(COT_MODE==='prod'){
       row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),margen:i.calc.margen}}))};
     }else{
-    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc()}))};}}
+    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc()}))};}}
   else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:numv('f_ancho'),cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
   else if(t==='piezascli'){if(!val('f_pzcCliente')){toast('Indica el cliente');return}if(!val('f_pzcPieza')){toast('Indica la pieza');return}row={...row,cliente:val('f_pzcCliente'),pieza:val('f_pzcPieza'),material:val('f_pzcMaterial'),notas:val('f_pzcNotas'),compras:pzcCompras.filter(c=>c.fecha||+c.cantidad>0||+c.costo>0).map(c=>({fecha:c.fecha||'',cantidad:+c.cantidad||0,costo:+c.costo||0,notas:(c.notas||'').trim()}))};}
   const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—',_ex=id?CACHE[t].find(x=>x.id===id):null;
@@ -3929,7 +3938,10 @@ function nextRop(){const ns=CACHE.rop.map(c=>parseInt((c.rop||'').replace('ROP-'
    ========================================================= */
 function cotPrintHTML(c){
   const t=cotTotal(c);
-  const rows=(c.items||[]).map((it,i)=>`<tr><td class="c">${i+1}</td><td>${esc(it.proc)||'—'}</td><td>${esc(it.desc)||'—'}</td><td class="c">${it.cant}</td><td class="r">${COP(it.vu)}</td><td class="r">${COP(it.cant*it.vu)}</td></tr>`).join('');
+  const rows=(c.items||[]).map((it,i)=>{
+    const spec=[it.material,it.calibre].filter(Boolean).join(' · ');
+    return `<tr><td class="c">${i+1}</td><td>${esc(it.proc)||'—'}</td><td>${esc(it.desc)||'—'}${spec?`<div class="sub">${esc(spec)}</div>`:''}</td><td class="c">${it.cant}</td><td class="r">${COP(it.vu)}</td><td class="r">${COP(it.cant*it.vu)}</td></tr>`;
+  }).join('');
   const fill=Math.max(0,8-(c.items||[]).length);
   const blanks=Array(fill).fill('<tr class="bk"><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(cotFileName(c))}</title>
@@ -3958,6 +3970,7 @@ function cotPrintHTML(c){
   table.items th.r,table.items td.r{text-align:right}
   table.items td{padding:7px 10px;border-bottom:1px solid #ececec;font-size:11px;vertical-align:top}
   table.items tbody tr:nth-child(even):not(.bk){background:#fbfafa}
+  .sub{font-size:9.5px;color:#888;margin-top:1px}
   table.items tr.bk td{height:26px;border-bottom:1px solid #f3f3f3}
   .below{display:flex;justify-content:space-between;gap:24px;margin-top:14px;align-items:flex-start}
   .pay{flex:1;background:#fbeef0;border:1px solid #f0d2d7;border-radius:8px;padding:11px 13px;font-size:10.5px;line-height:1.6}
@@ -4339,6 +4352,7 @@ function subscribeRealtime(){
 let NOTIFS=[];
 const VENTA_DUE_DIAS=15;
 const ROP_FACTURA_DUE_DIAS=5;
+const NOVEDAD_DUE_DIAS=3;
 function notifKey(){const u=currentUser();return 'db_notifs_'+(u?u.name:'anon');}
 function loadNotifs(){try{NOTIFS=JSON.parse(localStorage.getItem(notifKey())||'[]');}catch(e){NOTIFS=[];}}
 function saveNotifs(){try{localStorage.setItem(notifKey(),JSON.stringify(NOTIFS.slice(0,100)));}catch(e){}}
@@ -4351,6 +4365,8 @@ const NOTIF_ICONS={
   mensaje:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16l-4-4H4z"/></svg>',
   listo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
   sinFactura:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="13" y2="18"/></svg>',
+  cotVencida:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  novedad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
 };
 function pushNotif(tipo,texto,ref){
   const entry={id:uid(),tipo,texto,ts:new Date().toISOString(),leida:false,ref:ref||null};
@@ -4529,6 +4545,33 @@ function scanAlertas(){
       }
     });
     localStorage.setItem('db_alertados_pago',JSON.stringify(ids));
+  }
+  if(canView('cotizaciones')&&Array.isArray(CACHE.cotizaciones)){
+    const vencidas=CACHE.cotizaciones.filter(c=>c.validez&&c.validez<today()&&!['Aprobada','Perdida','Rechazada'].includes(c.estado||''));
+    const objetivo=vencidas.filter(c=>u.name===c.asesor||u.name==='Susana');
+    const ids=objetivo.map(x=>String(x.id));
+    const yaInicCV=localStorage.getItem('db_alertados_cotvenc')!==null;
+    const vistos=new Set(JSON.parse(localStorage.getItem('db_alertados_cotvenc')||'[]'));
+    if(yaInicCV)objetivo.forEach(c=>{
+      if(!vistos.has(String(c.id)))notifSiPuede('cotizaciones','cotVencida','Se venció sin respuesta: '+(c.numero||'')+' — '+(c.cliente||''),{view:'cotizaciones',id:c.id});
+    });
+    localStorage.setItem('db_alertados_cotvenc',JSON.stringify(ids));
+  }
+  if(canView('rop')&&Array.isArray(CACHE.rop)){
+    const hoyTs=new Date(today()+'T00:00:00').getTime();
+    const novAbiertas=CACHE.rop.map(x=>({x,nov:ropNovedadAbierta(x)})).filter(o=>{
+      if(!o.nov||!o.nov.fecha)return false;
+      const ts=new Date(o.nov.fecha+'T00:00:00').getTime();if(!isFinite(ts))return false;
+      return Math.floor((hoyTs-ts)/86400000)>=NOVEDAD_DUE_DIAS;
+    });
+    const keys=novAbiertas.map(o=>String(o.x.id)+':'+o.nov.fecha);
+    const yaInicNov=localStorage.getItem('db_alertados_novedad')!==null;
+    const vistos=new Set(JSON.parse(localStorage.getItem('db_alertados_novedad')||'[]'));
+    if(yaInicNov)novAbiertas.forEach(o=>{
+      const k=String(o.x.id)+':'+o.nov.fecha;
+      if(!vistos.has(k))notifSiPuede('rop','novedad','Novedad sin resolver hace días en '+(o.x.rop||'')+' — '+(o.x.cliente||''),{view:'rop',id:o.x.id});
+    });
+    localStorage.setItem('db_alertados_novedad',JSON.stringify(keys));
   }
   if(canView('ventas')&&Array.isArray(CACHE.rop)){
     const hoyTs=new Date(today()+'T00:00:00').getTime();
@@ -5126,8 +5169,8 @@ const DEF_PASS='doblaser2026';
 const fmtDateTime=s=>{try{return new Date(s).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return ''}};
 function currentUser(){return LS.get('user',null)}
 function isAdmin(){const u=currentUser();return !!u&&(u.name==='Daniel'||/Gerente/i.test(u.role||''))}
-const NOTIF_TIPOS=['venta','rop','atraso','pago','sugerencia','listo','sinFactura'];
-const NOTIF_TIPO_LBL={venta:'Nueva venta',rop:'Nueva ROP',atraso:'Orden atrasada',pago:'Pago pendiente',sugerencia:'Sugerencia nueva',listo:'Lista para recoger',sinFactura:'Orden entregada sin facturar'};
+const NOTIF_TIPOS=['venta','rop','atraso','pago','sugerencia','listo','sinFactura','cotVencida','novedad'];
+const NOTIF_TIPO_LBL={venta:'Nueva venta',rop:'Nueva ROP',atraso:'Orden atrasada',pago:'Pago pendiente',sugerencia:'Sugerencia nueva',listo:'Lista para recoger',sinFactura:'Orden entregada sin facturar',cotVencida:'Cotización vencida sin respuesta',novedad:'Novedad de producción sin resolver'};
 function normPerfil(p){
   const d=PERFILES_DEF.find(x=>x.name===p.name);
   let v=p.views;
@@ -5232,8 +5275,28 @@ function openUsuarios(){
       <div class="up-fast"><button type="button" class="btn ghost sm" onclick="permAll(${i},true)">Marcar todas</button><button type="button" class="btn ghost sm" onclick="permAll(${i},false)">Ninguna</button></div></div>
       <div class="usr-perms"><div class="up-t">Notificaciones que le llegan a la campana — el chat le llega siempre, aparte de esto</div><div class="up-chips" id="usrNotifs_${i}">${NOTIF_TIPOS.map(t=>{const on=(p.notifs||NOTIF_TIPOS).includes(t);return `<label class="serv-chip ${on?'on':''}"><input type="checkbox" value="${t}" ${on?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${esc(NOTIF_TIPO_LBL[t])}</label>`;}).join('')}</div></div>
     </div>`).join('')}`;
-  document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cerrar</button><button class="btn" onclick="saveUsuarios()">Guardar cambios</button>`;
+  document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cerrar</button><button class="btn ghost" onclick="descargarRespaldo()">Descargar respaldo completo</button><button class="btn" onclick="saveUsuarios()">Guardar cambios</button>`;
   document.getElementById('overlay').classList.add('show');
+}
+/* respaldo completo: trae todo fresco de Supabase (con getAllFull, no la
+   versión recortada que usa la lista de cotizaciones) y lo empaca en un
+   solo archivo — red de seguridad extra aparte de lo que ya cuida Supabase */
+async function descargarRespaldo(){
+  if(!isAdmin()){toast('Solo Daniel o la gerencia pueden descargar el respaldo');return}
+  toast('Preparando respaldo — puede tardar unos segundos…');
+  try{
+    const tablas=['ventas','rop','leads','cotizaciones','inventario','papelera','sugerencias','piezascli'];
+    const datos={};
+    for(const t of tablas)datos[t]=await getAllFull(t);
+    datos.perfiles=PERFILES.map(p=>({name:p.name,role:p.role,views:p.views,notifs:p.notifs}));
+    datos.tarifas=TARIFAS;datos.materiales=MATERIALES;datos.clientesMat=CLIENTES_MAT;
+    const paquete={generado:new Date().toISOString(),generadoPor:(currentUser()||{}).name||'—',datos};
+    const blob=new Blob([JSON.stringify(paquete,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='respaldo_crm_doblaser_'+today()+'.json';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    toast('Respaldo descargado — no incluye contraseñas por seguridad');
+  }catch(e){toast('No se pudo generar el respaldo');}
 }
 function permAll(i,on){document.querySelectorAll('#usrViews_'+i+' input').forEach(c=>{c.checked=on;c.parentElement.classList.toggle('on',on);});}
 async function saveUsuarios(){
