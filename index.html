@@ -1271,7 +1271,7 @@ function ropStages(x){
   let st=[];
   if(x&&Array.isArray(x.procesos)&&x.procesos.length)st=x.procesos.filter(p=>ROP_PROCESOS.includes(p));
   if(!st.length){
-    const c=x&&x.cotId&&CACHE.cotizaciones.find(k=>k.id===x.cotId);
+    const c=x&&x.cotId&&CACHE.cotizaciones.find(k=>String(k.id)===String(x.cotId));
     if(c&&c.items){const set=new Set();c.items.forEach(it=>(it.procs||[]).forEach(p=>{if(ROP_STAGE_MAP[p])set.add(ROP_STAGE_MAP[p]);}));st=[...set];}
   }
   if(!st.length)st=['Corte','Doblez'];
@@ -1437,7 +1437,7 @@ function prodStats(){
 function driveBtn(url,label,letter){return url?`<a class="dfile" href="${esc(url)}" target="_blank" rel="noopener" title="${label}: abrir en Google Drive" onclick="event.stopPropagation()">${letter}</a>`:'';}
 function driveCell(x){const b=[driveBtn(x.corteUrl,'Corte','C'),driveBtn(x.doblezUrl,'Doblez','D'),driveBtn(x.planosUrl,'Planos','P')].filter(Boolean).join('');return b||'<span class="muted" style="font-size:11px">—</span>';}
 function cotLinkCell(r){
-  if(r.cotId){const c=CACHE.cotizaciones.find(x=>x.id===r.cotId);if(c)return `<span class="code lk" title="Ver cotización ${esc(c.numero)}" onclick="event.stopPropagation();printCot('${c.id}')">${esc(c.numero)}</span>`;}
+  if(r.cotId){const c=CACHE.cotizaciones.find(x=>String(x.id)===String(r.cotId));if(c)return `<span class="code lk" title="Ver cotización ${esc(c.numero)}" onclick="event.stopPropagation();printCot('${c.id}')">${esc(c.numero)}</span>`;}
   return `<span class="muted">${esc(r.aprobacion)||'—'}</span>`;
 }
 function renderRop(){
@@ -1519,7 +1519,7 @@ function ropAllowDrop(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer
 async function ropDrop(ev,estado){ev.preventDefault();ev.currentTarget.classList.remove('kover');const id=ropDragId||(ev.dataTransfer?ev.dataTransfer.getData('text/plain'):null);ropDragId=null;if(!id)return;const r=CACHE.rop.find(x=>x.id===id);if(!r||r.estado===estado)return;const upd={...r,estado};if(ROP_DONE.includes(estado)&&!r.entrega)upd.entrega=today();const ok=await saveRow('rop',upd);if(ok===false)return;CACHE.rop=await getAll('rop');render();toast('Orden '+r.rop+' \u2192 '+estado+(upd.entrega&&!r.entrega?' \u00b7 entrega registrada hoy':''));}
 async function createRopFromCot(id){
   const c=CACHE.cotizaciones.find(x=>x.id===id);if(!c){toast('Cotización no encontrada');return}
-  if(CACHE.rop.some(r=>r.cotId===c.id)){if(!confirm('Ya existe una orden para esta cotización. ¿Crear otra?'))return;}
+  if(CACHE.rop.some(r=>String(r.cotId)===String(c.id))){if(!confirm('Ya existe una orden para esta cotización. ¿Crear otra?'))return;}
   /* las piezas de la cotización se copian a la orden para que las entregas
      parciales/totales de la ROP (que trabajan sobre "piezas") funcionen
      igual que en las órdenes manuales, sin tener que volver a escribirlas */
@@ -2625,7 +2625,7 @@ function renderProdImgs(){
 function prodImgSet(i){pickImage(d=>{prodImgs[i]=d;renderProdImgs();});}
 function prodImgClear(i){prodImgs[i]='';renderProdImgs();}
 /* ---- costo real vs cotizado (ROP) ---- */
-function ropCotOf(r){if(!r)return null;return CACHE.cotizaciones.find(c=>c.id===r.cotId)||(r.aprobacion?CACHE.cotizaciones.find(c=>c.numero===r.aprobacion):null)||null;}
+function ropCotOf(r){if(!r)return null;return CACHE.cotizaciones.find(c=>String(c.id)===String(r.cotId))||(r.aprobacion?CACHE.cotizaciones.find(c=>c.numero===r.aprobacion):null)||null;}
 function cotCostoInterno(c){
   if(!c)return null;
   if(c.tipo==='producto'){const s=(c.items||[]).reduce((a,it)=>{const lc=((it.calc&&it.calc.lines)||[]).reduce((x,l)=>x+((+l.cant||0)*(+l.vu||0)),0);return a+(+it.cant||1)*lc;},0);return s>0?s:null;}
@@ -2956,7 +2956,7 @@ function formVenta(r){r=r||{};return `<div class="fgrid">
     <div class="dfiles-hint">Para la factura que necesita la contable: qué pieza, cuántas y a qué precio — además de los procesos que ya quedaron marcados en la orden (corte, doblez, material...). Se imprime con el botón "Factura" en la lista de Ventas.</div>
   </div>
 </div>`}
-function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option value="${c.id}" ${r.cotId===c.id?'selected':''}>${esc(c.numero)} · ${esc(c.cliente)}</option>`).join('');return `<div class="fgrid">
+function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option value="${c.id}" ${String(r.cotId)===String(c.id)?'selected':''}>${esc(c.numero)} · ${esc(c.cliente)}</option>`).join('');return `<div class="fgrid">
   <div class="field"><label>N° ROP</label><input id="f_rop" value="${esc(r.rop)||nextRop()}"></div>
   <div class="field"><label>Estado</label><select id="f_estado">${opts(ROP_ESTADOS,r.estado||'Sin procesar')}</select></div>
   <div class="field full"><label>Cliente</label><input id="f_cliente" value="${esc(r.cliente)}" oninput="ropDuenoAuto()"></div>
@@ -3022,7 +3022,7 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
     <div class="dfiles-hint">En Google Drive: clic derecho sobre el archivo → <strong>Compartir → Copiar enlace</strong>, y pégalo aquí. Quedará como botón para abrirlo directo desde la orden de producción.</div>
   </div>
 </div>`}
-function ropCotPick(){const sel=document.getElementById('f_cotId');if(!sel||!sel.value)return;const c=CACHE.cotizaciones.find(x=>x.id===sel.value);if(!c)return;const cli=document.getElementById('f_cliente');if(cli&&!cli.value)cli.value=c.cliente;const ap=document.getElementById('f_aprobacion');if(ap&&!ap.value)ap.value=c.numero;ropDuenoAuto();ropCostCompare();}
+function ropCotPick(){const sel=document.getElementById('f_cotId');if(!sel||!sel.value)return;const c=CACHE.cotizaciones.find(x=>String(x.id)===String(sel.value));if(!c)return;const cli=document.getElementById('f_cliente');if(cli&&!cli.value)cli.value=c.cliente;const ap=document.getElementById('f_aprobacion');if(ap&&!ap.value)ap.value=c.numero;ropDuenoAuto();ropCostCompare();}
 function ropDuenoAuto(){const cli=document.getElementById('f_cliente'),sel=document.getElementById('f_consumoDueno');if(!cli||!sel)return;if(sel.value===DUENO_GEN){const m=matchDueno(cli.value);if(m!==DUENO_GEN)sel.value=m;}}
 /* ---- Piezas de la orden (para ROP que no vienen de cotización) ---- */
 let ropPiezas=[];
@@ -3067,7 +3067,7 @@ function rpEdit(i,k,v){
 }
 function rpFromCot(){
   const sel=document.getElementById('f_cotId');
-  const c=sel&&sel.value&&CACHE.cotizaciones.find(x=>x.id===sel.value);
+  const c=sel&&sel.value&&CACHE.cotizaciones.find(x=>String(x.id)===String(sel.value));
   if(!c){toast('Primero vincula una cotización');return;}
   const items=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0);
   if(!items.length){toast('Esa cotización no tiene ítems');return;}
@@ -3655,15 +3655,24 @@ const numv=id=>{const e=document.getElementById(id);return e?(+e.value||0):0};
 async function saveForm(){
   const{t,id}=editing;let row={id:id||uid()};
   if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),ordenCompra:val('f_ordenCompra'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0}))};}
-  else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}row={...row,rop:val('f_rop'),estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
+  else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}
+    let ropNum=val('f_rop');
+    if(ropNum&&CACHE.rop.some(r=>r.rop===ropNum&&r.id!==id)){
+      const nuevo=nextRop();
+      const fEl=document.getElementById('f_rop');if(fEl)fEl.value=nuevo;
+      ropNum=nuevo;
+      alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
+      return;
+    }
+    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
     if(numero&&CACHE.cotizaciones.some(c=>c.numero===numero&&c.id!==id)){
       const nuevo=nextCot();
-      set('f_numero',nuevo);
+      const fEl=document.getElementById('f_numero');if(fEl)fEl.value=nuevo;
       numero=nuevo;
-      alert('El número '+val('f_numero')+' ya lo usó otra cotización mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
+      alert('El número '+nuevo+' ya lo usó otra cotización mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
       return;
     }
     if(COT_MODE==='prod'){
@@ -4089,7 +4098,7 @@ function printRop(id){
   const r=CACHE.rop.find(x=>x.id===id);if(!r){toast('Orden no encontrada');return}
   const st=ropStages(r),av=ropAvance(r),pr=ropProgress(r);
   const pz=Array.isArray(r.piezas)?r.piezas:[];
-  const cot=r.cotId&&CACHE.cotizaciones.find(c=>c.id===r.cotId);
+  const cot=r.cotId&&CACHE.cotizaciones.find(c=>String(c.id)===String(r.cotId));
   const filas=pz.length?pz.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.desc)||'—'}</td><td>${esc(p.mat)||'—'}</td><td class="c">${+p.cant||0}</td><td class="chk"></td></tr>`).join('')
     :`<tr><td colspan="5" class="vacio">Sin lista de piezas · ver planos adjuntos</td></tr>`;
   const totPz=pz.reduce((a,p)=>a+(+p.cant||0),0);
@@ -4827,11 +4836,19 @@ function normPerfil(p){
   if(typeof v==='string'){try{v=JSON.parse(v);}catch(e){v=null;}}
   if(!Array.isArray(v)||!v.length)v=(d&&d.views)?d.views.slice():ALL_VIEWS.slice();
   v=v.filter(x=>ALL_VIEWS.includes(x));
+  /* si el perfil ya tenía casi todas las vistas que existían, se asume que
+     es un perfil de acceso total y las nuevas que se agreguen a futuro
+     también se le dan solas — así no toca ir a Supabase a mano cada vez
+     que se suma una pestaña. Los perfiles recortados a propósito (con
+     pocas vistas, como Esteban o Samuel) no entran en este caso y quedan
+     como estén guardados. */
+  if(v.length>=ALL_VIEWS.length-2)v=ALL_VIEWS.slice();
   if(!v.length)v=['resumen'];
   let n=p.notifs;
   if(typeof n==='string'){try{n=JSON.parse(n);}catch(e){n=null;}}
   if(!Array.isArray(n))n=NOTIF_TIPOS.slice();
   n=n.filter(x=>NOTIF_TIPOS.includes(x));
+  if(n.length>=NOTIF_TIPOS.length-2)n=NOTIF_TIPOS.slice();
   return {...p,role:p.role||(d?d.role:''),views:v,notifs:n};
 }
 function mergePerfiles(base){
