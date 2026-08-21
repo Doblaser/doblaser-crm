@@ -1646,7 +1646,8 @@ function ropVentaDe(r){
 /* una orden facturada ya no tiene nada pendiente en producción: se saca de la
    vista activa del ROP (lista y tablero) para no dejar la fila creciendo para
    siempre, pero sigue existiendo — "Historial completo" la sigue mostrando */
-function ropPagada(v){return !!(v&&(+v.abonado||0)>=(+v.valor||0)&&(+v.valor||0)>0);}
+/* el cliente paga con IVA, así que el abono se compara contra el total con IVA */
+function ropPagada(v){return !!(v&&(+v.abonado||0)>=(+v.valor||0)*(1+IVA)&&(+v.valor||0)>0);}
 /* órdenes viejas, de antes de que existiera el vínculo automático venta-ROP,
    pueden no tener forma de detectar que ya se facturaron y pagaron — para esas
    se ofrece mandarlas al historial a mano desde el botón de archivar */
@@ -1713,7 +1714,7 @@ function clientData(name){
   const rops=(CACHE.rop||[]).filter(x=>mt(x.cliente)).slice().sort((a,b)=>(b.ingreso||'').localeCompare(a.ingreso||''));
   const lead=(CACHE.leads||[]).find(x=>mt(x.empresa));
   const facturado=ventas.reduce((a,v)=>a+(+v.valor||0),0);
-  const porCobrar=ventas.reduce((a,v)=>a+Math.max(0,(+v.valor||0)-(+v.abonado||0)),0);
+  const porCobrar=ventas.reduce((a,v)=>a+Math.max(0,(+v.valor||0)*(1+IVA)-(+v.abonado||0)),0);
   const pipeline=cots.filter(c=>!['Aprobada','Perdida','Rechazada'].includes(c.estado||'')).reduce((a,c)=>a+cotTotal(c).sub,0);
   const enProd=rops.filter(r=>!ROP_DONE.includes(r.estado)).length;
   const stock=invStock().filter(s=>(s.dueno||'').trim().toLowerCase()===n);
@@ -4540,7 +4541,7 @@ function scanAlertas(){
   if(canView('ventas')&&Array.isArray(CACHE.ventas)){
     const hoyTs=new Date(today()+'T00:00:00').getTime();
     const pendientes=CACHE.ventas.filter(v=>{
-      const saldo=(+v.valor||0)-(+v.abonado||0);if(saldo<=0)return false;
+      const saldo=(+v.valor||0)*(1+IVA)-(+v.abonado||0);if(saldo<=0)return false;
       const fts=new Date((v.fecha||today())+'T00:00:00').getTime();
       return Math.floor((hoyTs-fts)/86400000)>=VENTA_DUE_DIAS;
     });
@@ -4549,7 +4550,7 @@ function scanAlertas(){
     const vistos=new Set(JSON.parse(localStorage.getItem('db_alertados_pago')||'[]'));
     if(yaInicPago)pendientes.forEach(v=>{
       if(!vistos.has(String(v.id))){
-        const saldo=(+v.valor||0)-(+v.abonado||0);
+        const saldo=(+v.valor||0)*(1+IVA)-(+v.abonado||0);
         notifSiPuede('ventas','pago','Pago pendiente hace más de '+VENTA_DUE_DIAS+' días: '+(v.cliente||'')+' · '+COP(saldo),{view:'ventas',id:v.id});
       }
     });
