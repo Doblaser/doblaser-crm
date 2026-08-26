@@ -650,12 +650,25 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .gsearch-tx b{font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gsearch-tx span{font-size:11px;color:var(--ink-3)}
 .gsearch-empty{padding:20px 6px;text-align:center;color:var(--ink-3);font-size:12.5px}
-.firma-box{padding:18px;max-width:480px;width:100%;text-align:left}
+.firma-box{padding:18px;max-width:520px;max-height:92vh;overflow-y:auto;width:100%;text-align:left}
+.firma-entrega{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin:10px 0 12px;background:var(--bg-2,rgba(0,0,0,.02));max-height:190px;overflow-y:auto}
+.firma-entrega .fe-t{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:6px}
+.fe-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--line)}
+.fe-row:last-of-type{border-bottom:none}
+.fe-d{font-size:12.5px;line-height:1.35}
+.fe-c{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fe-c i{font-weight:400;font-style:normal;color:var(--ink-3);font-size:11.5px}
+.fe-pend{margin-top:7px;font-size:11.5px;color:#b45309}
+.firma-quien{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.firma-quien>div{flex:1;min-width:150px}
+.firma-quien label{display:block;font-size:11px;color:var(--ink-3);margin-bottom:3px}
+.firma-quien input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13.5px;background:var(--card,#fff);color:inherit}
 .firma-title{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--ink-2)}
 .firma-canvas-wrap{border:2px dashed var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .firma-canvas-wrap canvas{display:block;width:100%;height:220px;touch-action:none;cursor:crosshair}
 .firma-hint{font-size:11px;color:var(--ink-3);margin:8px 0 12px}
-.firma-actions{display:flex;gap:8px;flex-wrap:wrap}
+.firma-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.firma-actions .btn{flex:0 0 auto}
 .firma-actions .btn{flex:1;min-width:120px}
 .crop-box{padding:18px;max-width:300px}
 .crop-title{font-size:13px;font-weight:600;margin-bottom:12px;color:var(--ink-2)}
@@ -1389,7 +1402,7 @@ const META={
   resumen:{title:'Resumen',sub:'Panel general de operación comercial',add:false,search:false},
   ventas:{title:'Ventas',sub:'Registro y seguimiento de ventas',add:'Registrar venta',search:true,export:true},
   rop:{title:'ROP',sub:'Registro de órdenes de producción',add:'Nueva ROP',search:true,export:true},
-  ropHistorial:{title:'Historial de órdenes',sub:'Órdenes ya facturadas y pagadas — se sacan del ROP activo para no acumular filas',add:false,search:true,export:true},
+  ropHistorial:{title:'Historial de órdenes',sub:'Órdenes ya entregadas y facturadas — se sacan del ROP activo para no acumular filas',add:false,search:true,export:true},
   cotizaciones:{title:'Cotizaciones',sub:'Calculadora de costos integrada por ítem · formato Doblaser',add:'Nueva cotización',search:true},
   leads:{title:'Clientes / Leads',sub:'Base de prospectos del Valle de Aburrá',add:'Nuevo cliente',search:true},
   estadisticas:{title:'Estadísticas',sub:'Análisis mensual y anual de ventas',add:false,search:false},
@@ -1615,7 +1628,7 @@ function renderRop(){
   const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button></div></div>`;
   const vrows=rows.filter(x=>!ropCerrada(x));
   const ocultas=rows.length-vrows.length;
-  const hint=ocultas>0?`<div class="board-hint">${ocultas} órdenes ya facturadas y pagadas se movieron a <b>Historial de órdenes</b> — no aparecen aquí.</div>`:'';
+  const hint=ocultas>0?`<div class="board-hint">${ocultas} órdenes ya entregadas y facturadas se movieron a <b>Historial de órdenes</b> — no aparecen aquí.</div>`:'';
   if(ropMode==='tablero'){
     return kpis+toolbar+hint+renderRopBoard(vrows);
   }
@@ -1631,7 +1644,7 @@ function renderRopHistorial(){
   const rows=CACHE.rop.filter(match).filter(x=>ropCerrada(x)).filter(x=>ropFilterH==='Todas'||x.estado===ropFilterH)
     .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
   const toolbar=`<div class="toolbar"><div class="seg" id="ropSegH">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilterH?'on':''}" onclick="ropFilterH='${e}';render()">${e}</button>`).join('')}</div></div>`;
-  const hint=`<div class="board-hint">Órdenes ya facturadas y pagadas — se sacaron del ROP activo para no acumular filas. Se pueden abrir igual para consulta.</div>`;
+  const hint=`<div class="board-hint">Órdenes ya entregadas y facturadas — se sacaron del ROP activo para no acumular filas. El cobro pendiente, si lo hay, se sigue viendo en Ventas.</div>`;
   return toolbar+hint+ropTableHTML(rows,CACHE.rop.length);
 }
 function renderRopBoard(rows){
@@ -1728,7 +1741,7 @@ function ropVentaDe(r){
   if(r.aprobacion)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===r.aprobacion);
   return null;
 }
-/* una orden facturada ya no tiene nada pendiente en producción: se saca de la
+/* una orden entregada y facturada ya no tiene nada pendiente en producción: se saca de la
    vista activa del ROP (lista y tablero) para no dejar la fila creciendo para
    siempre, pero sigue existiendo — "Historial completo" la sigue mostrando */
 /* el cliente paga con IVA, así que el abono se compara contra el total con IVA */
@@ -1736,7 +1749,7 @@ function ropPagada(v){return !!(v&&(+v.abonado||0)>=(+v.valor||0)*(1+IVA)&&(+v.v
 /* órdenes viejas, de antes de que existiera el vínculo automático venta-ROP,
    pueden no tener forma de detectar que ya se facturaron y pagaron — para esas
    se ofrece mandarlas al historial a mano desde el botón de archivar */
-function ropCerrada(r){return !!r.archivadaManual||(()=>{const v=ropVentaDe(r);return !!(v&&v.facturada&&ropPagada(v));})();}
+function ropCerrada(r){return !!r.archivadaManual||(()=>{if((r.estado||'')!=='Entregado')return false;const v=ropVentaDe(r);return !!(v&&v.facturada);})();}
 async function archivarRopManual(id,val){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
   const hacer=async()=>{
@@ -1747,7 +1760,7 @@ async function archivarRopManual(id,val){
   };
   if(val){
     pedirConfirmacion('¿Mandar esta orden al historial?',
-      (r.rop||'')+' — '+(r.cliente||'')+'\n\nEs una orden vieja sin venta vinculada para detectar sola si ya se facturó y pagó. Solo úsalo si ya se cobró por completo — si no, mejor déjala en el ROP.',
+      (r.rop||'')+' — '+(r.cliente||'')+'\n\nEs una orden vieja sin venta vinculada para detectar sola si ya se entregó y facturó. Solo úsalo si ya no tiene nada pendiente de producción — si no, mejor déjala en el ROP.',
       hacer,'Mandar al historial');
   }else{
     pedirConfirmacion('¿Devolver esta orden al ROP activo?',(r.rop||'')+' — '+(r.cliente||''),hacer,'Devolver');
@@ -2945,9 +2958,10 @@ function printDoc(html,fname){
 }
 function printRemision(id){
   const r=CACHE.rop.find(x=>x.id===id);if(!r){toast('Orden no encontrada');return}
-  abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||''),firma=>{
-    if(firma){const upd={...r,firmaCliente:firma,firmaClienteFecha:new Date().toISOString()};saveRow('rop',upd);}
-    printDoc(remisionHTML(r,null,firma),cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'cliente')));
+  abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||''),resumenEntrega(r,null),(firma,quien)=>{
+    if(firma){const upd={...r,firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
+      firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null};saveRow('rop',upd);}
+    printDoc(remisionHTML(r,null,firma,quien),cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'cliente')));
   });
 }
 /* cuenta de cobro para ventas sin cotizaci\u00f3n (material del cliente) \u2014
@@ -3014,7 +3028,7 @@ function facturaHTML(v){
   <div class="note">Documento interno para trazabilidad de cobro \u2014 no constituye factura electr\u00f3nica DIAN.</div>
 </body></html>`;
 }
-function remisionHTML(r,fechaFiltro,firmaDataUrl){
+function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   const c=ropCotOf(r);
   const piezasBase=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   const bitAll=Array.isArray(r.bitacora)?r.bitacora:[];
@@ -3113,7 +3127,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl){
   <div class="note">El cliente declara recibir los \u00edtems relacionados en esta remisi\u00f3n, verificados en cantidad y estado al momento de la entrega. Documento de entrega — no constituye factura.</div>
   <div class="firmas">
     <div class="firma"><div class="t">ENTREGA — DOBLASER S.A.S.</div>${currentUser()?`<div class="l pref">${esc(currentUser().name)}</div>`:'<div class="l">Nombre</div>'}<div class="l">Firma</div></div>
-    <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div><div class="l">Nombre</div><div class="l">C.C.</div>${firmaDataUrl?`<div class="firma-img"><img src="${firmaDataUrl}" alt="Firma del cliente"><div class="fts">Firmado el ${fmtDate(today())}</div></div>`:'<div class="l">Firma y fecha</div>'}</div>
+    <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div>${(recibe&&recibe.nombre)?`<div class="l pref">${esc(recibe.nombre)}</div>`:'<div class="l">Nombre</div>'}${(recibe&&recibe.cedula)?`<div class="l pref">C.C. ${esc(recibe.cedula)}</div>`:'<div class="l">C.C.</div>'}${firmaDataUrl?`<div class="firma-img"><img src="${firmaDataUrl}" alt="Firma del cliente"><div class="fts">Firmado el ${fmtDate(today())}</div></div>`:'<div class="l">Firma y fecha</div>'}</div>
   </div>
   <div class="foot">DOBLASER S.A.S. \u00b7 Nit 901682190-5 \u00b7 ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} \u00b7 ${esc(EMPRESA.web)} \u00b7 Generado ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''}</div>
 </body></html>`;
@@ -3544,9 +3558,10 @@ function renderRopEntregasHist(){
 function printRemisionDeFecha(fecha){
   const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
   const r={...base,piezas:ropPiezas,bitacora:ropBitacora,rop:(document.getElementById('f_rop')||{}).value||base.rop,cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
-  abrirFirma('Firma de recibido — '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+fmtDate(fecha),firma=>{
-    if(firma&&base.id)saveRow('rop',{...base,firmaCliente:firma,firmaClienteFecha:new Date().toISOString()});
-    printDoc(remisionHTML(r,fecha,firma),cleanFileName('Remisión '+(r.rop||'')+' - '+(r.cliente||'cliente')+' - entrega '+fecha));
+  abrirFirma('Firma de recibido — '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+fmtDate(fecha),resumenEntrega(r,fecha),(firma,quien)=>{
+    if(firma&&base.id)saveRow('rop',{...base,firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
+      firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null});
+    printDoc(remisionHTML(r,fecha,firma,quien),cleanFileName('Remisión '+(r.rop||'')+' - '+(r.cliente||'cliente')+' - entrega '+fecha));
   });
 }
 function renderRopBitacora(){
@@ -4998,23 +5013,70 @@ function gsearchIr(tipo,id){
    imprimir la remisión y queda incrustada en el PDF/impreso
    ========================================================= */
 let FIRMA={};
-function abrirFirma(titulo,onListo){
+/* qué se está entregando ahora — misma lógica que usa la remisión, para que
+   el cliente vea las piezas y las cantidades ANTES de poner la firma */
+function resumenEntrega(r,fechaFiltro){
+  const piezasBase=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
+  const bitAll=Array.isArray(r.bitacora)?r.bitacora:[];
+  let piezas=piezasBase,entHoyMap=null,total=false;
+  if(fechaFiltro){
+    const bitHoy=bitAll.filter(b=>(b.fecha||'')===fechaFiltro&&(b.tipo==='parcial'||b.tipo==='total'));
+    total=bitHoy.some(b=>b.tipo==='total'&&!b.piezaDesc);
+    if(!total){
+      const descsHoy=new Set(bitHoy.filter(b=>b.piezaDesc).map(b=>b.piezaDesc.trim()));
+      if(descsHoy.size)piezas=piezasBase.filter(p=>descsHoy.has((p.desc||'').trim()));
+      entHoyMap={};
+      bitHoy.forEach(b=>{if(b.piezaDesc){const k=b.piezaDesc.trim();entHoyMap[k]=(entHoyMap[k]||0)+(+b.cantEntregada||0);}});
+    }
+  }
+  const bitCorte=fechaFiltro?bitAll.filter(b=>(b.fecha||'')<=fechaFiltro):bitAll;
+  const lineas=piezas.map(p=>{
+    const tot=+p.cant||0;
+    const entAcum=_entregadoDe(bitCorte,p.desc,tot);
+    const cant=fechaFiltro?(total?entAcum:(entHoyMap[(p.desc||'').trim()]||0)):entAcum;
+    return {desc:(p.desc||'').trim()||'—',cant,tot,pend:Math.max(0,tot-entAcum)};
+  }).filter(l=>!fechaFiltro||l.cant>0);
+  if(lineas.length)return {lineas,pend:lineas.reduce((a,l)=>a+l.pend,0)};
+  /* sin lista de piezas: se cae a los ítems de la cotización, y si tampoco
+     hay, a la descripción de la orden — nunca se muestra un cuadro vacío */
+  const c=ropCotOf(r);
+  if(c&&Array.isArray(c.items)&&c.items.length)
+    return {lineas:c.items.map(it=>({desc:(it.desc||it.proc||'—'),cant:+it.cant||1,tot:+it.cant||1,pend:0})),pend:0};
+  return {lineas:[{desc:(r.observaciones||'').trim()||('Material / trabajo según orden '+(r.rop||'')),cant:null,tot:null,pend:0}],pend:0};
+}
+function resumenEntregaHTML(res){
+  if(!res||!res.lineas.length)return '';
+  const filas=res.lineas.map(l=>`<div class="fe-row"><span class="fe-d">${esc(l.desc)}</span>${l.cant==null?'':`<span class="fe-c">${l.cant}${l.tot&&l.tot!==l.cant?` <i>de ${l.tot}</i>`:''}</span>`}</div>`).join('');
+  const pend=res.pend>0?`<div class="fe-pend">Quedan ${res.pend} unidades pendientes por entregar de esta orden</div>`:'';
+  return `<div class="firma-entrega"><div class="fe-t">Se está entregando</div>${filas}${pend}</div>`;
+}
+function abrirFirma(titulo,resumen,onListo){
   let c=document.getElementById('firmaLayer');
   if(!c){
     c=document.createElement('div');c.id='firmaLayer';c.className='confirm-layer';
     c.innerHTML=`<div class="confirm-box firma-box">
       <div class="firma-title" id="firmaTitulo"></div>
+      <div id="firmaResumen"></div>
+      <div class="firma-quien">
+        <div><label>Nombre de quien recibe</label><input id="firmaNombre" type="text" autocomplete="off" placeholder="Nombre y apellido"></div>
+        <div><label>Cédula</label><input id="firmaCedula" type="text" inputmode="numeric" autocomplete="off" placeholder="Opcional"></div>
+      </div>
       <div class="firma-canvas-wrap"><canvas id="firmaCanvas"></canvas></div>
       <div class="firma-hint">El cliente firma aquí con el dedo o el lápiz de la tablet</div>
       <div class="firma-actions">
+        <button type="button" class="btn ghost" onclick="firmaCancelar()">Cancelar</button>
         <button type="button" class="btn ghost" onclick="firmaLimpiar()">Limpiar</button>
         <button type="button" class="btn ghost" onclick="firmaOmitir()">Imprimir sin firma</button>
         <button type="button" class="btn" onclick="firmaConfirmar()">Confirmar e imprimir</button>
       </div>
     </div>`;
     document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)firmaCancelar();});
   }
   document.getElementById('firmaTitulo').textContent=titulo;
+  document.getElementById('firmaResumen').innerHTML=resumenEntregaHTML(resumen);
+  const n=document.getElementById('firmaNombre'),ce=document.getElementById('firmaCedula');
+  if(n)n.value='';if(ce)ce.value='';
   FIRMA.onListo=onListo;
   c.classList.add('show');
   setTimeout(firmaInitCanvas,30);
@@ -5042,13 +5104,22 @@ function firmaLimpiar(){
   FIRMA.hasStroke=false;
 }
 function cerrarFirma(){const c=document.getElementById('firmaLayer');if(c)c.classList.remove('show');}
-function firmaOmitir(){cerrarFirma();if(FIRMA.onListo)FIRMA.onListo(null);}
+function firmaOmitir(){const d=firmaDatosQuien();cerrarFirma();if(FIRMA.onListo)FIRMA.onListo(null,d);}
+/* salir sin firmar y sin imprimir — antes la única salida era imprimir igual */
+function firmaCancelar(){FIRMA.onListo=null;cerrarFirma();}
+function firmaDatosQuien(){
+  const n=(document.getElementById('firmaNombre')||{}).value||'';
+  const c=(document.getElementById('firmaCedula')||{}).value||'';
+  return {nombre:n.trim(),cedula:c.trim()};
+}
 function firmaConfirmar(){
   if(!FIRMA.hasStroke){toast('Todavía no hay firma — usa "Imprimir sin firma" si no aplica');return;}
+  const d=firmaDatosQuien();
+  if(!d.nombre){toast('Falta el nombre de quien recibe');const n=document.getElementById('firmaNombre');if(n)n.focus();return;}
   const cv=document.getElementById('firmaCanvas');
   let dataUrl;try{dataUrl=cv.toDataURL('image/png');}catch(e){toast('No se pudo guardar la firma');return;}
   cerrarFirma();
-  if(FIRMA.onListo)FIRMA.onListo(dataUrl);
+  if(FIRMA.onListo)FIRMA.onListo(dataUrl,d);
 }
 /* encuadre manual de fotos (como WhatsApp al enviar una imagen): el usuario
    arrastra para mover y usa el control para acercar/alejar dentro de un
