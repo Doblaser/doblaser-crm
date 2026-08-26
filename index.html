@@ -663,6 +663,11 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .firma-quien>div{flex:1;min-width:150px}
 .firma-quien label{display:block;font-size:11px;color:var(--ink-3);margin-bottom:3px}
 .firma-quien input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13.5px;background:var(--card,#fff);color:inherit}
+.mp-firma{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.mp-firma-t{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:8px}
+.mp-firma-box{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;display:inline-block;max-width:100%}
+.mp-firma-box img{display:block;max-width:230px;width:100%;height:auto}
+.mp-firma-vacia{font-size:12.5px;color:var(--ink-3);padding:10px 0}
 .firma-title{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--ink-2)}
 .firma-canvas-wrap{border:2px dashed var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .firma-canvas-wrap canvas{display:block;width:100%;height:220px;touch-action:none;cursor:crosshair}
@@ -2581,7 +2586,7 @@ function emptyRow(c){return `<tr><td colspan="${c}"><div class="empty"><svg view
 function rowActions(t,id){
   const rEl=t==='rop'?CACHE.rop.find(x=>String(x.id)===String(id)):null;
   const rem=t==='rop'?`<button class="ic-btn" title="Hoja de producción (imprimir)" onclick="printRop('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="ic-btn" title="Remisión de entrega" onclick="printRemision('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button>`:'';
-  const firmaBtn=(t==='rop'&&rEl&&rEl.firmaCliente)?`<button class="ic-btn" title="Ver firma del cliente" onclick="event.stopPropagation();verFotoGrande('${rEl.firmaCliente}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/><path d="M4 14c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/></svg></button>`:'';
+  const firmaBtn=(t==='rop'&&rEl&&rEl.firmaCliente)?`<button class="ic-btn" title="Ver la remisión firmada" onclick="event.stopPropagation();verRemisionFirmada('${rEl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/><path d="M4 14c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/></svg></button>`:'';
   let archBtn='';
   if(t==='rop'&&rEl){
     if(rEl.estado==='Entregado'&&!ropCerrada(rEl)){
@@ -2956,6 +2961,16 @@ function printDoc(html,fname){
     if(f.contentWindow.document.readyState==='complete')setTimeout(go,300);else f.contentWindow.onload=()=>setTimeout(go,300);
   }catch(e){toast('No se pudo abrir la impresi\u00f3n');}
 }
+/* el ícono de firma abre el documento firmado completo, no la imagen suelta:
+   lo que sirve para un reclamo es la remisión con sus piezas, no un garabato */
+function verRemisionFirmada(id){
+  const r=CACHE.rop.find(x=>String(x.id)===String(id));
+  if(!r){toast('Orden no encontrada');return;}
+  if(!r.firmaCliente){toast('Esta orden todavía no tiene firma del cliente');return;}
+  const recibe={nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''};
+  printDoc(remisionHTML(r,null,r.firmaCliente,recibe),
+    cleanFileName('Remisi\u00f3n firmada '+(r.rop||'')+' - '+(r.cliente||'cliente')));
+}
 function printRemision(id){
   const r=CACHE.rop.find(x=>x.id===id);if(!r){toast('Orden no encontrada');return}
   abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||''),resumenEntrega(r,null),(firma,quien)=>{
@@ -3030,6 +3045,11 @@ function facturaHTML(v){
 }
 function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   const c=ropCotOf(r);
+  /* la firma de quien entrega sale del perfil, guardada una sola vez */
+  const _firmaEmpresa=currentUser()?profFirma(currentUser().name):'';
+  /* al reimprimir una remisión vieja debe decir cuándo se firmó de verdad,
+     no la fecha en que se volvió a imprimir */
+  const _fechaFirma=(r.firmaClienteFecha||'').slice(0,10)||today();
   const piezasBase=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   const bitAll=Array.isArray(r.bitacora)?r.bitacora:[];
   let piezas=piezasBase,entHoyMap=null,entregaTotalOrden=false;
@@ -3105,6 +3125,8 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   .firma .l{margin-top:16px;border-top:1px solid #999;padding-top:3px;font-size:10px;color:#666}
   .firma .l.pref{border-top:none;padding-top:0;margin-top:8px;font-size:11px;color:#222;font-weight:600}
   .firma-img{margin-top:10px;border-top:1px solid #999;padding-top:6px}
+.firma-logo{margin-top:8px}
+.firma-logo img{height:19px;width:auto;opacity:.8}
   .firma-img img{max-height:56px;display:block}
   .firma-img .fts{font-size:8.5px;color:#999;margin-top:2px}
   .foot{margin-top:18px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:7px;text-align:center}
@@ -3126,8 +3148,8 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   ${avisoPend}
   <div class="note">El cliente declara recibir los \u00edtems relacionados en esta remisi\u00f3n, verificados en cantidad y estado al momento de la entrega. Documento de entrega — no constituye factura.</div>
   <div class="firmas">
-    <div class="firma"><div class="t">ENTREGA — DOBLASER S.A.S.</div>${currentUser()?`<div class="l pref">${esc(currentUser().name)}</div>`:'<div class="l">Nombre</div>'}<div class="l">Firma</div></div>
-    <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div>${(recibe&&recibe.nombre)?`<div class="l pref">${esc(recibe.nombre)}</div>`:'<div class="l">Nombre</div>'}${(recibe&&recibe.cedula)?`<div class="l pref">C.C. ${esc(recibe.cedula)}</div>`:'<div class="l">C.C.</div>'}${firmaDataUrl?`<div class="firma-img"><img src="${firmaDataUrl}" alt="Firma del cliente"><div class="fts">Firmado el ${fmtDate(today())}</div></div>`:'<div class="l">Firma y fecha</div>'}</div>
+    <div class="firma"><div class="t">ENTREGA — DOBLASER S.A.S.</div>${currentUser()?`<div class="l pref">${esc(currentUser().name)}</div>`:'<div class="l">Nombre</div>'}${_firmaEmpresa?`<div class="firma-img"><img src="${_firmaEmpresa}" alt="Firma"></div>`:'<div class="l">Firma</div>'}<div class="firma-logo"><img src="${LOGO_POS}" alt="Doblaser"></div></div>
+    <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div>${(recibe&&recibe.nombre)?`<div class="l pref">${esc(recibe.nombre)}</div>`:'<div class="l">Nombre</div>'}${(recibe&&recibe.cedula)?`<div class="l pref">C.C. ${esc(recibe.cedula)}</div>`:'<div class="l">C.C.</div>'}${firmaDataUrl?`<div class="firma-img"><img src="${firmaDataUrl}" alt="Firma del cliente"><div class="fts">Firmado el ${fmtDate(_fechaFirma)}</div></div>`:'<div class="l">Firma y fecha</div>'}</div>
   </div>
   <div class="foot">DOBLASER S.A.S. \u00b7 Nit 901682190-5 \u00b7 ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} \u00b7 ${esc(EMPRESA.web)} \u00b7 Generado ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''}</div>
 </body></html>`;
@@ -5050,7 +5072,8 @@ function resumenEntregaHTML(res){
   const pend=res.pend>0?`<div class="fe-pend">Quedan ${res.pend} unidades pendientes por entregar de esta orden</div>`:'';
   return `<div class="firma-entrega"><div class="fe-t">Se está entregando</div>${filas}${pend}</div>`;
 }
-function abrirFirma(titulo,resumen,onListo){
+function abrirFirma(titulo,resumen,onListo,opts){
+  opts=opts||{};
   let c=document.getElementById('firmaLayer');
   if(!c){
     c=document.createElement('div');c.id='firmaLayer';c.className='confirm-layer';
@@ -5077,6 +5100,17 @@ function abrirFirma(titulo,resumen,onListo){
   document.getElementById('firmaResumen').innerHTML=resumenEntregaHTML(resumen);
   const n=document.getElementById('firmaNombre'),ce=document.getElementById('firmaCedula');
   if(n)n.value='';if(ce)ce.value='';
+  /* al guardar la firma propia del equipo no se piden nombre ni cédula:
+     ya se sabe quién es, y no se está imprimiendo nada */
+  const quien=document.querySelector('.firma-quien');
+  if(quien)quien.style.display=opts.sinQuien?'none':'';
+  const hint=document.querySelector('#firmaLayer .firma-hint');
+  if(hint)hint.textContent=opts.hint||'El cliente firma aquí con el dedo o el lápiz de la tablet';
+  const bOm=document.querySelector('#firmaLayer .firma-actions button[onclick="firmaOmitir()"]');
+  if(bOm)bOm.style.display=opts.sinOmitir?'none':'';
+  const bOk=document.querySelector('#firmaLayer .firma-actions button[onclick="firmaConfirmar()"]');
+  if(bOk)bOk.textContent=opts.textoOk||'Confirmar e imprimir';
+  FIRMA.sinQuien=!!opts.sinQuien;
   FIRMA.onListo=onListo;
   c.classList.add('show');
   setTimeout(firmaInitCanvas,30);
@@ -5115,7 +5149,7 @@ function firmaDatosQuien(){
 function firmaConfirmar(){
   if(!FIRMA.hasStroke){toast('Todavía no hay firma — usa "Imprimir sin firma" si no aplica');return;}
   const d=firmaDatosQuien();
-  if(!d.nombre){toast('Falta el nombre de quien recibe');const n=document.getElementById('firmaNombre');if(n)n.focus();return;}
+  if(!FIRMA.sinQuien&&!d.nombre){toast('Falta el nombre de quien recibe');const n=document.getElementById('firmaNombre');if(n)n.focus();return;}
   const cv=document.getElementById('firmaCanvas');
   let dataUrl;try{dataUrl=cv.toDataURL('image/png');}catch(e){toast('No se pudo guardar la firma');return;}
   cerrarFirma();
@@ -5504,6 +5538,30 @@ function pickAvatar(cb){
     abrirEncuadre(dataUrl,cropped=>cb(cropped));
   });
 }
+/* firma que cada quien guarda una sola vez en su perfil: sale sola en el lado
+   de DOBLASER de la remisión, para no tener que firmar a mano cada entrega */
+function profFirma(name){const p=(PERFILES||[]).find(x=>x.name===name);return (p&&p.firma)||'';}
+async function setProfileFirma(name,dataUrl){
+  PERFILES=PERFILES.map(p=>p.name===name?{...p,firma:dataUrl}:p);
+  LS.set('perfiles',PERFILES);
+  if(USING_SB&&sb){try{await sb.from('perfiles').update({firma:dataUrl||null}).eq('name',name);}catch(e){}}
+}
+function miFirmaGuardar(){
+  const u=currentUser();if(!u)return;
+  abrirFirma('Tu firma — '+u.name,null,async firma=>{
+    if(!firma)return;
+    await setProfileFirma(u.name,firma);
+    if(_mpDraw)_mpDraw();
+    toast('Firma guardada — va a salir sola en las remisiones que imprimas');
+  },{sinQuien:true,sinOmitir:true,textoOk:'Guardar firma',
+    hint:'Firma una sola vez aquí. Queda guardada en tu perfil y sale impresa en las remisiones que generes.'});
+}
+async function miFirmaQuitar(){
+  const u=currentUser();if(!u)return;
+  await setProfileFirma(u.name,'');
+  if(_mpDraw)_mpDraw();
+  toast('Firma eliminada');
+}
 async function setProfileAvatar(name,dataUrl){
   PERFILES=PERFILES.map(p=>p.name===name?{...p,avatar:dataUrl}:p);
   LS.set('perfiles',PERFILES);
@@ -5514,7 +5572,7 @@ let _mpDraw=null;
 function openMiPerfil(){
   const u=currentUser();if(!u)return;
   document.getElementById('mTitle').textContent='Mi perfil';document.getElementById('modal').classList.remove('wide');
-  _mpDraw=()=>{document.getElementById('mBody').innerHTML=`<div class="miperfil"><div class="mp-av">${avatarHTML(u.name,'xl')}</div><div class="mp-info"><strong>${esc(u.name)}</strong><span>${esc(u.role)}</span></div><div class="mp-btns"><button class="btn sm" onclick="miPerfilFoto()">${profAvatar(u.name)?'Cambiar foto':'Subir foto'}</button>${profAvatar(u.name)?'<button class="btn ghost sm" onclick="miPerfilQuitar()">Quitar foto</button>':''}</div><div class="mp-hint">Tu foto se verá en el panel del equipo, en el inicio de sesión y en el indicador de quién está en línea.</div></div>`;};
+  _mpDraw=()=>{document.getElementById('mBody').innerHTML=`<div class="miperfil"><div class="mp-av">${avatarHTML(u.name,'xl')}</div><div class="mp-info"><strong>${esc(u.name)}</strong><span>${esc(u.role)}</span></div><div class="mp-btns"><button class="btn sm" onclick="miPerfilFoto()">${profAvatar(u.name)?'Cambiar foto':'Subir foto'}</button>${profAvatar(u.name)?'<button class="btn ghost sm" onclick="miPerfilQuitar()">Quitar foto</button>':''}</div><div class="mp-hint">Tu foto se verá en el panel del equipo, en el inicio de sesión y en el indicador de quién está en línea.</div><div class="mp-firma"><div class="mp-firma-t">Tu firma</div>${profFirma(u.name)?`<div class="mp-firma-box"><img src="${profFirma(u.name)}" alt="Tu firma"></div>`:`<div class="mp-firma-vacia">Todavía no has guardado tu firma</div>`}<div class="mp-btns"><button class="btn sm" onclick="miFirmaGuardar()">${profFirma(u.name)?'Volver a firmar':'Guardar mi firma'}</button>${profFirma(u.name)?'<button class="btn ghost sm" onclick="miFirmaQuitar()">Quitar firma</button>':''}</div><div class="mp-hint">La firmas una sola vez y sale impresa sola en el lado de Doblaser de cada remisión que generes — no hay que firmar a mano en cada entrega.</div></div></div>`;};
   _mpDraw();
   document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cerrar</button>`;
   document.getElementById('overlay').classList.add('show');
