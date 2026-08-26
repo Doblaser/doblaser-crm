@@ -3310,8 +3310,8 @@ function recantDibujar(soloTotales){
      se está mantiendo puede quedar por debajo del costo real */
   const av=document.getElementById('recantAviso');
   if(baja&&peor<0.75){
-    const pct=Math.round((1-peor)*100);
-    av.innerHTML=`<div class="rc-aviso"><b>Ojo: estás bajando la cantidad ${pct}%.</b>
+    const pct=Math.round((1-peor)*100);const varias=baja>1;
+    av.innerHTML=`<div class="rc-aviso"><b>Ojo: ${varias?'hay piezas que bajan hasta un':'estás bajando la cantidad un'} ${pct}%.</b>
       El precio por unidad se mantiene, pero alistar la lámina en la máquina cuesta lo mismo
       salgan 2 piezas o 200. Con menos piezas ese costo se reparte entre menos, así que este
       precio puede quedar corto. Vale la pena abrir la calculadora y revisar los minutos de láser.</div>`;
