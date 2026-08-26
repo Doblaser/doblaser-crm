@@ -95,6 +95,14 @@ input,select,textarea{font-family:inherit;font-size:14px}
 /* KPI */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+.kpi-btn{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .06s}
+.kpi-btn:hover:not(:disabled){border-color:var(--brand,#7b1e2b);box-shadow:0 2px 10px rgba(0,0,0,.09)}
+.kpi-btn:active:not(:disabled){transform:translateY(1px)}
+.kpi-btn.on{border-color:var(--brand,#7b1e2b);box-shadow:0 0 0 2px rgba(123,30,43,.16)}
+.kpi-btn.on .k-meta{color:var(--brand,#7b1e2b);font-weight:600}
+.kpi-btn.off{cursor:default;opacity:.62}
+.board-hint.filtrando{color:var(--brand,#7b1e2b);font-weight:600}
+.board-hint .lnk{background:none;border:0;padding:0;margin-left:6px;font:inherit;font-weight:600;color:var(--brand,#7b1e2b);text-decoration:underline;cursor:pointer}
 .kpi .k-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .kpi .k-ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--wine-soft);color:var(--wine)}
 .kpi .k-ico svg{width:18px;height:18px}
@@ -1618,26 +1626,59 @@ function cotLinkCell(r){
   if(r.cotId){const c=CACHE.cotizaciones.find(x=>String(x.id)===String(r.cotId));if(c)return `<span class="code lk" title="Ver cotización ${esc(c.numero)}" onclick="event.stopPropagation();printCot('${c.id}')">${esc(c.numero)}</span>`;}
   return `<span class="muted">${esc(r.aprobacion)||'—'}</span>`;
 }
+/* Los cuatro recuadros de arriba cuentan SOLO las órdenes que se ven abajo
+   (las activas). Antes contaban todo el sistema, historial incluido, así que
+   decían 191 y 184 mientras el tablero mostraba 22 — no servían de nada.
+   Además son botones: al tocar uno, el tablero deja ver solo esas órdenes. */
+let ropKpi='';
+function ropSetKpi(k){ropKpi=(ropKpi===k)?'':k;ropFilter='Todas';render();}
+function ropEnProduccion(x){return !ROP_DONE.includes(x.estado);}
+function ropNivel(x){const a=ropAlert(x);return a?a.level:'';}
+function ropPasaKpi(x){
+  if(ropKpi==='prod')return ropEnProduccion(x);
+  if(ropKpi==='late')return ropNivel(x)==='late';
+  if(ropKpi==='soon')return ropNivel(x)==='soon';
+  return true;
+}
 function renderRop(){
-  const rows=CACHE.rop.filter(match).filter(x=>ropFilter==='Todas'||x.estado===ropFilter)
-    .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
-  const s=prodStats();
-  const atrasadas=CACHE.rop.filter(x=>{const a=ropAlert(x);return a&&a.level==='late';}).length;
-  const porVencer=CACHE.rop.filter(x=>{const a=ropAlert(x);return a&&a.level==='soon';}).length;
+  const activas=CACHE.rop.filter(x=>!ropCerrada(x));
+  const enProd=activas.filter(ropEnProduccion).length;
+  const atrasadas=activas.filter(x=>ropNivel(x)==='late').length;
+  const porVencer=activas.filter(x=>ropNivel(x)==='soon').length;
+  const kpi=(id,lbl,val,meta,ico,cls,vacio)=>{
+    const on=ropKpi===id;
+    const muerto=!val&&id!=='todas';
+    return `<button type="button" class="kpi kpi-btn${on?' on':''}${muerto?' off':''}"
+      ${muerto?'disabled':''} onclick="ropSetKpi('${id}')"
+      title="${muerto?vacio:(on?'Quitar este filtro':'Ver solo estas órdenes')}">
+      <div class="k-top"><div><div class="k-lbl">${lbl}</div><div class="k-val tnum ${cls||''}">${val}</div></div>
+      <div class="k-ico ${ico.c}">${ico.s}</div></div>
+      <div class="k-meta">${on?'Filtrando — toca otra vez para quitar':meta}</div></button>`;
+  };
+  const I={
+    casa:{c:'',s:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><path d="M5 20V8l5-4v16"/><path d="M19 20V10l-9-6"/></svg>'},
+    reloj:{c:'gold',s:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>'},
+    alerta:{c:atrasadas?'red':'green',s:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'},
+    cal:{c:'blue',s:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'}
+  };
   const kpis=`<div class="kpis">
-    <div class="kpi"><div class="k-top"><div><div class="k-lbl">Proyectos atendidos</div><div class="k-val tnum">${s.total}</div></div><div class="k-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><path d="M5 20V8l5-4v16"/><path d="M19 20V10l-9-6"/></svg></div></div><div class="k-meta">Órdenes en el sistema</div></div>
-    <div class="kpi"><div class="k-top"><div><div class="k-lbl">En proceso</div><div class="k-val tnum">${s.pend}</div></div><div class="k-ico gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div></div><div class="k-meta">Sin terminar</div></div>
-    <div class="kpi"><div class="k-top"><div><div class="k-lbl">Atrasadas</div><div class="k-val tnum ${atrasadas?'inv-neg':''}">${atrasadas}</div></div><div class="k-ico ${atrasadas?'red':'green'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div></div><div class="k-meta">Pasaron la fecha de entrega</div></div>
-    <div class="kpi"><div class="k-top"><div><div class="k-lbl">Por vencer</div><div class="k-val tnum ${porVencer?'due-soon-txt':''}">${porVencer}</div></div><div class="k-ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div></div><div class="k-meta">Entrega en ≤${ROP_DUE_SOON} días</div></div>
+    ${kpi('todas','Órdenes activas',activas.length,'En el ROP, sin archivar',I.casa,'')}
+    ${kpi('prod','En producción',enProd,'Todavía no salen de planta',I.reloj,'','Ninguna orden en producción')}
+    ${kpi('late','Atrasadas',atrasadas,'Pasaron la fecha de entrega',I.alerta,atrasadas?'inv-neg':'','Ninguna orden atrasada')}
+    ${kpi('soon','Por vencer',porVencer,'Entrega en ≤'+ROP_DUE_SOON+' días',I.cal,porVencer?'due-soon-txt':'','Ninguna orden por vencer')}
   </div>`;
+  const vrows=CACHE.rop.filter(match).filter(x=>!ropCerrada(x)).filter(ropPasaKpi)
+    .filter(x=>ropFilter==='Todas'||x.estado===ropFilter)
+    .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
   const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button></div></div>`;
-  const vrows=rows.filter(x=>!ropCerrada(x));
-  const ocultas=rows.length-vrows.length;
-  const hint=ocultas>0?`<div class="board-hint">${ocultas} órdenes ya entregadas y facturadas se movieron a <b>Historial de órdenes</b> — no aparecen aquí.</div>`:'';
+  const NOM={prod:'en producción',late:'atrasadas',soon:'por vencer'};
+  const hint=ropKpi&&NOM[ropKpi]
+    ?`<div class="board-hint filtrando">Mostrando solo las órdenes <b>${NOM[ropKpi]}</b>. <button type="button" class="lnk" onclick="ropSetKpi('${ropKpi}')">Ver todas</button></div>`
+    :`<div class="board-hint">${activas.length} órdenes activas. Las ya entregadas y facturadas están en <b>Historial de órdenes</b>.</div>`;
   if(ropMode==='tablero'){
     return kpis+toolbar+hint+renderRopBoard(vrows);
   }
-  return kpis+toolbar+hint+ropTableHTML(vrows,CACHE.rop.length);
+  return kpis+toolbar+hint+ropTableHTML(vrows,activas.length);
 }
 function ropTableHTML(rows,total){
   return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
