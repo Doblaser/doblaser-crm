@@ -3632,6 +3632,14 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   /* al reimprimir una remisión vieja debe decir cuándo se firmó de verdad,
      no la fecha en que se volvió a imprimir */
   const _fechaFirma=(r.firmaClienteFecha||'').slice(0,10)||today();
+  /* la fecha como la pone el sello de caucho de la empresa: 2026 AGO. 27 */
+  const _selloFecha=(()=>{
+    const f=fechaFiltro||r.entrega||today();
+    const p=String(f).slice(0,10).split('-');
+    if(p.length!==3)return f;
+    const MES=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+    return p[0]+'  '+(MES[+p[1]]||'')+'.  '+(+p[2]);
+  })();
   const piezasBase=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   const bitAll=Array.isArray(r.bitacora)?r.bitacora:[];
   let piezas=piezasBase,entHoyMap=null,entregaTotalOrden=false;
@@ -3707,6 +3715,18 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   .firma .l{margin-top:16px;border-top:1px solid #999;padding-top:3px;font-size:10px;color:#666}
   .firma .l.pref{border-top:none;padding-top:0;margin-top:8px;font-size:11px;color:#222;font-weight:600}
   .firma-img{margin-top:10px;border-top:1px solid #999;padding-top:6px}
+.firma.sello{border:none;padding:0;background:none}
+.sl-marco{border:2px solid #111;border-radius:3px;padding:11px 10px 9px;text-align:center;line-height:1.15}
+.sl-logo img{width:88%;max-width:150px;height:auto;display:block;margin:0 auto 3px}
+.sl-nit{font-size:9.5px;font-weight:700;letter-spacing:.06em;border-top:2.5px solid #111;padding-top:3px;margin-bottom:9px}
+.sl-fecha{font-size:14px;font-weight:800;letter-spacing:.08em;margin-bottom:5px;font-variant-numeric:tabular-nums}
+.sl-tel{font-size:10px;font-weight:600;letter-spacing:.04em;margin-bottom:8px}
+.sl-linea{border-top:1.5px solid #111;margin:0 6px 6px}
+.sl-ok{font-size:13px;font-weight:800;letter-spacing:.07em;margin-bottom:4px}
+.sl-firma{border-top:1px solid #999;margin:6px 8px 0;padding-top:2px}
+.sl-firma img{max-width:100%;max-height:34px;width:auto;display:block;margin:0 auto}
+.sl-rayita{border-top:1px solid #999;margin:22px 8px 0}
+.sl-quien{font-size:8.5px;color:#555;letter-spacing:.03em;margin-top:1px}
 .firma-logo{margin-top:8px}
 .firma-logo img{height:19px;width:auto;opacity:.8}
   .firma-img img{max-height:56px;display:block}
@@ -3730,7 +3750,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   ${avisoPend}
   <div class="note">El cliente declara recibir los \u00edtems relacionados en esta remisi\u00f3n, verificados en cantidad y estado al momento de la entrega. Documento de entrega — no constituye factura.</div>
   <div class="firmas">
-    <div class="firma"><div class="t">ENTREGA — DOBLASER S.A.S.</div>${currentUser()?`<div class="l pref">${esc(currentUser().name)}</div>`:'<div class="l">Nombre</div>'}${_firmaEmpresa?`<div class="firma-img"><img src="${_firmaEmpresa}" alt="Firma"></div>`:'<div class="l">Firma</div>'}<div class="firma-logo"><img src="${LOGO_POS}" alt="Doblaser"></div></div>
+    <div class="firma sello"><div class="sl-marco"><div class="sl-logo"><img src="${LOGO_POS}" alt="DOBLASER"></div><div class="sl-nit">NIT 901.682.190</div><div class="sl-fecha">${_selloFecha}</div><div class="sl-tel">&#9743; 321 673 4990</div><div class="sl-linea"></div><div class="sl-ok">&#10004; ENTREGADO</div>${_firmaEmpresa?`<div class="sl-firma"><img src="${_firmaEmpresa}" alt="Firma"></div>`:'<div class="sl-rayita"></div>'}<div class="sl-quien">${currentUser()?esc(currentUser().name):'Entrega'}</div></div></div>
     <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div>${(recibe&&recibe.nombre)?`<div class="l pref">${esc(recibe.nombre)}</div>`:'<div class="l">Nombre</div>'}${(recibe&&recibe.cedula)?`<div class="l pref">C.C. ${esc(recibe.cedula)}</div>`:'<div class="l">C.C.</div>'}${firmaDataUrl?`<div class="firma-img"><img src="${firmaDataUrl}" alt="Firma del cliente"><div class="fts">Firmado el ${fmtDate(_fechaFirma)}</div></div>`:'<div class="l">Firma y fecha</div>'}</div>
   </div>
   <div class="foot">DOBLASER S.A.S. \u00b7 Nit 901682190-5 \u00b7 ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} \u00b7 ${esc(EMPRESA.web)} \u00b7 Generado ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''}</div>
