@@ -697,6 +697,54 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .rc-aviso{margin-top:13px;border:1px solid var(--line);border-left:3px solid #b45309;border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.5;background:rgba(180,83,9,.07)}
 .rc-ok{margin-top:13px;font-size:12.5px;color:var(--ink-3);line-height:1.45;border-left:3px solid var(--line);padding-left:10px}
 .recant-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* ── Taller: el espacio del desarrollador ── */
+.dv-wrap{padding:2px 0 40px}
+.dv-intro{font-size:13px;color:var(--ink-3);line-height:1.55;margin:0 0 16px;max-width:760px}
+.dv-vacio{font-size:13px;color:var(--ink-3);padding:22px 0;text-align:center}
+.dv-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:10px 0 6px}
+.dv-mal{color:#b42318}
+.dv-tibio{color:#b45309}
+.dv-dia{margin-bottom:20px}
+.dv-fecha{display:flex;align-items:baseline;gap:10px;font-size:12.5px;font-weight:700;color:var(--brand,#7b1e2b);text-transform:capitalize;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:9px}
+.dv-fecha span{font-weight:400;color:var(--ink-3);font-size:11.5px}
+.dv-item{padding:8px 0 9px;border-bottom:1px solid var(--line)}
+.dv-item:last-child{border-bottom:none}
+.dv-it-h{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.dv-it-h b{font-size:13.5px;line-height:1.35}
+.dv-cod{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;background:var(--line);color:var(--ink-3);padding:1px 6px;border-radius:5px;flex:0 0 auto}
+.dv-det{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.dv-det:hover{-webkit-line-clamp:unset}
+.dv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.dv-card{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:13px 15px}
+.dv-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px}
+.dv-ch b{font-size:14px}
+.dv-ch span{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.dv-chips{display:flex;flex-wrap:wrap;gap:5px}
+.dv-chip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;padding:2px 7px;border-radius:5px;border:1px solid var(--line)}
+.dv-chip.mal{background:rgba(180,35,24,.09);border-color:rgba(180,35,24,.25);color:#b42318}
+.dv-chip.tibio{background:rgba(180,83,9,.09);border-color:rgba(180,83,9,.25);color:#b45309}
+.dv-chip i{font-style:normal;opacity:.65}
+.dv-ok{font-size:12px;color:var(--ink-3);padding:4px 0}
+.dv-barras{display:flex;flex-direction:column;gap:9px}
+.dv-bar{display:grid;grid-template-columns:130px 1fr 34px;grid-template-areas:"f t n" "h h h";gap:4px 10px;align-items:center}
+.dv-bf{grid-area:f;font-size:12.5px;text-transform:capitalize}
+.dv-bt{grid-area:t;height:9px;background:var(--line);border-radius:5px;overflow:hidden}
+.dv-bi{height:100%;background:var(--brand,#7b1e2b);border-radius:5px}
+.dv-bn{grid-area:n;text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.dv-bh{grid-area:h;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums;padding-left:140px;margin-top:-2px}
+@media(max-width:600px){.dv-bar{grid-template-columns:100px 1fr 30px}.dv-bh{padding-left:0}}
+.dv-nuevo{display:flex;gap:8px;margin-bottom:14px}
+.dv-nuevo input{flex:1;padding:8px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13.5px;background:var(--card,#fff);color:inherit}
+.dv-nuevo input:focus{outline:none;border-color:var(--brand,#7b1e2b);box-shadow:0 0 0 2px rgba(123,30,43,.14)}
+.dv-pend{display:grid;grid-template-columns:24px 1fr 24px;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.dv-pend b{display:block;font-size:13.5px;font-weight:600;line-height:1.35}
+.dv-pend span{display:block;font-size:12px;color:var(--ink-3);line-height:1.5;margin-top:2px}
+.dv-pend.hecho{opacity:.5}
+.dv-pend.hecho b{text-decoration:line-through}
+.dv-check{width:20px;height:20px;margin-top:1px;border:1.5px solid var(--line);border-radius:5px;background:none;cursor:pointer;color:var(--brand,#7b1e2b);font-size:12px;line-height:1;padding:0}
+.dv-check:hover{border-color:var(--brand,#7b1e2b)}
+.dv-del{background:none;border:0;padding:0;color:var(--ink-3);cursor:pointer;font-size:12px;opacity:.5}
+.dv-del:hover{opacity:1;color:#b42318}
 .rc-row.rc-off{opacity:.5}
 .rc-row.rc-off .rc-d{text-decoration:line-through}
 .rc-quitada{text-align:right;font-size:11.5px;color:var(--ink-3);font-style:italic}
@@ -941,6 +989,7 @@ td.c,th.c{text-align:center}
       <a data-view="papelera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Papelera <span class="count" id="c-papelera">0</span></a>
       <a data-view="sugerencias"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Sugerencias <span class="count" id="c-sugerencias">0</span></a>
       <a data-view="piezascli"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Piezas por cliente <span class="count" id="c-piezascli">0</span></a>
+      <a data-view="taller" id="navTaller" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Taller</a>
     </nav>
     <div class="side-foot">
       <div class="user-badge" id="userBadge"></div>
@@ -1000,7 +1049,8 @@ const SEED=JSON.parse(atob("eyJ2ZW50YXMiOiBbeyJpZCI6ICJWMSIsICJmZWNoYSI6ICIyMDI2
 const ASESORES=['Daniel','Susana','Esteban','Yuliana'];
 const ASESOR_OPC=['Daniel','Susana','Esteban','Yuliana','Sin asignar'];
 const ALL_VIEWS=['resumen','ventas','rop','ropHistorial','inventario','cotizaciones','leads','estadisticas','precios','papelera','sugerencias','piezascli'];
-const VIEW_LBL={resumen:'Resumen',ventas:'Ventas',rop:'ROP',ropHistorial:'Historial de órdenes',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
+const DEV_VIEW='taller';
+const VIEW_LBL={taller:'Taller',resumen:'Resumen',ventas:'Ventas',rop:'ROP',ropHistorial:'Historial de órdenes',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
 const PERFILES_DEF=[
   {name:'Susana',role:'Gerente',views:ALL_VIEWS.slice()},
   {name:'Esteban',role:'Director operativo',views:['rop','inventario','cotizaciones','precios']},
@@ -1444,6 +1494,7 @@ const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&g
 let VIEW='resumen',CACHE={ventas:[],rop:[],leads:[],cotizaciones:[],inventario:[],papelera:[],sugerencias:[],piezascli:[]};
 let cotItems=[];
 const META={
+  taller:{title:'Taller',sub:'Bitácora, salud de los datos, despliegues y pendientes — solo para el desarrollador',add:false,search:true},
   resumen:{title:'Resumen',sub:'Panel general de operación comercial',add:false,search:false},
   ventas:{title:'Ventas',sub:'Registro y seguimiento de ventas',add:'Registrar venta',search:true,export:true},
   rop:{title:'ROP',sub:'Registro de órdenes de producción',add:'Nueva ROP',search:true,export:true},
@@ -1479,6 +1530,7 @@ async function loadAll(){
   await cargarSugerencias();
   updateCounts();
   loadNotifs();renderNotifBell();scanAlertas();await cargarMensajesPendientes();
+  await cargarDev();
 }
 function setView(v){
   if(!canView(v)){const f=firstView();if(v!==f){toast('No tienes acceso a esa secci\u00f3n');v=f;}else return;}
@@ -1520,9 +1572,176 @@ const ventaMatch=x=>{
 function render(){
   if(window._charts){window._charts.forEach(c=>{try{c.destroy()}catch(e){}});window._charts=[];}
   const c=document.getElementById('content');
-  const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,ropHistorial:renderRopHistorial,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli};
+  const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,ropHistorial:renderRopHistorial,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli,taller:renderDev};
   if(VISTAS[VIEW])c.innerHTML=VISTAS[VIEW]();
   if(VIEW==='estadisticas')drawStats();
+}
+
+/* =========================================================
+   Taller — el espacio del desarrollador. Solo lo ve Daniel:
+   el candado está aquí en el código, no en los permisos, para
+   que no se lo den solos los perfiles con acceso total.
+   ========================================================= */
+const DEV_DUENO='Daniel';
+function esDev(){const u=currentUser();return !!(u&&u.name===DEV_DUENO);}
+let devTab='cambios';
+let DEVLOG=[],DESPLIEGUES=[];
+async function cargarDev(){
+  if(!esDev())return;
+  try{DEVLOG=await getAll('devlog');}catch(e){DEVLOG=[];}
+  try{DESPLIEGUES=await getAll('despliegues');}catch(e){DESPLIEGUES=[];}
+}
+function devSetTab(t){devTab=t;render();}
+
+/* ---- salud de los datos: encuentra sola la funcionalidad muerta ---- */
+const DEV_IGNORAR=['id','created_at','createdAt','updatedAt','createdBy','updatedBy','lastSeen','pass'];
+function devSalud(){
+  const tablas=[['rop','Órdenes'],['ventas','Ventas'],['cotizaciones','Cotizaciones'],
+                ['inventario','Inventario'],['leads','Clientes / Leads'],['piezascli','Piezas por cliente']];
+  return tablas.map(([k,lbl])=>{
+    const d=CACHE[k]||[];
+    if(!d.length)return{k,lbl,n:0,muertos:[],flojos:[]};
+    const cols=[...new Set(d.flatMap(r=>Object.keys(r)))].filter(c=>!DEV_IGNORAR.includes(c));
+    const muertos=[],flojos=[];
+    cols.forEach(c=>{
+      const n=d.filter(r=>{const v=r[c];
+        return v!==null&&v!==undefined&&v!==''&&v!==0&&v!==false&&!(Array.isArray(v)&&!v.length);}).length;
+      if(n===0)muertos.push({c,n});
+      else if(n/d.length<0.06)flojos.push({c,n});
+    });
+    return{k,lbl,n:d.length,muertos,flojos};
+  });
+}
+function devSaludHTML(){
+  const s=devSalud();
+  const totM=s.reduce((a,x)=>a+x.muertos.length,0);
+  const totF=s.reduce((a,x)=>a+x.flojos.length,0);
+  const filas=s.filter(x=>x.n).map(x=>`
+    <div class="dv-card">
+      <div class="dv-ch"><b>${x.lbl}</b><span>${x.n.toLocaleString('es-CO')} registros</span></div>
+      ${x.muertos.length?`<div class="dv-lbl dv-mal">Nadie las llena nunca</div>
+        <div class="dv-chips">${x.muertos.map(m=>`<span class="dv-chip mal">${esc(m.c)}</span>`).join('')}</div>`:''}
+      ${x.flojos.length?`<div class="dv-lbl dv-tibio">Casi no se usan</div>
+        <div class="dv-chips">${x.flojos.map(m=>`<span class="dv-chip tibio">${esc(m.c)} <i>${m.n}</i></span>`).join('')}</div>`:''}
+      ${!x.muertos.length&&!x.flojos.length?'<div class="dv-ok">Todos los campos se están usando.</div>':''}
+    </div>`).join('');
+  return `<div class="dv-intro">Esto se calcula solo, en vivo, sobre los datos de verdad. Un campo que nadie
+    llena casi siempre es una función que se construyó y no se usa — o vale la pena enseñarla, o vale la pena quitarla.
+    Hoy hay <b>${totM} campos muertos</b> y <b>${totF} que casi no se usan</b>.</div>
+    <div class="dv-grid">${filas}</div>`;
+}
+
+/* ---- bitácora de cambios ---- */
+function devCambiosHTML(){
+  const q=(document.getElementById('searchInput')||{}).value||'';
+  const s=q.toLowerCase().trim();
+  const rows=DEVLOG.filter(x=>x.tipo==='cambio')
+    .filter(x=>!s||((x.titulo||'')+(x.detalle||'')+(x.codigo||'')).toLowerCase().includes(s))
+    .sort((a,b)=>((b.fecha||'0000')+'').localeCompare((a.fecha||'0000')+'')||(b.orden||0)-(a.orden||0));
+  const porDia={};
+  rows.forEach(r=>{const f=r.fecha||'sin fecha';(porDia[f]=porDia[f]||[]).push(r);});
+  const dias=Object.keys(porDia).sort((a,b)=>b.localeCompare(a));
+  const conFecha=rows.filter(r=>r.fecha).length;
+  return `<div class="dv-intro">${rows.length} cambios registrados${conFecha?` · ${dias.filter(d=>d!=='sin fecha').length} días de trabajo`:''}.
+    Los que no tienen fecha son de antes de que se empezara a anotar.</div>
+    ${dias.map(f=>`
+      <div class="dv-dia">
+        <div class="dv-fecha">${f==='sin fecha'?'Antes del registro':fmtDate(f)}<span>${porDia[f].length} cambio${porDia[f].length===1?'':'s'}</span></div>
+        ${porDia[f].map(r=>`
+          <div class="dv-item">
+            <div class="dv-it-h"><span class="dv-cod">${esc(r.codigo)||'—'}</span><b>${esc(r.titulo)}</b></div>
+            ${r.detalle?`<div class="dv-det">${esc(r.detalle)}</div>`:''}
+          </div>`).join('')}
+      </div>`).join('')||'<div class="dv-vacio">Sin cambios registrados todavía.</div>'}`;
+}
+
+/* ---- despliegues ---- */
+function devDespliegueHTML(){
+  const d=DESPLIEGUES.slice().sort((a,b)=>((b.fecha||'')+(b.hora||'')).localeCompare((a.fecha||'')+(a.hora||'')));
+  const porDia={};
+  d.forEach(x=>{const f=x.fecha||'?';(porDia[f]=porDia[f]||[]).push(x);});
+  const dias=Object.keys(porDia).sort((a,b)=>b.localeCompare(a));
+  const max=Math.max(1,...dias.map(f=>porDia[f].length));
+  const ult=d[0];
+  return `<div class="dv-intro">${d.length} despliegues${d.length?` · del ${fmtDate(d[d.length-1].fecha)} al ${fmtDate(ult.fecha)}`:''}.
+    ${ult?`El último fue el <b>${fmtDate(ult.fecha)} a las ${esc(ult.hora)}</b>${ult.kb?` (${ult.kb} KB)`:''}.`:''}</div>
+    <div class="dv-barras">${dias.map(f=>{
+      const n=porDia[f].length;
+      return `<div class="dv-bar"><div class="dv-bf">${fmtDate(f)}</div>
+        <div class="dv-bt"><div class="dv-bi" style="width:${Math.round(n/max*100)}%"></div></div>
+        <div class="dv-bn">${n}</div>
+        <div class="dv-bh">${porDia[f].slice(0,10).map(x=>esc(x.hora)).join(' · ')}${n>10?' …':''}</div></div>`;
+    }).join('')||'<div class="dv-vacio">Sin despliegues registrados.</div>'}</div>`;
+}
+
+/* ---- pendientes ---- */
+function devPendHTML(){
+  const abiertos=DEVLOG.filter(x=>x.tipo==='pendiente'&&x.estado!=='hecho').sort((a,b)=>(b.orden||0)-(a.orden||0));
+  const hechos=DEVLOG.filter(x=>x.tipo==='pendiente'&&x.estado==='hecho').sort((a,b)=>(b.orden||0)-(a.orden||0));
+  const item=(r,hecho)=>`
+    <div class="dv-pend${hecho?' hecho':''}">
+      <button type="button" class="dv-check" onclick="devPendToggle('${r.id}')" title="${hecho?'Volver a abrir':'Marcar como hecho'}">${hecho?'✓':''}</button>
+      <div><b>${esc(r.titulo)}</b>${r.detalle?`<span>${esc(r.detalle)}</span>`:''}</div>
+      <button type="button" class="dv-del" onclick="devPendBorrar('${r.id}')" title="Borrar">✕</button>
+    </div>`;
+  return `<div class="dv-intro">Lo que está por hacer. Antes vivía suelto en el traspaso y se perdía.</div>
+    <div class="dv-nuevo">
+      <input id="devPendTit" type="text" placeholder="Qué falta por hacer" onkeydown="if(event.key==='Enter')devPendAgregar()">
+      <button type="button" class="btn sm" onclick="devPendAgregar()">Agregar</button>
+    </div>
+    ${abiertos.length?abiertos.map(r=>item(r,false)).join(''):'<div class="dv-vacio">Nada pendiente.</div>'}
+    ${hechos.length?`<div class="dv-lbl" style="margin-top:16px">Ya hechos (${hechos.length})</div>${hechos.map(r=>item(r,true)).join('')}`:''}`;
+}
+async function devPendAgregar(){
+  const el=document.getElementById('devPendTit');
+  const t=(el.value||'').trim();
+  if(!t){toast('Escribe qué falta por hacer');return;}
+  const row={tipo:'pendiente',titulo:t,estado:'abierto',orden:Date.now()%100000,
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const ok=await saveRow('devlog',row);
+  if(ok===false)return;
+  el.value='';DEVLOG=await getAll('devlog');render();
+}
+async function devPendToggle(id){
+  const r=DEVLOG.find(x=>String(x.id)===String(id));if(!r)return;
+  const ok=await saveRow('devlog',{...r,estado:r.estado==='hecho'?'abierto':'hecho',updatedAt:new Date().toISOString()});
+  if(ok===false)return;
+  DEVLOG=await getAll('devlog');render();
+}
+async function devPendBorrar(id){
+  const r=DEVLOG.find(x=>String(x.id)===String(id));if(!r)return;
+  pedirConfirmacion('¿Borrar este pendiente?',esc(r.titulo),async()=>{
+    if(USING_SB&&sb){try{await sb.from('devlog').delete().eq('id',r.id);}catch(e){}}
+    DEVLOG=await getAll('devlog');render();
+  },'Borrar');
+}
+
+/* ---- agregar un cambio a mano ---- */
+async function devCambioAgregar(){
+  const t=prompt('¿Qué cambio hiciste?');
+  if(!t||!t.trim())return;
+  const row={tipo:'cambio',codigo:null,fecha:today(),titulo:t.trim(),detalle:'',estado:'hecho',
+    orden:Date.now()%100000,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const ok=await saveRow('devlog',row);
+  if(ok===false)return;
+  DEVLOG=await getAll('devlog');render();
+  toast('Cambio anotado');
+}
+
+function renderDev(){
+  if(!esDev())return '<div class="dv-vacio">Este apartado es solo del desarrollador.</div>';
+  const tabs=[['cambios','Bitácora de cambios'],['salud','Salud de los datos'],
+              ['despliegues','Despliegues'],['pendientes','Pendientes']];
+  const barra=`<div class="toolbar"><div class="seg">${tabs.map(([k,l])=>
+    `<button class="${devTab===k?'on':''}" onclick="devSetTab('${k}')">${l}</button>`).join('')}</div>
+    <div class="spacer"></div>
+    ${devTab==='cambios'?'<button class="btn sm" onclick="devCambioAgregar()">+ Anotar un cambio</button>':''}</div>`;
+  let cuerpo='';
+  if(devTab==='cambios')cuerpo=devCambiosHTML();
+  else if(devTab==='salud')cuerpo=devSaludHTML();
+  else if(devTab==='despliegues')cuerpo=devDespliegueHTML();
+  else cuerpo=devPendHTML();
+  return barra+`<div class="dv-wrap">${cuerpo}</div>`;
 }
 
 function renderResumen(){
@@ -5715,10 +5934,15 @@ function userViews(){
   const p=PERFILES.find(x=>x.name===u.name);
   return (p&&Array.isArray(p.views)&&p.views.length)?p.views:ALL_VIEWS.slice();
 }
-function canView(v){return userViews().includes(v);}
+/* 'taller' no está en ALL_VIEWS ni en los permisos: el candado es el nombre
+   del usuario, para que ningún perfil de acceso total se lo gane solo */
+function canView(v){if(v===DEV_VIEW)return esDev();return userViews().includes(v);}
 function firstView(){const v=userViews();return v.includes('resumen')?'resumen':(v[0]||'resumen');}
 function applyNavPerms(){
   const allowed=userViews();
+  /* el taller no está en los permisos: se muestra por nombre de usuario */
+  const nt=document.getElementById('navTaller');
+  if(nt)nt.style.display=esDev()?'':'none';
   document.querySelectorAll('#nav a').forEach(a=>{a.style.display=allowed.includes(a.dataset.view)?'':'none';});
   document.querySelectorAll('#botnav a[data-view]').forEach(a=>{a.style.display=allowed.includes(a.dataset.view)?'':'none';});
   // oculta el título de una sección si todos sus enlaces quedaron ocultos
