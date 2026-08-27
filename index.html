@@ -4568,7 +4568,14 @@ function rmDel(i){
 function rmEdit(i,k,v){if(!ropConsumo[i])return;ropConsumo[i][k]=(k==='cant')?(+v||0):v;renderRopMat();}
 async function syncRopInventory(row){
   try{
-    const prev=(CACHE.inventario||[]).filter(m=>m.auto&&String(m.ropId)===String(row.id));
+    /* Se limpia por ropId Y por número de orden. Hace falta lo segundo porque
+       una orden nace con un id local del navegador (uid(), tipo 'mt8o7zz...') y
+       al guardarse en Supabase recibe un id numérico nuevo. Buscando solo por
+       ropId, los movimientos creados con el id viejo quedaban huérfanos: no se
+       borraban, se creaban otros encima, y el consumo quedaba contado dos veces.
+       Pasó con ROP-2571, 2591, 2592 y 2598 (ALGAMAR y E&D). */
+    const prev=(CACHE.inventario||[]).filter(m=>m.auto&&(
+      String(m.ropId)===String(row.id)||(row.rop&&m.rop&&String(m.rop)===String(row.rop))));
     for(const m of prev)await deleteRow('inventario',m.id);
     for(const c of (row.consumo||[])){
       if(!c.material||!(+c.cant>0))continue;
