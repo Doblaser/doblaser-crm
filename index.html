@@ -4574,8 +4574,18 @@ async function syncRopInventory(row){
        ropId, los movimientos creados con el id viejo quedaban huérfanos: no se
        borraban, se creaban otros encima, y el consumo quedaba contado dos veces.
        Pasó con ROP-2571, 2591, 2592 y 2598 (ALGAMAR y E&D). */
-    const prev=(CACHE.inventario||[]).filter(m=>m.auto&&(
-      String(m.ropId)===String(row.id)||(row.rop&&m.rop&&String(m.rop)===String(row.rop))));
+    const prev=(CACHE.inventario||[]).filter(m=>{
+      if(!m.auto)return false;
+      if(String(m.ropId)===String(row.id))return true;
+      /* huérfano de un id viejo de esta misma orden: mismo número de ROP y su
+         ropId ya no corresponde a ninguna orden viva. Se exige lo segundo
+         porque hay números de ROP repetidos en la base (ROP-2571 existe dos
+         veces, ALGAMAR y AEROMAQUINADOS) y sin eso una orden borraría los
+         movimientos de la otra. */
+      if(row.rop&&m.rop&&String(m.rop)===String(row.rop)&&m.ropId)
+        return !(CACHE.rop||[]).some(r=>String(r.id)===String(m.ropId));
+      return false;
+    });
     for(const m of prev)await deleteRow('inventario',m.id);
     for(const c of (row.consumo||[])){
       if(!c.material||!(+c.cant>0))continue;
