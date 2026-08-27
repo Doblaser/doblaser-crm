@@ -333,6 +333,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .burro-chip b{font-variant-numeric:tabular-nums}
 .kprog{font-size:10.5px;color:var(--muted);margin-left:auto;font-weight:600}
 .kcard-files{display:flex;gap:5px}
+.kcard-valor{margin-top:5px;font-size:13.5px;font-weight:700;color:#166534;font-variant-numeric:tabular-nums}
 .kcard-foot{margin-top:8px;padding-top:7px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 6px}
 .kcard-foot .row-act{opacity:1;flex-wrap:wrap;justify-content:flex-end;flex:1 0 100%}
 .kcard-foot .ic-btn{width:22px;height:22px}
@@ -2222,8 +2223,8 @@ function renderRop(){
   return kpis+toolbar+hint+ropTableHTML(vrows,activas.length);
 }
 function ropTableHTML(rows,total){
-  return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}</td><td class="hide-sm">${cotLinkCell(x)}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(9)}
+  return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th class="num">Valor</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
+  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}</td><td class="hide-sm">${cotLinkCell(x)}</td><td class="num tnum">${(()=>{const v=ropValor(x);return v?`${COP(v.total)}<div class="muted" style="font-size:10px">${v.fuente==='venta'?'de la venta':'de la cotización'}</div>`:'<span class="muted">—</span>';})()}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(10)}
   </tbody></table>`);
 }
 let ropFilterH='Todas';
@@ -2262,6 +2263,7 @@ function ropCard(x){
     <div class="kcard-top"><span class="code">${esc(x.rop)}</span>${al?`<span class="due ${al.level}">${al.label}</span>`:''}</div>
     <div class="kcard-cli">${esc(x.cliente)}</div>
     <div class="kcard-meta">${cotLinkCell(x)}${x.entrega?`<span class="muted"> · ${fmtDate(x.entrega)}</span>`:''}</div>
+    ${(()=>{const v=ropValor(x);return v?`<div class="kcard-valor" title="Valor con IVA — ${v.fuente==='venta'?'tomado de la venta':'tomado de la cotización'}">${COP(v.total)}</div>`:'';})()}
     <div class="kcard-stages">${dots}<span class="kprog">${pr.done}/${pr.total}</span></div>
     <div class="pbar" style="margin-top:6px"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div>
     ${pzChip}
@@ -2332,6 +2334,16 @@ function ropVentaDe(r){
    vista activa del ROP (lista y tablero) para no dejar la fila creciendo para
    siempre, pero sigue existiendo — "Historial completo" la sigue mostrando */
 /* el cliente paga con IVA, así que el abono se compara contra el total con IVA */
+/* Cuánto vale una orden, para poder verlo sin salir del ROP.
+   Manda la venta si ya existe (es el valor realmente acordado); si no, el de
+   la cotización vinculada. Se devuelve con IVA, igual que en Ventas. */
+function ropValor(r){
+  const v=ropVentaDe(r);
+  if(v&&(+v.valor||0)>0)return{total:(+v.valor||0)*(1+IVA),fuente:'venta'};
+  const c=ropCotOf(r);
+  if(c){const t=cotTotal(c);if(t.total>0)return{total:t.total,fuente:'cot'};}
+  return null;
+}
 function ropPagada(v){return !!(v&&(+v.abonado||0)>=(+v.valor||0)*(1+IVA)&&(+v.valor||0)>0);}
 /* órdenes viejas, de antes de que existiera el vínculo automático venta-ROP,
    pueden no tener forma de detectar que ya se facturaron y pagaron — para esas
@@ -2373,7 +2385,11 @@ function createVentaFromRop(id){
     set('f_ropId',r.id);
     set('f_ordenCompra',r.aprobacion||'');
     if(Array.isArray(r.piezas)&&r.piezas.length){
-      ventaPiezas=r.piezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:0}));
+      /* si la orden quedó ligada a una cotización por el número de aprobación,
+         de allá salen los precios; si no, las piezas vienen en cero */
+      const cotR=ropCotOf(r),pcR={};
+      if(cotR)(cotR.items||[]).forEach(it=>{const k=(it.desc||'').trim().toLowerCase();if(k&&+it.vu>0)pcR[k]=+it.vu||0;});
+      ventaPiezas=r.piezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:pcR[(p.desc||'').trim().toLowerCase()]||0}));
       renderVentaPz();
     }
     const mb=document.getElementById('mBody');
@@ -4192,14 +4208,34 @@ function vpFromRop(){
   if(!r){toast('No se encontró la orden');return}
   const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   if(!piezas.length){toast('Esa orden todavía no tiene piezas cargadas');return}
+  /* la orden guarda descripción/material/cantidad pero NO el precio: ese vive
+     en la cotización vinculada. Se trae de allá emparejando por descripción. */
+  const cot=ropCotOf(r);
+  const precioCot={};
+  if(cot)(cot.items||[]).forEach(it=>{
+    const k=(it.desc||'').trim().toLowerCase();
+    if(k&&+it.vu>0)precioCot[k]=+it.vu||0;
+  });
   const traer=()=>{
-    /* conserva el precio ya puesto si la pieza coincide por descripción */
-    const precioPrevio={};ventaPiezas.forEach(p=>{if((p.desc||'').trim())precioPrevio[p.desc.trim()]=+p.precio||0;});
-    ventaPiezas=piezas.map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:precioPrevio[(p.desc||'').trim()]||0}));
-    renderVentaPz();toast(piezas.length+' pieza'+(piezas.length===1?'':'s')+' traída'+(piezas.length===1?'':'s')+' de '+(r.rop||'la orden'));
+    /* prioridad: precio ya escrito a mano > precio de la cotización > 0 */
+    const precioPrevio={};ventaPiezas.forEach(p=>{if((p.desc||'').trim())precioPrevio[p.desc.trim().toLowerCase()]=+p.precio||0;});
+    let deCot=0;
+    ventaPiezas=piezas.map(p=>{
+      const k=(p.desc||'').trim().toLowerCase();
+      let precio=precioPrevio[k]||0;
+      if(!precio&&precioCot[k]){precio=precioCot[k];deCot++;}
+      return{desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio};
+    });
+    renderVentaPz();
+    const n=piezas.length;
+    toast(n+' pieza'+(n===1?'':'s')+' traída'+(n===1?'':'s')+' de '+(r.rop||'la orden')
+      +(deCot?' · '+deCot+' con precio de '+(cot.numero||'la cotización'):(cot?'':' · sin cotización vinculada, hay que poner los precios')));
   };
+  const nota=cot
+    ? 'Los precios se traen de la cotización '+(cot.numero||'')+'. Lo que ya hayas escrito a mano se conserva.'
+    : 'Esta orden no tiene cotización vinculada, así que las piezas vienen sin precio.';
   if(ventaPiezas.length){
-    pedirConfirmacion('¿Traer las piezas de '+(r.rop||'la orden')+'?','Esto reemplaza el desglose actual (los precios ya puestos se conservan si la pieza coincide por descripción).',traer,'Traer piezas');
+    pedirConfirmacion('¿Traer las piezas de '+(r.rop||'la orden')+'?','Esto reemplaza el desglose actual. '+nota,traer,'Traer piezas');
   }else traer();
 }
 
