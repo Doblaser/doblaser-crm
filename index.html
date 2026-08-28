@@ -4530,7 +4530,7 @@ function rbEntregarTodo(){
   const unids=pend.reduce((a,p)=>a+p.falta,0);
   const detalle=pend.map(p=>'· '+p.desc+' — '+p.falta+(p.ent>0?' que faltaban de '+p.tot:' und')).join('\n');
   pedirConfirmacion(
-    '¿Entregar las '+pend.length+' piezas que faltan?',
+    pend.length===1?'¿Entregar la pieza que falta?':('¿Entregar las '+pend.length+' piezas que faltan?'),
     detalle+'\n\nSon '+unids+' unidades en total, con fecha de hoy.',
     ()=>{
       const u=currentUser(),quien=u?u.name:'—';
