@@ -3196,7 +3196,7 @@ function sugDelRespuesta(id,ri){
 function emptyRow(c){return `<tr><td colspan="${c}"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-3H5a2 2 0 0 0-2 2z"/></svg><div>Sin registros. Usa el botón “Nuevo” para empezar.</div></div></td></tr>`}
 function rowActions(t,id){
   const rEl=t==='rop'?CACHE.rop.find(x=>String(x.id)===String(id)):null;
-  const rem=t==='rop'?`<button class="ic-btn" title="Hoja de producción (imprimir)" onclick="printRop('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="ic-btn" title="Remisión de entrega" onclick="printRemision('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button>`:'';
+  const rem=t==='rop'?`<button class="ic-btn" title="Hoja de producción (imprimir)" onclick="printRop('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="ic-btn" title="Remisión de entrega" onclick="printRemision('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button class="ic-btn" title="Enviar la remisión (PDF)" onclick="event.stopPropagation();compartirRemision('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>`:'';
   const firmaBtn=(t==='rop'&&rEl&&rEl.firmaCliente)?`<button class="ic-btn" title="Ver la remisión firmada" onclick="event.stopPropagation();verRemisionFirmada('${rEl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/><path d="M4 14c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/></svg></button>`:'';
   let archBtn='';
   if(t==='rop'&&rEl){
@@ -3572,6 +3572,119 @@ function printDoc(html,fname){
     if(f.contentWindow.document.readyState==='complete')setTimeout(go,300);else f.contentWindow.onload=()=>setTimeout(go,300);
   }catch(e){toast('No se pudo abrir la impresi\u00f3n');}
 }
+/* PDF de una remisión — mismo motor que el de las cotizaciones: se pinta el
+   documento en una hoja de 794 px, se pasa a lienzo y se corta por páginas. */
+async function remisionPDF(r,fecha,firma,recibe){
+  await Promise.all([
+    cargarLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'),
+    cargarLib('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
+  ]);
+  const html=remisionHTML(r,fecha,firma,recibe);
+  const cont=document.createElement('div');
+  cont.style.cssText='position:absolute;left:0;top:0;width:794px;background:#fff;z-index:-9999';
+  cont.innerHTML=html.replace(/^[\s\S]*?<body[^>]*>/i,'').replace(/<\/body>[\s\S]*$/i,'');
+  const m=/<style[^>]*>([\s\S]*?)<\/style>/i.exec(html);
+  if(m){const est=document.createElement('style');est.textContent=m[1];cont.appendChild(est);}
+  document.body.appendChild(cont);
+  try{
+    await new Promise(x=>setTimeout(x,120));
+    const escala=(innerWidth<=760||navigator.hardwareConcurrency<=4)?1.5:2;
+    const canvas=await html2canvas(cont,{scale:escala,useCORS:true,backgroundColor:'#ffffff',logging:false});
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    const A4W=210,A4H=297;
+    const pxPorMm=canvas.width/A4W;
+    const altoPag=Math.floor(A4H*pxPorMm);
+    let y=0,primera=true;
+    while(y<canvas.height){
+      const h=Math.min(altoPag,canvas.height-y);
+      const trozo=document.createElement('canvas');
+      trozo.width=canvas.width;trozo.height=h;
+      const cx=trozo.getContext('2d');
+      cx.fillStyle='#ffffff';cx.fillRect(0,0,trozo.width,trozo.height);
+      cx.drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
+      if(!primera)pdf.addPage();
+      pdf.addImage(trozo.toDataURL('image/jpeg',0.95),'JPEG',0,0,A4W,h/pxPorMm);
+      primera=false;y+=h;
+    }
+    return pdf.output('blob');
+  }finally{cont.remove()}
+}
+/* resumen en texto, por si el PDF no se puede armar en ese equipo */
+function remisionTexto(r,fecha){
+  const res=resumenEntrega(r,fecha||null);
+  const l=['REMISIÓN '+(r.rop||''),(r.cliente||''),''];
+  if(fecha)l.push('Entrega del '+fmtDate(fecha));
+  l.push('Se entrega:');
+  res.lineas.forEach(x=>l.push('  · '+x.desc+(x.cant==null?'':'  '+x.cant+(x.tot&&x.tot!==x.cant?' de '+x.tot:''))));
+  if(res.pend>0)l.push('','Quedan '+res.pend+' unidades pendientes de esta orden.');
+  if(r.firmaClienteNombre)l.push('','Recibido por: '+r.firmaClienteNombre+(r.firmaClienteCedula?' · C.C. '+r.firmaClienteCedula:''));
+  l.push('','DOBLASER S.A.S. · Nit 901682190-5');
+  return l.join('\n');
+}
+/* Enviar la remisión firmada, igual que se envía una cotización: se arma el
+   PDF y después, en un segundo toque, se abre el menú de compartir del
+   teléfono (WhatsApp, correo...). Son dos pasos a propósito — ver la nota
+   en dialogoCompartir. */
+async function compartirRemision(id,fecha){
+  const r=CACHE.rop.find(x=>String(x.id)===String(id));
+  if(!r){toast('Orden no encontrada');return;}
+  const firma=r.firmaCliente||null;
+  const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
+  const titulo='Remisión '+(r.rop||'')+(r.cliente?' · '+r.cliente:'');
+  const nombre=(('Remision '+(r.rop||'')+(firma?' firmada':'')+(r.cliente?' - '+r.cliente:''))
+    .replace(/[\\/:*?"<>|]/g,''))+'.pdf';
+
+  dialogoCompartir({
+    titulo:'Preparando el PDF…',
+    detalle:titulo+(firma?'':' · sin firma del cliente'),
+    estado:'<div class="sh-spin"></div>',
+    acciones:[{txt:'Cancelar',ghost:true,fn:cerrarCompartir}]
+  });
+
+  let blob=null,fallo='';
+  try{blob=await remisionPDF(r,fecha||null,firma,recibe);}catch(e){fallo=e&&e.message||'error desconocido';}
+  if(!document.getElementById('shareLayer').classList.contains('show'))return;  /* canceló */
+
+  if(!blob){
+    const texto=remisionTexto(r,fecha);
+    dialogoCompartir({
+      titulo:'No se pudo armar el PDF',
+      detalle:'Puedes enviar el resumen en texto. Detalle: '+fallo,
+      acciones:[
+        {txt:'Enviar texto',fn:async()=>{
+          cerrarCompartir();
+          if(navigator.share){try{await navigator.share({title:titulo,text:texto})}catch(e){}}
+          else{try{await navigator.clipboard.writeText(texto);toast('Resumen copiado')}catch(e){}}
+        }},
+        {txt:'Cerrar',ghost:true,fn:cerrarCompartir}
+      ]});
+    return;
+  }
+
+  const file=new File([blob],nombre,{type:'application/pdf'});
+  const puede=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+  const kb=Math.round(blob.size/1024);
+  const acciones=[];
+  if(puede){
+    acciones.push({txt:'Compartir',fn:async()=>{
+      try{await navigator.share({title:titulo,text:'Remisión '+(r.rop||'')+' · Doblaser SAS',files:[file]});cerrarCompartir();}
+      catch(e){if(e&&e.name!=='AbortError')toast('No se pudo compartir. Descárgalo y adjúntalo.');}
+    }});
+  }
+  acciones.push({txt:'Descargar',ghost:puede,fn:()=>{descargarBlob(blob,nombre);cerrarCompartir();toast('PDF descargado');}});
+  acciones.push({txt:'Cerrar',ghost:true,fn:cerrarCompartir});
+
+  dialogoCompartir({
+    titulo:firma?'Remisión firmada lista':'Remisión lista',
+    detalle:nombre+' · '+kb+' KB',
+    estado:firma
+      ?''
+      :'<div class="sh-nota">Esta orden todavía no tiene la firma del cliente. Se envía sin firmar; para firmarla, usa el botón de imprimir remisión.</div>',
+    acciones
+  });
+}
+
 /* el ícono de firma abre el documento firmado completo, no la imagen suelta:
    lo que sirve para un reclamo es la remisión con sus piezas, no un garabato */
 function verRemisionFirmada(id){
@@ -4430,9 +4543,50 @@ function renderRopEntregasHist(){
     return `<div class="he-row">
       <div class="he-fecha">${fmtDate(f)}</div>
       <div class="he-det">${detalle}${quienes?` <span class="muted">· ${esc(quienes)}</span>`:''}</div>
-      <button type="button" class="ic-btn" title="Imprimir remisión de esta entrega" onclick="printRemisionDeFecha('${f}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button>
+      <button type="button" class="ic-btn" title="Imprimir remisión de esta entrega" onclick="printRemisionDeFecha('${f}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button type="button" class="ic-btn" title="Enviar la remisión de esta entrega (PDF)" onclick="compartirRemisionDeFecha('${f}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
     </div>`;
   }).join('')+`<div class="rp-tot">${fechas.length} fecha${fechas.length===1?'':'s'} con entrega${fechas.length===1?'':'s'}</div>`;
+}
+/* enviar la remisión de UNA entrega puntual, desde la bitácora de la orden */
+async function compartirRemisionDeFecha(fecha){
+  const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
+  const r={...base,piezas:ropPiezas,bitacora:ropBitacora,
+    rop:(document.getElementById('f_rop')||{}).value||base.rop,
+    cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
+  const firma=r.firmaCliente||null;
+  const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
+  const titulo='Remisión '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+fmtDate(fecha);
+  const nombre=(('Remision '+(r.rop||'')+(firma?' firmada':'')+' - '+(r.cliente||'cliente')+' - '+fecha)
+    .replace(/[\/:*?"<>|]/g,''))+'.pdf';
+  dialogoCompartir({titulo:'Preparando el PDF…',detalle:titulo,
+    estado:'<div class="sh-spin"></div>',
+    acciones:[{txt:'Cancelar',ghost:true,fn:cerrarCompartir}]});
+  let blob=null,fallo='';
+  try{blob=await remisionPDF(r,fecha,firma,recibe);}catch(e){fallo=e&&e.message||'error desconocido';}
+  if(!document.getElementById('shareLayer').classList.contains('show'))return;
+  if(!blob){
+    const texto=remisionTexto(r,fecha);
+    dialogoCompartir({titulo:'No se pudo armar el PDF',
+      detalle:'Puedes enviar el resumen en texto. Detalle: '+fallo,
+      acciones:[
+        {txt:'Enviar texto',fn:async()=>{cerrarCompartir();
+          if(navigator.share){try{await navigator.share({title:titulo,text:texto})}catch(e){}}
+          else{try{await navigator.clipboard.writeText(texto);toast('Resumen copiado')}catch(e){}}}},
+        {txt:'Cerrar',ghost:true,fn:cerrarCompartir}]});
+    return;
+  }
+  const file=new File([blob],nombre,{type:'application/pdf'});
+  const puede=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+  const acciones=[];
+  if(puede)acciones.push({txt:'Compartir',fn:async()=>{
+    try{await navigator.share({title:titulo,text:'Remisión '+(r.rop||'')+' · Doblaser SAS',files:[file]});cerrarCompartir();}
+    catch(e){if(e&&e.name!=='AbortError')toast('No se pudo compartir. Descárgalo y adjúntalo.');}}});
+  acciones.push({txt:'Descargar',ghost:puede,fn:()=>{descargarBlob(blob,nombre);cerrarCompartir();toast('PDF descargado');}});
+  acciones.push({txt:'Cerrar',ghost:true,fn:cerrarCompartir});
+  dialogoCompartir({titulo:firma?'Remisión firmada lista':'Remisión lista',
+    detalle:nombre+' · '+Math.round(blob.size/1024)+' KB',
+    estado:firma?'':'<div class="sh-nota">Esta orden todavía no tiene la firma del cliente.</div>',
+    acciones});
 }
 function printRemisionDeFecha(fecha){
   const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
