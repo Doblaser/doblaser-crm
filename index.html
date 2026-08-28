@@ -806,6 +806,8 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .rf-pr b{font-variant-numeric:tabular-nums;white-space:nowrap}
 .rf-pend{margin-top:7px;font-size:11.5px;color:#b45309}
 .rf-acc{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+.rb-todo{white-space:nowrap}
+.rb-todo:disabled{opacity:.45;cursor:default}
 @media(max-width:700px){.fc-tabla{font-size:12px}.fc-tabla th,.fc-tabla td{padding:7px 6px}}
 .rc-row.rc-off{opacity:.5}
 .rc-row.rc-off .rc-d{text-decoration:line-through}
@@ -4238,6 +4240,7 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
       <input id="rbCant" placeholder="Ej. 40 de 65 unidades" style="display:none">
       <textarea id="rbTexto" rows="2" placeholder="¿Qué pasó?"></textarea>
       <button type="button" class="btn ghost sm" onclick="rbAdd()">+ Agregar</button>
+      <button type="button" class="btn sm rb-todo" id="rbTodoBtn" onclick="rbEntregarTodo()">Entregar todo lo pendiente</button>
     </div>
     <div class="dfiles-hint">Queda visible en la tarjeta de la orden y en la hoja de producción, para que todo el equipo sepa en qué va y qué la está frenando. En una entrega parcial o total puedes elegir la pieza y se lleva la cuenta de cuánto falta — en la entrega total no hace falta escribir la cantidad, se completa sola.</div>
   </div>
@@ -4510,6 +4513,35 @@ function _rbCommit(entry){
   const pzEl=document.getElementById('rbPieza');if(pzEl)pzEl.value='';
   renderRopBitacora();renderRopPz();
   toast(entry.tipo==='novedad'?'Novedad registrada':(entry.tipo==='total'?'Orden marcada como entregada':'Agregado a la bitácora'));
+}
+/* Marca de una vez todas las piezas que tengan pendiente. Se registra una
+   entrada por pieza, no una sola genérica: así el historial y la remisión
+   muestran cuánto se entregó de cada referencia, y si después hay que
+   corregir una sola, se puede sin desarmar el resto. */
+function rbEntregarTodo(){
+  const conNombre=ropPiezas.filter(p=>(p.desc||'').trim());
+  if(!conNombre.length){toast('Esta orden todavía no tiene piezas en la lista');return;}
+  const pend=conNombre.map(p=>{
+    const desc=(p.desc||'').trim(), tot=+p.cant||0;
+    const ent=ropEntregadoPieza(desc,tot);
+    return {desc,tot,ent,falta:Math.max(0,tot-ent)};
+  }).filter(p=>p.tot>0&&p.falta>0);
+  if(!pend.length){toast('Ya está todo entregado — no queda nada pendiente');return;}
+  const unids=pend.reduce((a,p)=>a+p.falta,0);
+  const detalle=pend.map(p=>'· '+p.desc+' — '+p.falta+(p.ent>0?' que faltaban de '+p.tot:' und')).join('\n');
+  pedirConfirmacion(
+    '¿Entregar las '+pend.length+' piezas que faltan?',
+    detalle+'\n\nSon '+unids+' unidades en total, con fecha de hoy.',
+    ()=>{
+      const u=currentUser(),quien=u?u.name:'—';
+      const f=today();
+      /* al inicio de la lista, igual que _rbCommit: lo más reciente primero */
+      const nuevas=pend.map(p=>({tipo:'parcial',piezaDesc:p.desc,piezaTotal:p.tot,
+        cantEntregada:p.falta,cantidad:'',texto:'',fecha:f,quien,resuelta:null}));
+      ropBitacora=[...nuevas,...ropBitacora];
+      renderRopBitacora();renderRopPz();
+      toast('Listo — '+pend.length+' pieza'+(pend.length===1?'':'s')+' marcada'+(pend.length===1?'':'s')+' como entregada'+(pend.length===1?'':'s'));
+    },'Entregar todo');
 }
 function rbAdd(){
   const tipo=document.getElementById('rbTipo').value;
