@@ -3959,13 +3959,58 @@ function imprimirRemFirmada(id){
     cleanFileName('Remisi\u00f3n firmada '+(r.rop||'')+' - '+(r.cliente||'cliente')));
 }
 function enviarRemFirmada(id){cerrarRemFirmada();compartirRemision(id);}
+/* Una orden puede despacharse en varias remisiones. Cada remisi\u00f3n debe llevar
+   SOLO lo que se entreg\u00f3 ese d\u00eda: si sale todo, el cliente termina firmando
+   piezas que ya hab\u00eda recibido antes, o que todav\u00eda no le han llegado.
+   Por eso, si la orden ya tiene entregas registradas, primero se elige cu\u00e1l. */
 function printRemision(id){
-  const r=CACHE.rop.find(x=>x.id===id);if(!r){toast('Orden no encontrada');return}
-  abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||''),resumenEntrega(r,null),(firma,quien)=>{
-    if(firma){const upd={...r,firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
-      firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null};saveRow('rop',upd);}
-    printDoc(remisionHTML(r,null,firma,quien),cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'cliente')));
+  const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r){toast('Orden no encontrada');return}
+  const entregas=(Array.isArray(r.bitacora)?r.bitacora:[]).filter(b=>b.tipo==='parcial'||b.tipo==='total');
+  const fechas=[...new Set(entregas.map(b=>b.fecha).filter(Boolean))].sort().reverse();
+  if(!fechas.length){_remisionImprimir(r,null);return}   /* sin entregas: va la orden completa */
+  _elegirEntrega(r,fechas,entregas);
+}
+function _remisionImprimir(r,fecha){
+  abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||'')+(fecha?' \u00b7 entrega del '+fmtDate(fecha):''),
+    resumenEntrega(r,fecha),(firma,quien)=>{
+    if(firma)saveRow('rop',{...r,firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
+      firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null});
+    printDoc(remisionHTML(r,fecha,firma,quien),
+      cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'cliente')+(fecha?' - entrega '+fecha:'')));
   });
+}
+function _elegirEntrega(r,fechas,entregas){
+  let capa=document.getElementById('remiLayer');
+  if(!capa){
+    capa=document.createElement('div');capa.id='remiLayer';capa.className='confirm-layer';
+    capa.innerHTML=`<div class="confirm-box" style="max-width:470px;text-align:left">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
+      <div class="muted" id="remiSub" style="font-size:12.5px;margin-bottom:14px"></div>
+      <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
+      <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
+    </div>`;
+    document.body.appendChild(capa);
+    capa.addEventListener('click',e=>{if(e.target===capa)cerrarElegirEntrega();});
+  }
+  document.getElementById('remiSub').textContent=(r.rop||'')+' \u00b7 '+(r.cliente||'')+
+    ' \u2014 se ha despachado en '+fechas.length+' entrega'+(fechas.length===1?'':'s')+
+    '. Cada remisi\u00f3n sale solo con lo de esa fecha.';
+  const idr=esc(String(r.id));
+  const opcion=(onclick,titulo,detalle)=>`<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;height:auto;padding:9px 12px" onclick="${onclick}"><span style="font-weight:700">${titulo}</span><span class="muted" style="font-size:11.5px;font-weight:400;white-space:normal">${detalle}</span></button>`;
+  document.getElementById('remiOpts').innerHTML=
+    fechas.map(f=>{
+      const its=entregas.filter(b=>b.fecha===f);
+      const det=its.map(b=>b.piezaDesc?(b.piezaDesc+': '+(b.cantEntregada||0)):'toda la orden').join(' \u00b7 ');
+      return opcion(`imprimirEntrega('${idr}','${f}')`,'Entrega del '+fmtDate(f),esc(det.length>95?det.slice(0,95)+'\u2026':det));
+    }).join('')+
+    opcion(`imprimirEntrega('${idr}','')`,'Toda la orden','Todas las piezas juntas, sin separar por entrega');
+  capa.classList.add('show');
+}
+function cerrarElegirEntrega(){const c=document.getElementById('remiLayer');if(c)c.classList.remove('show');}
+function imprimirEntrega(id,fecha){
+  const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
+  cerrarElegirEntrega();
+  _remisionImprimir(r,fecha||null);
 }
 /* cuenta de cobro para ventas sin cotizaci\u00f3n (material del cliente) \u2014
    lo que necesita la contable: procesos que llev\u00f3 la orden (corte, doblez,
