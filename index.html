@@ -1373,7 +1373,9 @@ async function loadCloudConfig(){
     const t=data.find(r=>r.k==='tarifas'),m=data.find(r=>r.k==='materiales'),cm=data.find(r=>r.k==='clientes_mat'),pt=data.find(r=>r.k==='prod_plantillas');
     const db=data.find(r=>r.k==='doblez');
     if(db&&db.v){try{const g=(typeof db.v==='string')?JSON.parse(db.v):db.v;
-      if(g&&g.precios&&g.filas&&g.tramos){DOBLEZ=g;localStorage.setItem('db_doblez',JSON.stringify(g));}}catch(e){}}
+      /* solo se acepta si trae la forma nueva (con familias de material). Una
+         tabla vieja guardada en la nube se ignora, para que no pise la de gerencia. */
+      if(doblezValida(g)){DOBLEZ=g;localStorage.setItem('db_doblez',JSON.stringify(g));}}catch(e){}}
     if(t&&t.v){const o=typeof t.v==='string'?JSON.parse(t.v):t.v;if(o&&typeof o==='object')Object.assign(TARIFAS,o);}
     if(m&&m.v){const a=typeof m.v==='string'?JSON.parse(m.v):m.v;if(Array.isArray(a)&&a.length){MATERIALES.length=0;a.forEach(x=>MATERIALES.push(x));}}
     if(cm&&cm.v){const a=typeof cm.v==='string'?JSON.parse(cm.v):cm.v;if(Array.isArray(a)){CLIENTES_MAT.length=0;a.forEach(x=>CLIENTES_MAT.push(x));}}
