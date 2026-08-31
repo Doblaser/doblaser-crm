@@ -392,7 +392,12 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 #rbPieza{grid-area:pieza;min-width:0}
 .rb-nueva input{grid-area:cant}
 .rb-nueva textarea{grid-area:texto;resize:vertical}
-.rb-nueva button{grid-area:boton;align-self:start}
+/* solo el botón de Agregar ocupa la celda del grid. Antes esto decía
+   ".rb-nueva button" y cuando se sumó un segundo botón quedó encima del
+   primero, tapándolo: no había forma de registrar una entrega parcial. */
+#rbAddBtn{grid-area:boton;align-self:start}
+.rb-atajo{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.rb-atajo span{font-size:11.5px;color:var(--ink-3);line-height:1.4;flex:1;min-width:200px}
 .ic-btn.sm{width:28px;height:28px}
 .rb-pieza-tag{font-size:11.5px;font-weight:600}
 .rb-pz-info{grid-column:1/-1;margin-top:-2px}
@@ -4445,10 +4450,13 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
       <select id="rbPieza" onchange="rbPiezaCambio()" style="display:none"></select>
       <input id="rbCant" placeholder="Ej. 40 de 65 unidades" style="display:none">
       <textarea id="rbTexto" rows="2" placeholder="¿Qué pasó?"></textarea>
-      <button type="button" class="btn ghost sm" onclick="rbAdd()">+ Agregar</button>
-      <button type="button" class="btn sm rb-todo" id="rbTodoBtn" onclick="rbEntregarTodo()">Entregar todo lo pendiente</button>
+      <button type="button" class="btn ghost sm" id="rbAddBtn" onclick="rbAdd()">+ Agregar</button>
     </div>
     <div class="dfiles-hint">Queda visible en la tarjeta de la orden y en la hoja de producción, para que todo el equipo sepa en qué va y qué la está frenando. En una entrega parcial o total puedes elegir la pieza y se lleva la cuenta de cuánto falta — en la entrega total no hace falta escribir la cantidad, se completa sola.</div>
+    <div class="rb-atajo">
+      <button type="button" class="btn sm rb-todo" id="rbTodoBtn" onclick="rbEntregarTodo()">Entregar todo lo pendiente</button>
+      <span>Atajo: registra de una vez lo que falta de <b>todas</b> las piezas, con la fecha de hoy. Para entregar solo una pieza o una cantidad parcial, usa el formulario de arriba.</span>
+    </div>
   </div>
   <div class="field full rop-bit"><label>Historial de entregas — cuántas remisiones lleva esta orden y de qué fecha</label>
     <div id="ropEntregasHist"></div>
