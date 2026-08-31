@@ -816,6 +816,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .dbl-tabla input{width:88px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;background:var(--card,#fff);color:inherit}
 .dbl-tabla input:focus{outline:none;border-color:var(--brand,#7b1e2b);box-shadow:0 0 0 2px rgba(123,30,43,.14)}
 .dbl-venta{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.dbl-fam td{padding-top:14px !important;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:var(--brand,#7b1e2b);border-top:2px solid var(--line) !important}
 @media(max-width:820px){.dbl-tabla input{width:70px;font-size:12px}.dbl-tabla td,.dbl-tabla th{padding:5px 4px}}
 .ci-dobl{font-size:11px;line-height:1.4;margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
 .ci-dobl .ok{color:var(--ok,#0b7a55)}
@@ -1277,25 +1278,50 @@ let MATERIALES=JSON.parse(localStorage.getItem('db_materiales')||'null')||MATERI
    3 metros que es el máximo de la dobladora.
    Acuerdo del equipo: cuando una pieza lleva varios golpes, se cobra según
    el MÁS LARGO — que es el que manda el montaje y el esfuerzo de la máquina. */
+/* Tabla oficial de gerencia (archivo "Precio doblez.xlsx", 27/08/2026).
+   El precio del golpe depende de TRES cosas: la familia del material, el
+   espesor y qué tan largo es el golpe. El inoxidable y el aluminio cuestan
+   más que el acero al carbono en todos los casos.
+   Los dos ceros son reales: gerencia no dio precio para lámina de 8 mm–1/2"
+   en golpes de más de 1,5 m. Se dejan en cero a propósito para que el sistema
+   avise en vez de inventar un valor. */
 const DOBLEZ_DEF={
-  filas:[
-    {lbl:'Cal 20 – 18',   max:1.30},
-    {lbl:'Cal 16 – 14',   max:2.00},
-    {lbl:'Cal 12 – 3 mm', max:3.20},
-    {lbl:'4,5 – 8 mm',    max:8.00},
-    {lbl:'10 – 12 mm',    max:12.00}
+  familias:[
+    {key:'acero',lbl:'Acero CR · HR · Galvanizado'},
+    {key:'inox', lbl:'Inoxidable · Aluminio'}
   ],
-  tramos:[500,1000,1500,2000,2500,3000],
-  precios:[
-    [300,600,900,1200,1500,1800],
-    [450,900,1350,1800,2250,2700],
-    [830,1660,2490,3320,4150,4980],
-    [1700,3400,5100,6800,8500,10200],
-    [2100,4200,6300,8400,10500,12600]
-  ]
+  filas:[
+    {lbl:'Cal 26 – 14',   max:2.00},
+    {lbl:'2,5 – 6,35 mm', max:6.35},
+    {lbl:'8 mm – 1/2"',   max:12.70}
+  ],
+  tramos:[500,1500,3000],
+  precios:{
+    acero:[
+      [1800, 2500, 4000],
+      [4000, 5800, 7800],
+      [8000,12000,    0]
+    ],
+    inox:[
+      [2500, 3500, 5500],
+      [4500, 6500, 9100],
+      [10000,12000,   0]
+    ]
+  }
 };
+/* la tabla guardada antes tenía otra forma (precios era un arreglo plano, sin
+   familias). Si aparece una de esas, se descarta y se usa la de gerencia. */
+function doblezValida(g){return !!(g&&g.precios&&!Array.isArray(g.precios)&&g.familias&&g.filas&&g.tramos);}
 let DOBLEZ=(()=>{try{const g=JSON.parse(localStorage.getItem('db_doblez')||'null');
-  return (g&&g.precios)?g:JSON.parse(JSON.stringify(DOBLEZ_DEF));}catch(e){return JSON.parse(JSON.stringify(DOBLEZ_DEF));}})();
+  return doblezValida(g)?g:JSON.parse(JSON.stringify(DOBLEZ_DEF));}catch(e){return JSON.parse(JSON.stringify(DOBLEZ_DEF));}})();
+/* qué familia le toca a un ítem: lo que el asesor haya elegido a mano, y si no,
+   se deduce del material del ítem (inox y aluminio van por la tabla cara) */
+function doblezFamilia(c,it){
+  const g=(c&&c.gmat||'').trim();
+  if(g==='acero'||g==='inox')return g;
+  const txt=((it&&it.material)||'')+' '+((MATERIALES.find(m=>+m.kg===+(c&&c.pkg))||{}).mat||'');
+  return /inox|alumin/i.test(txt)?'inox':'acero';
+}
 
 /* qué fila de la tabla le toca a un espesor. Los rangos van pegados para que
    no quede ningún espesor sin precio; por encima del último se usa el último */
@@ -1317,21 +1343,26 @@ function doblezTramo(mm){
 }
 /* devuelve el valor del golpe, o null si falta el espesor o el largo:
    preferimos no poner precio antes que poner uno inventado */
-function precioGolpe(esp,mm){
+function precioGolpe(esp,mm,fam){
   const i=doblezFila(esp),j=doblezTramo(mm);
   if(i<0||j<0)return null;
-  const v=+((DOBLEZ.precios[i]||[])[j]);
+  const tabla=DOBLEZ.precios[(fam==='inox'?'inox':'acero')]||[];
+  const v=+((tabla[i]||[])[j]);
   return isFinite(v)&&v>0?v:null;
 }
 /* explica de dónde salió el precio, para que se pueda revisar sin adivinar */
-function doblezDetalle(esp,mm){
+function doblezDetalle(esp,mm,fam){
   const i=doblezFila(esp),j=doblezTramo(mm);
   if(i<0)return 'falta el calibre de la pieza';
   if(j<0)return 'falta el largo del golpe';
   const t=DOBLEZ.tramos,lbl=DOBLEZ.filas[i].lbl;
   const desde=j===0?0:(+t[j-1]+1);
   const pasa=(+mm||0)>+t[t.length-1];
-  return lbl+' · golpe de '+desde+' a '+t[j]+' mm'+
+  const f=(DOBLEZ.familias||[]).find(x=>x.key===(fam==='inox'?'inox':'acero'));
+  const tabla=DOBLEZ.precios[(fam==='inox'?'inox':'acero')]||[];
+  const sinPrecio=!(+((tabla[i]||[])[j])>0);
+  return (f?f.lbl+' · ':'')+lbl+' · golpe de '+desde+' a '+t[j]+' mm'+
+    (sinPrecio?' — gerencia no dio precio para esta combinación, ponlo a mano':'')+
     (pasa?' — OJO: '+mm+' mm pasa del máximo de 3 m de la dobladora':'');
 }
 
@@ -2770,7 +2801,7 @@ function drawStats(){
    ========================================================= */
 function fac2pct(f){return Math.round((1-(+f||0))*100);}
 function pct2fac(p){const f=1-(+p||0)/100;return f>0.0001?f:0.0001;}
-function blankCalc(){return{lmin:0,gas:'aire',lcustom:0,golpes:0,vgolpe:0,glargo:0,mig:0,vmig:0,marca:0,vmarca:0,otros:0,
+function blankCalc(){return{lmin:0,gas:'aire',lcustom:0,golpes:0,vgolpe:0,glargo:0,gmat:'',mig:0,vmig:0,marca:0,vmarca:0,otros:0,
   ttipo:'',tcant:0,tvu:0,mcant:0,mpeso:0,pkg:0,largo:0,ancho:0,cal:0,transp:0,
   mLaser:'',mProcesos:'',mTerceros:'',mMp:''};}
 function blankItem(){return{proc:'',procs:[],desc:'',material:'',calibre:'',cant:1,vu:0,_open:true,_procManual:false,calc:blankCalc()};}
@@ -2870,37 +2901,38 @@ function ciTogProc(i,pi){
 /* edición de un campo de la calculadora del ítem */
 function ciCalc(i,k,v){
   const c=cotItems[i].calc;
-  c[k]=(k==='gas')?v:(+v||0);
-  /* el valor del golpe sale solo de la tabla al cambiar el calibre o el largo,
-     pero solo si nadie lo ha puesto a mano: lo escrito a dedo siempre manda */
-  if(k==='cal'||k==='glargo'){
-    const p=precioGolpe(+c.cal||0,+c.glargo||0);
+  c[k]=(k==='gas'||k==='gmat')?v:(+v||0);
+  /* el valor del golpe sale solo de la tabla al cambiar el calibre, el largo o
+     la familia del material, pero solo si nadie lo ha puesto a mano:
+     lo escrito a dedo siempre manda */
+  if(k==='cal'||k==='glargo'||k==='gmat'){
+    const p=precioGolpe(+c.cal||0,+c.glargo||0,doblezFamilia(c,cotItems[i]));
     if(p!=null&&(!(+c.vgolpe>0)||c._vgAuto))
       {c.vgolpe=p;c._vgAuto=true;const el=document.getElementById('vgolpe_'+i);if(el)el.value=p;}
   }
   if(k==='vgolpe')c._vgAuto=false;   /* lo escribió una persona: no se vuelve a pisar */
   recalcLine(i);
   const d=document.getElementById('ciDobl_'+i);
-  if(d)d.innerHTML=doblezPista(c);
+  if(d)d.innerHTML=doblezPista(c,cotItems[i]);
 }
 function ciMrg(i,k,v){const c=cotItems[i].calc;v=(''+v).trim();c[k]=(v==='')?'':Math.max(0,Math.min(99,+v||0));recalcLine(i);}
 /* ayuda de peso: largo×ancho×calibre×densidad ÷ 1.000.000 = kg (peso unitario) */
 /* explica de dónde sale el valor del golpe y ofrece traerlo de la tabla,
    para que nadie tenga que acordarse de memoria de la lista de precios */
-function doblezPista(c){
-  const esp=+c.cal||0, mm=+c.glargo||0;
+function doblezPista(c,it){
+  const esp=+c.cal||0, mm=+c.glargo||0, fam=doblezFamilia(c,it);
   if(!esp&&!mm)return '<span class="muted">Pon el calibre y el largo del golpe y el valor sale de la lista de precios.</span>';
-  const p=precioGolpe(esp,mm);
-  if(p==null)return '<span class="muted">'+esc(doblezDetalle(esp,mm))+'</span>';
+  const p=precioGolpe(esp,mm,fam);
+  if(p==null)return '<span class="muted">'+esc(doblezDetalle(esp,mm,fam))+'</span>';
   const igual=Math.abs((+c.vgolpe||0)-p)<1;
-  return '<span class="'+(igual?'ok':'dif')+'">Tabla: '+COP(p)+' — '+esc(doblezDetalle(esp,mm))+'</span>'+
+  return '<span class="'+(igual?'ok':'dif')+'">Tabla: '+COP(p)+' — '+esc(doblezDetalle(esp,mm,fam))+'</span>'+
     (igual?'':' <button type="button" class="ci-usar" onclick="ciUsarTabla(this)">usar</button>');
 }
 function ciUsarTabla(btn){
   const box=btn.closest('.ci-dobl');if(!box)return;
   const i=+box.id.split('_')[1];
-  const c=cotItems[i]&&cotItems[i].calc;if(!c)return;
-  const p=precioGolpe(+c.cal||0,+c.glargo||0);
+  const it=cotItems[i];const c=it&&it.calc;if(!c)return;
+  const p=precioGolpe(+c.cal||0,+c.glargo||0,doblezFamilia(c,it));
   if(p==null)return;
   ciCalc(i,'vgolpe',p);
   const el=document.getElementById('vgolpe_'+i);if(el)el.value=p;
@@ -3132,10 +3164,14 @@ function renderPrecios(){
 
   <div class="panel">
     <div class="panel">
-    <div class="panel-h"><h3>Doblez — precio del golpe por calibre y largo</h3><div class="spacer"></div><button class="btn ghost sm" onclick="doblezReset()">Volver a la tabla base</button><button class="btn sm" onclick="saveDoblez()">Guardar tabla</button></div>
-    <div class="lp-note">Cuando una pieza lleva varios golpes se cobra según el <b>más largo</b>, que es el que manda el montaje. Un golpe que caiga entre dos tramos se cobra en el de arriba: uno de 700 mm paga como uno de 1.000. Son valores de <b>costo</b> — debajo de cada casilla se ve en gris lo que queda de venta con la utilidad de procesos (${fac2pct(TARIFAS.mProcesos)}%).</div>
-    <div class="tbl-wrap"><table class="dbl-tabla"><thead><tr><th>Espesor</th>${DOBLEZ.tramos.map(t=>`<th class="num">hasta ${t} mm</th>`).join('')}</tr></thead><tbody>
-      ${DOBLEZ.filas.map((f,r)=>`<tr><td class="dbl-lbl"><b>${esc(f.lbl)}</b><span>hasta ${f.max} mm</span></td>${DOBLEZ.tramos.map((t,cn)=>`<td class="num"><input type="number" min="0" step="10" id="dbl_${r}_${cn}" value="${(DOBLEZ.precios[r]||[])[cn]||0}" oninput="doblezPreview(${r},${cn})"><span class="dbl-venta" id="dblv_${r}_${cn}">${COP(((DOBLEZ.precios[r]||[])[cn]||0)/(TARIFAS.mProcesos||0.6))}</span></td>`).join('')}</tr>`).join('')}
+    <div class="panel-h"><h3>Doblez — precio del golpe por material, calibre y largo</h3><div class="spacer"></div><span class="hint" style="margin-right:10px">Tabla oficial de gerencia</span><button class="btn ghost sm" onclick="doblezReset()">Volver a la tabla de gerencia</button><button class="btn sm" onclick="saveDoblez()">Guardar tabla</button></div>
+    <div class="lp-note">Valores de la tabla de gerencia (<b>Precio doblez.xlsx</b>, 27/08/2026). El <b>inoxidable y el aluminio</b> cuestan más que el acero al carbono, por eso van en dos bloques aparte. Cuando una pieza lleva varios golpes se cobra según el <b>más largo</b>, que es el que manda el montaje. Un golpe que caiga entre dos tramos se cobra en el de arriba: uno de 700 mm paga como uno de 1.500. Son valores de <b>costo</b> — debajo de cada casilla se ve en gris lo que queda de venta con la utilidad de procesos (${fac2pct(TARIFAS.mProcesos)}%). Las dos casillas en cero son así en el archivo de gerencia: no dieron precio para 8 mm–1/2" en golpes de más de 1,5 m.</div>
+    <div class="tbl-wrap"><table class="dbl-tabla"><thead><tr><th>Espesor</th>${DOBLEZ.tramos.map((t,n)=>`<th class="num">${n===0?'hasta':(+DOBLEZ.tramos[n-1]+1)+' a'} ${t} mm</th>`).join('')}</tr></thead><tbody>
+      ${(DOBLEZ.familias||[]).map(fam=>`<tr class="dbl-fam"><td colspan="${DOBLEZ.tramos.length+1}">${esc(fam.lbl)}</td></tr>`
+        +DOBLEZ.filas.map((f,r)=>`<tr><td class="dbl-lbl"><b>${esc(f.lbl)}</b><span>hasta ${f.max} mm</span></td>${DOBLEZ.tramos.map((t,cn)=>{
+          const v=((DOBLEZ.precios[fam.key]||[])[r]||[])[cn]||0;
+          return `<td class="num"><input type="number" min="0" step="10" id="dbl_${fam.key}_${r}_${cn}" value="${v}" oninput="doblezPreview('${fam.key}',${r},${cn})"><span class="dbl-venta" id="dblv_${fam.key}_${r}_${cn}">${v>0?COP(v/(TARIFAS.mProcesos||0.6)):'sin precio'}</span></td>`;
+        }).join('')}</tr>`).join('')).join('')}
     </tbody></table></div>
   </div>
   <div class="panel-h"><h3>Historial de cambios</h3><div class="spacer"></div><span class="hint">Quién cambió qué y cuándo</span></div>
@@ -3154,12 +3190,18 @@ function savePrecios(){
 function saveDoblez(){
   const nueva=JSON.parse(JSON.stringify(DOBLEZ));
   let vacias=0;
-  nueva.filas.forEach((f,r)=>nueva.tramos.forEach((t,c)=>{
-    const el=document.getElementById('dbl_'+r+'_'+c);
-    const v=el?Math.max(0,Math.round(+el.value||0)):0;
-    if(!v)vacias++;
-    nueva.precios[r][c]=v;
-  }));
+  (nueva.familias||[]).forEach(fam=>{
+    nueva.precios[fam.key]=nueva.precios[fam.key]||[];
+    nueva.filas.forEach((f,r)=>{
+      nueva.precios[fam.key][r]=nueva.precios[fam.key][r]||[];
+      nueva.tramos.forEach((t,c)=>{
+        const el=document.getElementById('dbl_'+fam.key+'_'+r+'_'+c);
+        const v=el?Math.max(0,Math.round(+el.value||0)):0;
+        if(!v)vacias++;
+        nueva.precios[fam.key][r][c]=v;
+      });
+    });
+  });
   const hacer=()=>{
     DOBLEZ=nueva;
     localStorage.setItem('db_doblez',JSON.stringify(DOBLEZ));
@@ -3175,16 +3217,17 @@ function saveDoblez(){
 }
 function doblezReset(){
   pedirConfirmacion('¿Volver a la tabla base?',
-    'Se pierden los ajustes que le hayas hecho y vuelven los valores con los que se armó: $300 el golpe corto en calibre 20-18, subiendo con regla de tres hasta $12.600 en 12 mm por 3 metros.',
+    'Se pierden los ajustes que le hayas hecho y vuelve la tabla oficial de gerencia (archivo "Precio doblez.xlsx" del 27/08/2026), con sus dos familias de material.',
     ()=>{DOBLEZ=JSON.parse(JSON.stringify(DOBLEZ_DEF));
       localStorage.setItem('db_doblez',JSON.stringify(DOBLEZ));
       cloudSaveConfig('doblez',DOBLEZ);render();toast('Tabla restaurada');},'Restaurar');
 }
 /* mientras se escribe, debajo de la casilla se ve lo que queda de venta */
-function doblezPreview(r,c){
-  const el=document.getElementById('dbl_'+r+'_'+c),sp=document.getElementById('dblv_'+r+'_'+c);
+function doblezPreview(fam,r,c){
+  const el=document.getElementById('dbl_'+fam+'_'+r+'_'+c),sp=document.getElementById('dblv_'+fam+'_'+r+'_'+c);
   if(!el||!sp)return;
-  sp.textContent=COP((+el.value||0)/(TARIFAS.mProcesos||0.6));
+  const v=+el.value||0;
+  sp.textContent=v>0?COP(v/(TARIFAS.mProcesos||0.6)):'sin precio';
 }
 function addMat(){MATERIALES.push({mat:'Nuevo material',kg:0});saveMateriales();render()}
 
@@ -5163,8 +5206,11 @@ function renderCotItems(){
           <div class="ci-sec"><h5>Doblez</h5>
             <label>Cantidad golpes</label><input type="number" value="${c.golpes}" oninput="ciCalc(${i},'golpes',this.value)">
             <label style="margin-top:6px">Largo del golpe más largo (mm)</label><input type="number" id="glargo_${i}" value="${c.glargo||''}" oninput="ciCalc(${i},'glargo',this.value)" placeholder="Ej. 1200">
+            <label style="margin-top:6px">Material del doblez</label><select onchange="ciCalc(${i},'gmat',this.value)">${
+              [['','Automático — según el material del ítem'],['acero','Acero CR · HR · Galvanizado'],['inox','Inoxidable · Aluminio']]
+              .map(([v,t])=>`<option value="${v}" ${(c.gmat||'')===v?'selected':''}>${esc(t)}</option>`).join('')}</select>
             <label style="margin-top:6px">Valor golpe</label><input type="number" id="vgolpe_${i}" value="${c.vgolpe}" oninput="ciCalc(${i},'vgolpe',this.value)">
-            <div class="ci-dobl" id="ciDobl_${i}">${doblezPista(c)}</div>
+            <div class="ci-dobl" id="ciDobl_${i}">${doblezPista(c,it)}</div>
           </div>
           <div class="ci-sec"><h5>Soldadura</h5>
             <label>Cantidad mm</label><input type="number" value="${c.mig}" oninput="ciCalc(${i},'mig',this.value)">
