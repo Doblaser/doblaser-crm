@@ -445,6 +445,13 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pl-row{display:grid;grid-template-columns:1fr 80px 110px 100px 32px;gap:8px;margin-bottom:7px;align-items:center}
 .pl-row input{padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;background:var(--card);color:var(--ink)}
 .pl-sub{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;font-size:12.5px}
+.pi-sub-t{font-size:11px;font-weight:700;color:var(--ink-2,var(--ink-3));margin:4px 0 6px}
+.pi-pz-box{border:1px solid var(--line);border-radius:9px;padding:9px;margin-bottom:8px;background:var(--card)}
+.pz-wrap{border-bottom:1px dashed var(--line);padding-bottom:6px;margin-bottom:6px}
+.pz-wrap:last-of-type{border-bottom:0}
+.pz-head input:first-child{font-weight:600}
+.pz-calc{margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.ci-split{border:1px solid var(--line);border-radius:9px;padding:9px;margin:6px 0;background:var(--card)}
 .pi-calc-foot{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:12.5px}
 .pi-calc-foot label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-3)}
 .pi-calc-foot input{width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:7px}
@@ -2811,9 +2818,20 @@ function pct2fac(p){const f=1-(+p||0)/100;return f>0.0001?f:0.0001;}
 function blankCalc(){return{lmin:0,gas:'aire',lcustom:0,golpes:0,vgolpe:0,glargo:0,gmat:'',mig:0,vmig:0,marca:0,vmarca:0,otros:0,
   ttipo:'',tcant:0,tvu:0,mcant:0,mpeso:0,pkg:0,largo:0,ancho:0,cal:0,transp:0,
   mLaser:'',mProcesos:'',mTerceros:'',mMp:''};}
-function blankItem(){return{proc:'',procs:[],desc:'',material:'',calibre:'',cant:1,vu:0,_open:true,_procManual:false,calc:blankCalc()};}
+function blankItem(){return{proc:'',procs:[],desc:'',material:'',calibre:'',cant:1,vu:0,_open:true,_procManual:false,calc:blankCalc(),subpiezas:[]};}
+function blankSubpieza(){return{nombre:'',cant:1,_open:true,calc:blankCalc()};}
+/* normaliza las sub-piezas de un ítem al cargarlo de la nube o de un borrador */
+function hidratarSubpiezas(it){return ((it&&it.subpiezas)||[]).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,_open:false,calc:Object.assign(blankCalc(),sp.calc||{})}));}
 /* costo + margen de un ítem -> exactamente como AW25..AW32 del Excel */
 function lineParts(it){
+  /* ítem dividido en sub-piezas por calibre: el costo/venta de la línea es la suma
+     de cada sub-pieza (cada una con su propia calculadora), por su cantidad */
+  if(it&&it.subpiezas&&it.subpiezas.length){
+    const K=['laser','procesos','terceros','mp','transp','pesoTot','vLaser','vProc','vTerc','vMp','sell','costo'];
+    const acc=Object.fromEntries(K.map(k=>[k,0]));
+    it.subpiezas.forEach(sp=>{const n=Math.max(1,+(sp&&sp.cant)||1);const p=lineParts({calc:sp&&sp.calc});K.forEach(k=>acc[k]+=(+p[k]||0)*n);});
+    return acc;
+  }
   const c=it.calc||blankCalc();
   const tar=(c.gas==='oxi')?TARIFAS.laserOxigeno:(c.gas==='custom')?(+c.lcustom||0):TARIFAS.laserAire;
   const laser=(+c.lmin||0)*tar;
@@ -2837,6 +2855,15 @@ function autoProcs(p,c){
   if(p.mp>0)on.push('Material');
   return [...new Set(on)];
 }
+/* procesos automáticos de un ítem dividido en sub-piezas: se juntan los de cada una */
+function autoProcsItem(it){
+  if(it&&it.subpiezas&&it.subpiezas.length){
+    const s=new Set();
+    it.subpiezas.forEach(sp=>autoProcs(lineParts({calc:sp&&sp.calc}),(sp&&sp.calc)||blankCalc()).forEach(x=>s.add(x)));
+    return [...s];
+  }
+  return autoProcs(lineParts(it),(it&&it.calc)||blankCalc());
+}
 const _set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
 function procSummaryHTML(procs){
   if(!procs||!procs.length)return '<span class="muted" style="font-size:11.5px">Sin proceso</span>';
@@ -2847,7 +2874,7 @@ function recalcLine(i){
   const p=lineParts(it);const cant=Math.max(1,+it.cant||1);
   if(p.sell>0){
     it.vu=Math.round(p.sell/cant);
-    if(!it._procManual){const ap=autoProcs(p,it.calc||blankCalc());it.procs=ap;it.proc=ap.join(' + ');
+    if(!it._procManual){const ap=autoProcsItem(it);it.procs=ap;it.proc=ap.join(' + ');
       const sum=document.getElementById('psum_'+i);if(sum)sum.innerHTML=procSummaryHTML(ap);
       PROCESOS.forEach((pp,pi)=>{const ch=document.getElementById('pc_'+i+'_'+pi);if(ch)ch.classList.toggle('on',ap.includes(pp));});}
   }
@@ -2948,6 +2975,89 @@ function ciPeso(i){const c=cotItems[i].calc;const kg=(+c.largo||0)*(+c.ancho||0)
   if(kg>0){c.mpeso=Math.round(kg*1000)/1000;const e=document.getElementById('mpeso_'+i);if(e)e.value=c.mpeso;recalcLine(i);}}
 /* material seleccionado -> precio $/kg */
 function ciMat(i,kg){if(kg===''||kg==='custom'){const e=document.getElementById('pkg_'+i);if(e)e.focus();return;}const c=cotItems[i].calc;c.pkg=+kg||0;const e=document.getElementById('pkg_'+i);if(e)e.value=c.pkg;recalcLine(i);}
+
+/* ================= Calculadora compartida de sub-piezas =================
+   La reutilizan la cotización de PRODUCTO (piezas de lámina por calibre) y la
+   de SERVICIO (sub-ítems por calibre). Cada sub-pieza es un blankCalc() y su
+   costo/venta sale de lineParts(), el mismo motor del ítem de servicio.
+   Cada render registra su namespace en SUBCALC con: get() -> objeto calc,
+   item() -> objeto con .material para la familia de doblez, after() -> refresco. */
+const SUBCALC={};
+function scReg(ns,get,itemFn,after){SUBCALC[ns]={get,item:itemFn||(()=>({})),after:after||(()=>{})};}
+function subCalcHTML(c,ns,opts){
+  opts=opts||{};c=c||blankCalc();
+  const it=opts.item||{};
+  const matOpts=MATERIALES.map(m=>`<option value="${m.kg}">${esc(m.mat)} · ${COP(m.kg)}/kg</option>`).join('');
+  const gmatOpts=[['','Automático — según el material'],['acero','Acero CR · HR · Galvanizado'],['inox','Inoxidable · Aluminio']]
+    .map(([v,t])=>`<option value="${v}" ${(c.gmat||'')===v?'selected':''}>${esc(t)}</option>`).join('');
+  const mrg=opts.margins?`<div class="ci-margins">
+      <div class="cim-lbl">Utilidad solo de esta pieza (%) <span class="cim-hint">— vacío = Lista de precios. 0 = sin utilidad.</span></div>
+      <div class="cim-row">
+        <div><label>Láser</label><input type="number" step="1" min="0" max="99" value="${c.mLaser===''||c.mLaser==null?'':c.mLaser}" placeholder="${fac2pct(TARIFAS.mLaser)}" oninput="scMrg('${ns}','mLaser',this.value)"></div>
+        <div><label>Procesos</label><input type="number" step="1" min="0" max="99" value="${c.mProcesos===''||c.mProcesos==null?'':c.mProcesos}" placeholder="${fac2pct(TARIFAS.mProcesos)}" oninput="scMrg('${ns}','mProcesos',this.value)"></div>
+        <div><label>Terceros</label><input type="number" step="1" min="0" max="99" value="${c.mTerceros===''||c.mTerceros==null?'':c.mTerceros}" placeholder="${fac2pct(TARIFAS.mTerceros)}" oninput="scMrg('${ns}','mTerceros',this.value)"></div>
+        <div><label>Material</label><input type="number" step="1" min="0" max="99" value="${c.mMp===''||c.mMp==null?'':c.mMp}" placeholder="${fac2pct(TARIFAS.mMP)}" oninput="scMrg('${ns}','mMp',this.value)"></div>
+      </div>
+    </div>`:'';
+  return `<div class="ci-grid">
+    <div class="ci-sec"><h5>Corte láser</h5>
+      <label>Minutos</label><input type="number" value="${c.lmin||''}" oninput="scSet('${ns}','lmin',this.value)">
+      <label style="margin-top:6px">Gas / tarifa</label><select onchange="scSet('${ns}','gas',this.value)"><option value="aire" ${c.gas==='aire'?'selected':''}>Aire (${COP(TARIFAS.laserAire)}/min)</option><option value="oxi" ${c.gas==='oxi'?'selected':''}>Oxígeno (${COP(TARIFAS.laserOxigeno)}/min)</option><option value="custom" ${c.gas==='custom'?'selected':''}>Personalizado ($/min)</option></select>
+      <label style="margin-top:6px">Precio personalizado ($/min)</label><input type="number" value="${c.lcustom||''}" oninput="scSet('${ns}','lcustom',this.value)" placeholder="Solo si gas = Personalizado">
+    </div>
+    <div class="ci-sec"><h5>Doblez</h5>
+      <label>Cantidad golpes</label><input type="number" value="${c.golpes||''}" oninput="scSet('${ns}','golpes',this.value)">
+      <label style="margin-top:6px">Largo del golpe más largo (mm)</label><input type="number" value="${c.glargo||''}" oninput="scSet('${ns}','glargo',this.value)" placeholder="Ej. 1200">
+      <label style="margin-top:6px">Material del doblez</label><select onchange="scSet('${ns}','gmat',this.value)">${gmatOpts}</select>
+      <label style="margin-top:6px">Valor golpe</label><input type="number" id="vg_${ns}" value="${c.vgolpe||''}" oninput="scSet('${ns}','vgolpe',this.value)">
+      <div class="ci-dobl" id="scDobl_${ns}">${doblezPista(c,it)}</div>
+    </div>
+    <div class="ci-sec"><h5>Soldadura</h5>
+      <label>Cantidad mm</label><input type="number" value="${c.mig||''}" oninput="scSet('${ns}','mig',this.value)">
+      <label style="margin-top:6px">Valor mm</label><input type="number" value="${c.vmig||''}" oninput="scSet('${ns}','vmig',this.value)">
+    </div>
+    <div class="ci-sec"><h5>Marcado láser</h5>
+      <label>Minutos</label><input type="number" value="${c.marca||''}" oninput="scSet('${ns}','marca',this.value)">
+      <label style="margin-top:6px">Valor minuto</label><input type="number" value="${c.vmarca||''}" oninput="scSet('${ns}','vmarca',this.value)">
+    </div>
+    <div class="ci-sec"><h5>Otros procesos</h5>
+      <label>Costo adicional</label><input type="number" value="${c.otros||''}" oninput="scSet('${ns}','otros',this.value)">
+      <div class="ci-hint">Se suma a procesos${opts.margins?` (÷${TARIFAS.mProcesos})`:''}</div>
+    </div>
+    <div class="ci-sec"><h5>Terceros</h5>
+      <label>Cant. piezas</label><input type="number" value="${c.tcant||''}" oninput="scSet('${ns}','tcant',this.value)">
+      <label style="margin-top:6px">Valor unitario</label><input type="number" value="${c.tvu||''}" oninput="scSet('${ns}','tvu',this.value)">
+    </div>
+    <div class="ci-sec"><h5>Material (lo aporta Doblaser)</h5>
+      <label>Material</label><select onchange="scMat('${ns}',this.value)"><option value="">— elegir —</option>${matOpts}<option value="custom">Personalizado (precio manual)</option></select>
+      <div class="row" style="margin-top:6px"><div style="flex:1"><label>Cantidad</label><input type="number" value="${c.mcant||''}" oninput="scSet('${ns}','mcant',this.value)"></div><div style="flex:1"><label>Peso unit. (kg)</label><input id="mpeso_${ns}" type="number" value="${c.mpeso||''}" oninput="scSet('${ns}','mpeso',this.value)"></div></div>
+      <label style="margin-top:6px">Precio ($/kg)</label><input id="pkg_${ns}" type="number" value="${c.pkg||''}" oninput="scSet('${ns}','pkg',this.value)">
+    </div>
+    <div class="ci-sec"><h5>Ayuda de peso (mm)</h5>
+      <div class="row"><div style="flex:1"><label>Largo</label><input type="number" value="${c.largo||''}" oninput="scSet('${ns}','largo',this.value)"></div><div style="flex:1"><label>Ancho</label><input type="number" value="${c.ancho||''}" oninput="scSet('${ns}','ancho',this.value)"></div></div>
+      <div class="row" style="margin-top:6px"><div style="flex:1"><label>Calibre</label><input type="number" step="0.01" value="${c.cal||''}" oninput="scSet('${ns}','cal',this.value)"></div><div style="display:flex;align-items:flex-end"><button type="button" class="btn ghost xs" onclick="scPeso('${ns}')">Calcular kg</button></div></div>
+    </div>
+    <div class="ci-sec"><h5>Transporte</h5>
+      <label>Valor (sin margen)</label><input type="number" value="${c.transp||''}" oninput="scSet('${ns}','transp',this.value)">
+      <div class="ci-hint">Se traslada tal cual</div>
+    </div>
+  </div>${mrg}`;
+}
+function scSet(ns,k,v){
+  const e=SUBCALC[ns];if(!e)return;const c=e.get();if(!c)return;
+  c[k]=(k==='gas'||k==='gmat')?v:(+v||0);
+  if(k==='cal'||k==='glargo'||k==='gmat'){
+    const p=precioGolpe(+c.cal||0,+c.glargo||0,doblezFamilia(c,e.item()));
+    if(p!=null&&(!(+c.vgolpe>0)||c._vgAuto)){c.vgolpe=p;c._vgAuto=true;const el=document.getElementById('vg_'+ns);if(el)el.value=p;}
+  }
+  if(k==='vgolpe')c._vgAuto=false;
+  const d=document.getElementById('scDobl_'+ns);if(d)d.innerHTML=doblezPista(c,e.item());
+  e.after();
+}
+function scMat(ns,kg){const e=SUBCALC[ns];if(!e)return;const c=e.get();if(!c)return;if(kg===''||kg==='custom'){const el=document.getElementById('pkg_'+ns);if(el)el.focus();return;}c.pkg=+kg||0;const el=document.getElementById('pkg_'+ns);if(el)el.value=c.pkg;e.after();}
+function scPeso(ns){const e=SUBCALC[ns];if(!e)return;const c=e.get();if(!c)return;const kg=(+c.largo||0)*(+c.ancho||0)*(+c.cal||0)*TARIFAS.densidad/1e6;if(kg>0){c.mpeso=Math.round(kg*1000)/1000;const el=document.getElementById('mpeso_'+ns);if(el)el.value=c.mpeso;e.after();}}
+function scMrg(ns,k,v){const e=SUBCALC[ns];if(!e)return;const c=e.get();if(!c)return;v=(''+v).trim();c[k]=(v==='')?'':Math.max(0,Math.min(99,+v||0));e.after();}
+
 function cotToggle(i){cotItems[i]._open=!cotItems[i]._open;renderCotItems();}
 function addCotItem(){cotItems.push(blankItem());renderCotItems();}
 function cotDel(i){
@@ -3460,7 +3570,7 @@ function queueCotDraft(){clearTimeout(DRAFT_TIMER);DRAFT_TIMER=setTimeout(saveCo
 function clearCotDraft(){try{localStorage.removeItem(COT_DRAFT_KEY);}catch(e){}}
 function draftAgo(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return 'hace un momento';if(m<60)return 'hace '+m+' min';const h=Math.round(m/60);return 'hace '+h+' h';}
 function draftBannerHTML(){let d;try{d=JSON.parse(localStorage.getItem(COT_DRAFT_KEY)||'null');}catch(e){d=null;}if(!d||!d.header)return '';const quien=(d.header.cliente||'').trim()?(' de '+esc(d.header.cliente)):'';return `<div class="draft-banner" id="draftBanner"><div class="db-txt"><strong>Cotización sin terminar${quien}</strong> · guardada ${draftAgo(d.ts)}. ¿Quieres continuarla?</div><div class="db-act"><button class="btn sm" onclick="recoverCotDraft()">Recuperar</button><button class="btn ghost sm" onclick="discardCotDraft()">Descartar</button></div></div>`;}
-function recoverCotDraft(){let d;try{d=JSON.parse(localStorage.getItem(COT_DRAFT_KEY)||'null');}catch(e){d=null;}if(!d){return;}const h=d.header||{};Object.entries({f_numero:h.numero,f_fecha:h.fecha,f_cliente:h.cliente,f_contacto:h.contacto,f_email:h.email,f_nit:h.nit,f_asesor:h.asesor,f_pago:h.pago,f_estado:h.estado}).forEach(([id,v])=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;});cotItems=(d.items&&d.items.length?d.items:[blankItem()]).map(it=>({proc:it.proc||'',procs:it.procs||[],desc:it.desc||'',cant:it.cant||1,vu:it.vu||0,_open:!!it._open,_procManual:!!it._procManual,calc:Object.assign(blankCalc(),it.calc||{})}));renderCotItems();const b=document.getElementById('draftBanner');if(b)b.remove();toast('Cotización recuperada');}
+function recoverCotDraft(){let d;try{d=JSON.parse(localStorage.getItem(COT_DRAFT_KEY)||'null');}catch(e){d=null;}if(!d){return;}const h=d.header||{};Object.entries({f_numero:h.numero,f_fecha:h.fecha,f_cliente:h.cliente,f_contacto:h.contacto,f_email:h.email,f_nit:h.nit,f_asesor:h.asesor,f_pago:h.pago,f_estado:h.estado}).forEach(([id,v])=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;});cotItems=(d.items&&d.items.length?d.items:[blankItem()]).map(it=>({proc:it.proc||'',procs:it.procs||[],desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:!!it._open,_procManual:!!it._procManual,calc:Object.assign(blankCalc(),it.calc||{}),subpiezas:hidratarSubpiezas(it)}));renderCotItems();const b=document.getElementById('draftBanner');if(b)b.remove();toast('Cotización recuperada');}
 function discardCotDraft(){clearCotDraft();const b=document.getElementById('draftBanner');if(b)b.remove();}
 function cotEstadoChange(){const e=document.getElementById('f_estado'),w=document.getElementById('motivoWrap');if(!e||!w)return;const lost=(e.value==='Perdida'||e.value==='Rechazada');w.style.display=lost?'':'none';}
 function openForm(t,id){
@@ -3476,7 +3586,7 @@ function openForm(t,id){
   if(t==='cotizaciones'){
     if(row&&row.tipo==='producto'){openFormProd(id);return;}
     COT_MODE='serv';
-    cotItems=row&&row.items&&row.items.length?row.items.map(it=>{const procs=Array.isArray(it.procs)?it.procs:(it.proc&&it.proc!=='Mixto'?it.proc.split(' + ').map(s=>s.trim()).filter(Boolean):[]);return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{})};}):[blankItem()];renderCotItems();
+    cotItems=row&&row.items&&row.items.length?row.items.map(it=>{const procs=Array.isArray(it.procs)?it.procs:(it.proc&&it.proc!=='Mixto'?it.proc.split(' + ').map(s=>s.trim()).filter(Boolean):[]);return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{}),subpiezas:hidratarSubpiezas(it)};}):[blankItem()];renderCotItems();
     if(!id){const bh=draftBannerHTML();if(bh){const mb=document.getElementById('mBody');mb.insertAdjacentHTML('afterbegin',bh);}}}
   if(t==='rop'){
     ropConsumo=(row&&Array.isArray(row.consumo))?row.consumo.map(c=>({material:c.material||MAT_INV[0],calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0})):[];
@@ -3523,13 +3633,14 @@ function renderTplPicker(){const w=document.getElementById('tplWrap');if(!w)retu
   w.innerHTML=PROD_TPL.length?` <select id="tplSel" style="max-width:260px">${PROD_TPL.map((t,i)=>`<option value="${i}">${esc(t.nombre)}</option>`).join('')}</select> <button type="button" class="btn ghost sm" onclick="tplUse()">+ Desde plantilla</button> <button type="button" class="btn ghost sm" title="Eliminar plantilla seleccionada" onclick="tplDel()">Eliminar</button>`:'';}
 function tplSave(i){const it=prodItems[i];if(!it)return;
   const nombre=prompt('Nombre de la plantilla:',it.desc||'');if(!nombre||!nombre.trim())return;
-  const tpl={nombre:nombre.trim(),desc:it.desc||'',carac:it.carac||'',unidad:it.unidad||'Und',vu:+it.vu||0,calc:JSON.parse(JSON.stringify({lines:(it.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0),margen:it.calc.margen}))};
+  const tpl={nombre:nombre.trim(),desc:it.desc||'',carac:it.carac||'',unidad:it.unidad||'Und',vu:+it.vu||0,calc:JSON.parse(JSON.stringify({lines:(it.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0),piezas:(it.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:it.calc.margen}))};
   const ex=PROD_TPL.findIndex(t=>t.nombre===tpl.nombre);
   if(ex>=0)PROD_TPL[ex]=tpl;else PROD_TPL.push(tpl);
   saveProdTpl();renderTplPicker();toast(ex>=0?'Plantilla actualizada':'Plantilla guardada');}
 function tplUse(){const s=document.getElementById('tplSel');if(!s)return;const t=PROD_TPL[+s.value];if(!t)return;
   const it=JSON.parse(JSON.stringify({desc:t.desc,carac:t.carac,unidad:t.unidad,cant:1,vu:t.vu,calc:t.calc}));
-  it._open=false;if(!it.calc)it.calc={lines:[],margen:''};if(!it.calc.lines||!it.calc.lines.length)it.calc.lines=[blankProdLine()];
+  it._open=false;if(!it.calc)it.calc={lines:[],piezas:[],margen:''};if(!it.calc.lines||!it.calc.lines.length)it.calc.lines=[blankProdLine()];
+  it.calc.piezas=(it.calc.piezas||[]).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,_open:false,calc:Object.assign(blankCalc(),p.calc||{})}));
   if(prodItems.length===1&&!(prodItems[0].desc||'').trim()&&!(+prodItems[0].vu>0))prodItems=[it];else prodItems.push(it);
   renderProdItems();recalcProdTotals();toast('Plantilla agregada: '+t.nombre);}
 function matDel(i){
@@ -3543,7 +3654,12 @@ function tplDel(){const s=document.getElementById('tplSel');if(!s)return;const i
     ()=>{PROD_TPL.splice(i,1);saveProdTpl();renderTplPicker();toast('Plantilla eliminada');});}
 function nextProdCot(){const ns=CACHE.cotizaciones.map(c=>{const m=/^MDO-(\d+)$/.exec(c.numero||'');return m?+m[1]:0;});return 'MDO-'+String((Math.max(0,...ns))+1).padStart(3,'0');}
 function blankProdLine(){return{c:'',cant:1,vu:0};}
-function blankProdItem(){return{desc:'',carac:'',unidad:'Und',cant:1,vu:0,_open:true,calc:{lines:[blankProdLine()],margen:''}};}
+function blankProdPieza(){return{nombre:'',cant:1,_open:true,calc:blankCalc()};}
+function blankProdItem(){return{desc:'',carac:'',unidad:'Und',cant:1,vu:0,_open:true,calc:{lines:[blankProdLine()],piezas:[],margen:''}};}
+/* costo interno de un ítem de producto = líneas de costo libres + piezas de lámina calculadas */
+function piCostoLineas(it){return ((it.calc&&it.calc.lines)||[]).reduce((a,l)=>a+((+l.cant||0)*(+l.vu||0)),0);}
+function piCostoPiezas(it){return ((it.calc&&it.calc.piezas)||[]).reduce((a,p)=>a+Math.max(1,+p.cant||1)*(lineParts({calc:p.calc}).costo||0),0);}
+function piCosto(it){return piCostoLineas(it)+piCostoPiezas(it);}
 async function openFormProd(id){
   editing={t:'cotizaciones',id:id||null};COT_MODE='prod';
   const row=id?CACHE.cotizaciones.find(x=>x.id===id):null;
@@ -3557,8 +3673,8 @@ async function openFormProd(id){
 }
 function initProdForm(row){
   prodImgs=[row&&row.img1||'',row&&row.img2||''];
-  prodItems=(row&&row.items&&row.items.length)?row.items.map(it=>({desc:it.desc||'',carac:it.carac||'',unidad:it.unidad||'Und',cant:+it.cant||1,vu:+it.vu||0,_open:false,calc:{lines:(((it.calc&&it.calc.lines)||[]).map(l=>({c:l.c||'',cant:(l.cant===undefined||l.cant===null||l.cant==='')?1:(+l.cant||0),vu:+l.vu||0}))),margen:(it.calc&&it.calc.margen!==undefined)?it.calc.margen:''}})):[blankProdItem()];
-  prodItems.forEach(it=>{if(!it.calc.lines.length)it.calc.lines=[blankProdLine()];});
+  prodItems=(row&&row.items&&row.items.length)?row.items.map(it=>({desc:it.desc||'',carac:it.carac||'',unidad:it.unidad||'Und',cant:+it.cant||1,vu:+it.vu||0,_open:false,calc:{lines:(((it.calc&&it.calc.lines)||[]).map(l=>({c:l.c||'',cant:(l.cant===undefined||l.cant===null||l.cant==='')?1:(+l.cant||0),vu:+l.vu||0}))),piezas:(((it.calc&&it.calc.piezas)||[]).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,_open:false,calc:Object.assign(blankCalc(),p.calc||{})}))),margen:(it.calc&&it.calc.margen!==undefined)?it.calc.margen:''}})):[blankProdItem()];
+  prodItems.forEach(it=>{if(!it.calc.lines.length)it.calc.lines=[blankProdLine()];if(!it.calc.piezas)it.calc.piezas=[];});
   renderProdItems();renderProdImgs();recalcProdTotals();renderTplPicker();
 }
 function prodModoChange(){const m=document.getElementById('f_modo');const w=document.getElementById('aiuWrap');if(w)w.style.display=(m&&m.value==='aiu')?'':'none';recalcProdTotals();}
@@ -3599,7 +3715,8 @@ function renderProdItems(){
   box.innerHTML=prodItems.map((it,i)=>{
     const sub=(+it.cant||1)*(+it.vu||0);
     const lines=(it.calc.lines||[]);
-    const costo=lines.reduce((a,l)=>a+((+l.cant||0)*(+l.vu||0)),0);
+    const piezas=(it.calc.piezas||[]);
+    const costo=piCosto(it);
     const m=it.calc.margen===''?30:(+it.calc.margen||0);
     const precio=m>=100?0:Math.round(costo/(1-m/100));
     return `<div class="pi-card">
@@ -3615,7 +3732,16 @@ function renderProdItems(){
       <textarea class="pi-carac" rows="3" placeholder="Características (una por línea, se imprimen debajo del nombre):&#10;1. Material: lámina galvanizada calibre 20&#10;2. Acabado en pintura electrostática negro mate&#10;3. Cerradura tipo palanca, marco para muro de 200 mm" oninput="piHead(${i},'carac',this.value)">${esc(it.carac)}</textarea>
       <div class="pi-calc" style="${it._open?'':'display:none'}">
         <div class="pi-calc-t">CALCULADORA INTERNA — costos del producto (el cliente no ve este desglose)</div>
-        ${lines.map((l,j)=>`<div class="pl-row"><input list="prodPresets" placeholder="Concepto (ej. Lámina marco cal 18, Bisagras, Soldadura...)" value="${esc(l.c)}" oninput="plEdit(${i},${j},'c',this.value)"><input type="number" min="0" step="any" value="${l.cant}" title="Cantidad" oninput="plEdit(${i},${j},'cant',this.value)"><input type="number" min="0" value="${l.vu||''}" placeholder="$ unitario" oninput="plEdit(${i},${j},'vu',this.value)"><span class="pl-sub tnum" id="plSub_${i}_${j}">${COP((+l.cant||0)*(+l.vu||0))}</span><button type="button" class="ic-btn del" onclick="plDel(${i},${j})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
+        <div class="pi-pz-box">
+          <div class="pi-sub-t">Piezas de lámina — calculadora de corte, doblez y material (una fila por calibre)</div>
+          ${piezas.map((p,j)=>{const pc=lineParts({calc:p.calc}).costo||0;const ns='p'+i+'_'+j;return `<div class="pz-wrap">
+            <div class="pl-row pz-head"><input placeholder="Nombre de la pieza (ej. Lámina marco cal 18)" value="${esc(p.nombre)}" oninput="pzHead(${i},${j},'nombre',this.value)"><input type="number" min="0" step="any" value="${p.cant}" title="Cantidad" oninput="pzHead(${i},${j},'cant',this.value)"><span class="pl-sub tnum" id="pzSub_${i}_${j}">${COP(Math.max(1,+p.cant||1)*pc)}</span><button type="button" class="btn ghost sm" onclick="pzTog(${i},${j})">${p._open?'Ocultar ▲':'Calcular ▼'}</button><button type="button" class="ic-btn del" onclick="pzDel(${i},${j})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+            <div class="pz-calc" style="${p._open?'':'display:none'}">${subCalcHTML(p.calc,ns,{item:{material:p.nombre}})}<div class="ci-break"><span class="sep">Costo de esta pieza <b id="pzCosto_${i}_${j}">${COP(pc)}</b></span></div></div>
+          </div>`;}).join('')}
+          <button type="button" class="btn ghost sm" onclick="pzAdd(${i})">+ Pieza de lámina</button>
+        </div>
+        <div class="pi-sub-t" style="margin-top:10px">Otras líneas de costo (herrajes, pintura, montaje, transporte...)</div>
+        ${lines.map((l,j)=>`<div class="pl-row"><input list="prodPresets" placeholder="Concepto (ej. Bisagras, Pintura electrostática, Montaje...)" value="${esc(l.c)}" oninput="plEdit(${i},${j},'c',this.value)"><input type="number" min="0" step="any" value="${l.cant}" title="Cantidad" oninput="plEdit(${i},${j},'cant',this.value)"><input type="number" min="0" value="${l.vu||''}" placeholder="$ unitario" oninput="plEdit(${i},${j},'vu',this.value)"><span class="pl-sub tnum" id="plSub_${i}_${j}">${COP((+l.cant||0)*(+l.vu||0))}</span><button type="button" class="ic-btn del" onclick="plDel(${i},${j})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
         <button type="button" class="btn ghost sm" onclick="plAdd(${i})">+ Línea de costo</button>
         <div class="pi-calc-foot">
           <span>Costo: <strong class="tnum" id="piCosto_${i}">${COP(costo)}</strong></span>
@@ -3627,7 +3753,23 @@ function renderProdItems(){
       </div>
     </div>`;
   }).join('')+`<datalist id="prodPresets">${PROD_PRESETS.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>`;
+  prodItems.forEach((it,i)=>(it.calc.piezas||[]).forEach((p,j)=>{
+    const ns='p'+i+'_'+j;
+    scReg(ns,()=>prodItems[i].calc.piezas[j].calc,()=>({material:prodItems[i].calc.piezas[j].nombre||''}),()=>pzCalcRefresh(i,j));
+  }));
 }
+function pzAdd(i){const it=prodItems[i];it.calc.piezas=it.calc.piezas||[];it.calc.piezas.push(blankProdPieza());renderProdItems();}
+function pzTog(i,j){const p=prodItems[i].calc.piezas[j];if(!p)return;p._open=!p._open;renderProdItems();}
+function pzHead(i,j,k,v){const p=prodItems[i].calc.piezas[j];if(!p)return;if(k==='cant')p.cant=+v||0;else p[k]=v;pzCalcRefresh(i,j);}
+function pzDel(i,j){const p=(prodItems[i].calc.piezas||[])[j]||{};
+  const borrar=()=>{prodItems[i].calc.piezas.splice(j,1);renderProdItems();recalcProdTotals();};
+  if(!(p.nombre||'').trim()&&!(lineParts({calc:p.calc}).costo>0))return borrar();
+  pedirConfirmacion('¿Quitar esta pieza de lámina?',(p.nombre||'Pieza '+(j+1)),borrar,'Quitar');}
+function pzCalcRefresh(i,j){const p=prodItems[i].calc.piezas[j];if(!p)return;
+  const pc=lineParts({calc:p.calc}).costo||0;
+  const s=document.getElementById('pzSub_'+i+'_'+j);if(s)s.textContent=COP(Math.max(1,+p.cant||1)*pc);
+  const c=document.getElementById('pzCosto_'+i+'_'+j);if(c)c.textContent=COP(pc);
+  piCalcRefresh(i);}
 function addProdItem(){prodItems.push(blankProdItem());renderProdItems();recalcProdTotals();}
 function piDel(i){
   const it=prodItems[i]||{};
@@ -3648,11 +3790,11 @@ function plDel(i,j){
 function plEdit(i,j,k,v){const l=prodItems[i].calc.lines[j];if(!l)return;if(k==='c')l.c=v;else l[k]=+v||0;
   const s=document.getElementById('plSub_'+i+'_'+j);if(s)s.textContent=COP((+l.cant||0)*(+l.vu||0));piCalcRefresh(i);}
 function plMargen(i,v){prodItems[i].calc.margen=(v===''?'':Math.min(99,Math.max(0,+v||0)));piCalcRefresh(i);}
-function piCalcRefresh(i){const it=prodItems[i];const costo=(it.calc.lines||[]).reduce((a,l)=>a+((+l.cant||0)*(+l.vu||0)),0);
+function piCalcRefresh(i){const it=prodItems[i];const costo=piCosto(it);
   const m=it.calc.margen===''?30:(+it.calc.margen||0);const precio=m>=100?0:Math.round(costo/(1-m/100));
   const c=document.getElementById('piCosto_'+i);if(c)c.textContent=COP(costo);
   const p=document.getElementById('piPrecio_'+i);if(p)p.textContent=COP(precio);}
-function piUsar(i){const it=prodItems[i];const costo=(it.calc.lines||[]).reduce((a,l)=>a+((+l.cant||0)*(+l.vu||0)),0);
+function piUsar(i){const it=prodItems[i];const costo=piCosto(it);
   const m=it.calc.margen===''?30:(+it.calc.margen||0);it.vu=m>=100?0:Math.round(costo/(1-m/100));renderProdItems();recalcProdTotals();toast('Precio aplicado al ítem '+(i+1));}
 function prodRowFromDOM(){return{tipo:'producto',modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),items:prodItems.map(i=>({cant:+i.cant||1,vu:+i.vu||0}))};}
 function recalcProdTotals(){
@@ -4376,7 +4518,8 @@ async function recantAplicar(){
     const ant=+it.cant||1, f=ant>0?(it.nueva/ant):1;
     const procs=Array.isArray(it.procs)?it.procs:[];
     return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',
-      cant:it.nueva,vu:+it.vu||0,_open:false,_procManual:procs.length>0,calc:escalarCalc(it.calc,f)};
+      cant:it.nueva,vu:+it.vu||0,_open:false,_procManual:procs.length>0,calc:escalarCalc(it.calc,f),
+      subpiezas:(it.subpiezas||[]).map(sp=>({nombre:sp.nombre||'',cant:Math.max(1,Math.round((+sp.cant||1)*f)),_open:false,calc:Object.assign(blankCalc(),sp.calc||{})}))};
   }).concat(nuevas.map(n=>{
     const it=blankItem();
     it.desc=(n.desc||'').trim();
@@ -4421,7 +4564,7 @@ async function repeatCot(id){
   document.getElementById('modal').classList.add('wide');
   document.getElementById('mBody').innerHTML=formCot(copia);
   document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveForm()">Guardar</button>`;
-  cotItems=(c.items&&c.items.length?c.items:[]).map(it=>{const procs=Array.isArray(it.procs)?it.procs:[];return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{})};});
+  cotItems=(c.items&&c.items.length?c.items:[]).map(it=>{const procs=Array.isArray(it.procs)?it.procs:[];return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{}),subpiezas:hidratarSubpiezas(it)};});
   if(!cotItems.length)cotItems=[blankItem()];
   renderCotItems();
   document.getElementById('overlay').classList.add('show');
@@ -5252,7 +5395,14 @@ function renderCotItems(){
           <h5>Procesos del ítem <span style="font-weight:400;text-transform:none;color:var(--ink-3)">— elige uno o varios</span></h5>
           <div class="proc-chips">${PROCESOS.map((p,pi)=>`<button type="button" id="pc_${i}_${pi}" class="pchip ${(it.procs||[]).includes(p)?'on':''}" onclick="ciTogProc(${i},${pi})">${esc(p)}</button>`).join('')}</div>
         </div>
-        <div class="ci-grid">
+        <div style="margin:8px 0 4px"><label style="font-size:12.5px;cursor:pointer;user-select:none"><input type="checkbox" ${(it.subpiezas&&it.subpiezas.length)?'checked':''} onclick="ciTogSplit(${i})"> Dividir este ítem en sub-piezas por calibre <span style="color:var(--ink-3)">(cada una con su calculadora; el precio del ítem las suma)</span></label></div>
+        ${(it.subpiezas&&it.subpiezas.length)?`<div class="ci-split">
+          ${it.subpiezas.map((sp,j)=>{const pp=lineParts({calc:sp.calc});const ns='s'+i+'_'+j;const n=Math.max(1,+sp.cant||1);return `<div class="pz-wrap">
+            <div class="pl-row pz-head"><input placeholder="Nombre de la sub-pieza (ej. Tapa cal 20)" value="${esc(sp.nombre)}" oninput="siHead(${i},${j},'nombre',this.value)"><input type="number" min="0" step="any" value="${sp.cant}" title="Cantidad" oninput="siHead(${i},${j},'cant',this.value)"><span class="pl-sub tnum" id="siSub_${i}_${j}">${COP(n*pp.sell)}</span><button type="button" class="btn ghost sm" onclick="siTog(${i},${j})">${sp._open?'Ocultar ▲':'Calcular ▼'}</button><button type="button" class="ic-btn del" onclick="siDel(${i},${j})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+            <div class="pz-calc" style="${sp._open?'':'display:none'}">${subCalcHTML(sp.calc,ns,{item:it,margins:true})}<div class="ci-break"><span class="sep">Costo <b id="siCosto_${i}_${j}">${COP(pp.costo)}</b></span><span class="sell">Precio venta <b id="siSell_${i}_${j}">${COP(pp.sell)}</b></span></div></div>
+          </div>`;}).join('')}
+          <button type="button" class="btn ghost sm" onclick="siAdd(${i})">+ Sub-pieza</button>
+        </div>`:`<div class="ci-grid">
           <div class="ci-sec"><h5>Corte láser</h5>
             <label>Minutos</label><input type="number" value="${c.lmin}" oninput="ciCalc(${i},'lmin',this.value)">
             <label style="margin-top:6px">Gas / tarifa</label><select onchange="ciCalc(${i},'gas',this.value)"><option value="aire" ${c.gas==='aire'?'selected':''}>Aire (${COP(TARIFAS.laserAire)}/min)</option><option value="oxi" ${c.gas==='oxi'?'selected':''}>Oxígeno (${COP(TARIFAS.laserOxigeno)}/min)</option><option value="custom" ${c.gas==='custom'?'selected':''}>Personalizado ($/min)</option></select>
@@ -5305,7 +5455,7 @@ function renderCotItems(){
             <div><label>Terceros</label><input type="number" step="1" min="0" max="99" value="${c.mTerceros===''||c.mTerceros==null?'':c.mTerceros}" placeholder="${fac2pct(TARIFAS.mTerceros)}" oninput="ciMrg(${i},'mTerceros',this.value)"></div>
             <div><label>Material</label><input type="number" step="1" min="0" max="99" value="${c.mMp===''||c.mMp==null?'':c.mMp}" placeholder="${fac2pct(TARIFAS.mMP)}" oninput="ciMrg(${i},'mMp',this.value)"></div>
           </div>
-        </div>
+        </div>`}
         <div class="ci-break">
           <span>Láser <b id="lbL_${i}">$0</b></span><span>Procesos <b id="lbP_${i}">$0</b></span>
           <span>Terceros <b id="lbT_${i}">$0</b></span><span>M. prima <b id="lbM_${i}">$0</b></span>
@@ -5316,8 +5466,38 @@ function renderCotItems(){
       </div>
     </div>`;
   }).join('');
+  cotItems.forEach((it,i)=>(it.subpiezas||[]).forEach((sp,j)=>{
+    const ns='s'+i+'_'+j;
+    scReg(ns,()=>cotItems[i].subpiezas[j].calc,()=>cotItems[i],()=>siCalcRefresh(i,j));
+  }));
   cotItems.forEach((_,i)=>recalcLine(i));
 }
+function ciTogSplit(i){
+  const it=cotItems[i];if(!it)return;
+  if(it.subpiezas&&it.subpiezas.length){
+    const conDatos=it.subpiezas.some(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0);
+    const quitar=()=>{it.subpiezas=[];renderCotItems();};
+    if(conDatos)return pedirConfirmacion('¿Volver a una sola calculadora?','Se borran las '+it.subpiezas.length+' sub-piezas de este ítem.',quitar,'Quitar');
+    return quitar();
+  }
+  /* al dividir, la primera sub-pieza hereda la calculadora que ya tenía el ítem */
+  const seed=blankSubpieza();seed.calc=Object.assign(blankCalc(),it.calc||{});
+  seed.nombre=[it.material,it.calibre].filter(Boolean).join(' · ');
+  it.subpiezas=[seed];it._open=true;renderCotItems();
+}
+function siAdd(i){cotItems[i].subpiezas=cotItems[i].subpiezas||[];cotItems[i].subpiezas.push(blankSubpieza());renderCotItems();}
+function siTog(i,j){const sp=cotItems[i].subpiezas[j];if(!sp)return;sp._open=!sp._open;renderCotItems();}
+function siHead(i,j,k,v){const sp=cotItems[i].subpiezas[j];if(!sp)return;if(k==='cant')sp.cant=+v||0;else sp[k]=v;siCalcRefresh(i,j);}
+function siDel(i,j){const sp=(cotItems[i].subpiezas||[])[j]||{};
+  const borrar=()=>{cotItems[i].subpiezas.splice(j,1);renderCotItems();};
+  if(!(sp.nombre||'').trim()&&!(lineParts({calc:sp.calc}).costo>0))return borrar();
+  pedirConfirmacion('¿Quitar esta sub-pieza?',(sp.nombre||'Sub-pieza '+(j+1)),borrar,'Quitar');}
+function siCalcRefresh(i,j){const sp=cotItems[i].subpiezas[j];if(!sp)return;
+  const pp=lineParts({calc:sp.calc});const n=Math.max(1,+sp.cant||1);
+  const s=document.getElementById('siSub_'+i+'_'+j);if(s)s.textContent=COP(n*pp.sell);
+  const c=document.getElementById('siCosto_'+i+'_'+j);if(c)c.textContent=COP(pp.costo);
+  const v=document.getElementById('siSell_'+i+'_'+j);if(v)v.textContent=COP(pp.sell);
+  recalcLine(i);}
 
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
 const numv=id=>{const e=document.getElementById(id);return e?(+e.value||0):0};
@@ -5345,9 +5525,9 @@ async function saveForm(){
       return;
     }
     if(COT_MODE==='prod'){
-      row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),margen:i.calc.margen}}))};
+      row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
     }else{
-    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc()}))};}}
+    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
   else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:numv('f_ancho'),cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
   else if(t==='piezascli'){if(!val('f_pzcCliente')){toast('Indica el cliente');return}if(!val('f_pzcPieza')){toast('Indica la pieza');return}row={...row,cliente:val('f_pzcCliente'),pieza:val('f_pzcPieza'),material:val('f_pzcMaterial'),notas:val('f_pzcNotas'),compras:pzcCompras.filter(c=>c.fecha||+c.cantidad>0||+c.costo>0).map(c=>({fecha:c.fecha||'',cantidad:+c.cantidad||0,costo:+c.costo||0,notas:(c.notas||'').trim()}))};}
   const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—',_ex=id?CACHE[t].find(x=>x.id===id):null;
@@ -5485,7 +5665,10 @@ function nextRop(){const ns=CACHE.rop.map(c=>parseInt((c.rop||'').replace('ROP-'
 function cotPrintHTML(c){
   const t=cotTotal(c);
   const rows=(c.items||[]).map((it,i)=>{
-    const spec=[it.material,it.calibre].filter(Boolean).join(' · ');
+    let spec=[it.material,it.calibre].filter(Boolean).join(' · ');
+    if(it.subpiezas&&it.subpiezas.length){
+      spec=it.subpiezas.map(sp=>[sp.nombre,''].filter(Boolean).join('')).filter(Boolean).join(' · ')||spec;
+    }
     return `<tr><td class="c">${i+1}</td><td>${esc(it.proc)||'—'}</td><td>${esc(it.desc)||'—'}${spec?`<div class="sub">${esc(spec)}</div>`:''}</td><td class="c">${it.cant}</td><td class="r">${COP(it.vu)}</td><td class="r">${COP(it.cant*it.vu)}</td></tr>`;
   }).join('');
   const fill=Math.max(0,8-(c.items||[]).length);
