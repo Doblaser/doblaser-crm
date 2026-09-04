@@ -704,7 +704,10 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pant-row input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex:none;accent-color:#7b1e2b;cursor:pointer}
 .pant-d{flex:1;min-width:0;font-size:13px;line-height:1.35}
 .pant-d span{display:block;font-size:11px;color:var(--ink-3);margin-top:2px}
-.pant-v{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;flex:none}
+.pant-q{flex:none}
+.pant-q input{width:56px;padding:6px 7px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:12.5px;text-align:center;background:var(--card,#fff);color:inherit}
+.pant-v{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;flex:none;text-align:right;min-width:78px}
+.pant-v span{display:block;font-size:10.5px;font-weight:400;color:var(--ink-3)}
 .pant-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
 .recant-box{padding:20px;max-width:600px;width:100%;text-align:left;max-height:92vh;overflow-y:auto}
 .recant-t{font-size:16px;font-weight:700;letter-spacing:-.01em;margin-bottom:3px}
@@ -4577,8 +4580,9 @@ function piezasAntesAbrir(){
   const rows=[];
   cots.forEach(c=>{(c.items||[]).forEach(it=>{
     if(!(it.desc||'').trim())return;
+    const origCant=Math.max(1,+it.cant||1);
     rows.push({desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',
-      cant:+it.cant||1,vu:+it.vu||0,procs:Array.isArray(it.procs)?it.procs:[],
+      origCant,cant:origCant,vu:+it.vu||0,procs:Array.isArray(it.procs)?it.procs:[],
       calc:it.calc||blankCalc(),subpiezas:it.subpiezas||[],
       numero:c.numero||'',fecha:c.fecha||'',cotId:c.id,sel:false});
   });});
@@ -4593,7 +4597,7 @@ function piezasAntesAbrir(){
   }
   box.innerHTML=`<div class="confirm-box pant-box">
     <div class="pant-t">Piezas ya cotizadas a ${esc(cliente)}</div>
-    <div class="pant-sub">Marca las que quieras traer a esta cotización. El precio se recalcula con las tarifas de hoy al agregarlas — el que ves acá es el que tenía esa vez.</div>
+    <div class="pant-sub">Marca las que quieras traer a esta cotización. Se puede cambiar la cantidad — el precio se recalcula solo, a partir del valor unitario, con las tarifas de hoy.</div>
     <div class="pant-rows" id="pantRows"></div>
     <div class="pant-actions">
       <button type="button" class="btn ghost" onclick="cerrarPiezasAntes()">Cancelar</button>
@@ -4603,14 +4607,28 @@ function piezasAntesAbrir(){
   box.classList.add('show');
   piezasAntesDibujar();
 }
+/* precio en vivo para la cantidad que se haya puesto: escala el calc original
+   por la razón cant/origCant (mismo mecanismo que "Recotizar", escalarCalc) y
+   lo pasa por el motor real, así el número que se ve ya sale con tarifas de hoy */
+function piezasAntesCalc(r){
+  const f=r.origCant>0?(r.cant/r.origCant):1;
+  const calc=f===1?Object.assign(blankCalc(),r.calc||{}):escalarCalc(r.calc,f);
+  const subpiezas=(r.subpiezas||[]).map(sp=>({nombre:sp.nombre||'',
+    cant:f===1?Math.max(1,+sp.cant||1):Math.max(1,Math.round((+sp.cant||1)*f)),
+    calc:Object.assign(blankCalc(),sp.calc||{})}));
+  const sell=lineParts(subpiezas.length?{calc,subpiezas}:{calc}).sell||0;
+  return{calc,subpiezas,vu:Math.round(sell/Math.max(1,r.cant))};
+}
 function piezasAntesDibujar(){
   const el=document.getElementById('pantRows');if(!el)return;
   el.innerHTML=PANTES.rows.map((r,i)=>{
     const meta=[r.material,r.calibre].filter(Boolean).join(' · ');
+    const vu=piezasAntesCalc(r).vu;
     return `<div class="pant-row" onclick="piezasAntesToggle(${i})">
       <input type="checkbox" ${r.sel?'checked':''} onclick="event.stopPropagation();piezasAntesToggle(${i})">
-      <div class="pant-d">${esc(r.desc)}${meta?`<span>${esc(meta)}</span>`:''}<span>${esc(r.numero)} · ${fmtDate(r.fecha)} · ${(+r.cant||0).toLocaleString('es-CO')} und</span></div>
-      <div class="pant-v">${COP(r.vu)}</div>
+      <div class="pant-d">${esc(r.desc)}${meta?`<span>${esc(meta)}</span>`:''}<span>${esc(r.numero)} · ${fmtDate(r.fecha)}</span></div>
+      <div class="pant-q" onclick="event.stopPropagation()"><input type="number" min="1" step="1" value="${r.cant}" oninput="piezasAntesCant(${i},this.value)" onfocus="this.select()"></div>
+      <div class="pant-v" id="pantV_${i}">${COP(vu)}<span>c/u</span></div>
     </div>`;
   }).join('');
   const n=PANTES.rows.filter(r=>r.sel).length;
@@ -4618,6 +4636,15 @@ function piezasAntesDibujar(){
   if(ok)ok.textContent=n?('Agregar '+n+' pieza'+(n===1?'':'s')):'Agregar';
 }
 function piezasAntesToggle(i){const r=PANTES&&PANTES.rows[i];if(!r)return;r.sel=!r.sel;piezasAntesDibujar();}
+/* solo cambia el número: NO se redibuja todo (perdería el foco del campo
+   mientras se escribe), solo se refresca el precio de esa fila */
+function piezasAntesCant(i,v){
+  const r=PANTES&&PANTES.rows[i];if(!r)return;
+  r.cant=Math.max(1,Math.round(+v||1));
+  const vu=piezasAntesCalc(r).vu;
+  const el=document.getElementById('pantV_'+i);
+  if(el)el.innerHTML=COP(vu)+'<span>c/u</span>';
+}
 function cerrarPiezasAntes(){const b=document.getElementById('pantLayer');if(b)b.classList.remove('show');}
 function piezasAntesAgregar(){
   const sel=(PANTES&&PANTES.rows||[]).filter(r=>r.sel);
@@ -4625,10 +4652,10 @@ function piezasAntesAgregar(){
   /* si lo único que hay es el ítem vacío de siempre, se reemplaza en vez de dejarlo suelto */
   if(cotItems.length===1&&!(cotItems[0].desc||'').trim()&&!(+cotItems[0].vu>0))cotItems.length=0;
   sel.forEach(r=>{
+    const {calc,subpiezas}=piezasAntesCalc(r);
     cotItems.push({proc:r.procs.join(' + '),procs:r.procs,desc:r.desc,material:r.material,calibre:r.calibre,
-      cant:r.cant,vu:r.vu,_open:false,_procManual:r.procs.length>0,
-      calc:Object.assign(blankCalc(),r.calc||{}),
-      subpiezas:(r.subpiezas||[]).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,_open:false,calc:Object.assign(blankCalc(),sp.calc||{})}))});
+      cant:r.cant,vu:r.vu,_open:false,_procManual:r.procs.length>0,calc,
+      subpiezas:subpiezas.map(sp=>({...sp,_open:false}))});
   });
   cerrarPiezasAntes();
   renderCotItems();
