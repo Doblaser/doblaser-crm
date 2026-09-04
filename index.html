@@ -695,6 +695,17 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .mp-firma-box{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;display:inline-block;max-width:100%}
 .mp-firma-box img{display:block;max-width:230px;width:100%;height:auto}
 .mp-firma-vacia{font-size:12.5px;color:var(--ink-3);padding:10px 0}
+.pant-box{padding:20px;max-width:560px;width:100%;text-align:left;max-height:92vh;overflow-y:auto}
+.pant-t{font-size:16px;font-weight:700;letter-spacing:-.01em;margin-bottom:3px}
+.pant-sub{font-size:12.5px;color:var(--ink-3);margin-bottom:14px;line-height:1.45}
+.pant-rows{border:1px solid var(--line);border-radius:9px;overflow:hidden;max-height:50vh;overflow-y:auto}
+.pant-row{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-bottom:1px solid var(--line);cursor:pointer}
+.pant-row:last-child{border-bottom:none}
+.pant-row input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex:none;accent-color:#7b1e2b;cursor:pointer}
+.pant-d{flex:1;min-width:0;font-size:13px;line-height:1.35}
+.pant-d span{display:block;font-size:11px;color:var(--ink-3);margin-top:2px}
+.pant-v{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;flex:none}
+.pant-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
 .recant-box{padding:20px;max-width:600px;width:100%;text-align:left;max-height:92vh;overflow-y:auto}
 .recant-t{font-size:16px;font-weight:700;letter-spacing:-.01em;margin-bottom:3px}
 .recant-sub{font-size:12.5px;color:var(--ink-3);margin-bottom:14px;line-height:1.45}
@@ -4546,6 +4557,84 @@ async function recantAplicar(){
     :'Cantidades cambiadas — el precio por unidad se mantuvo');
 }
 
+/* =========================================================
+   "+ Pieza de antes": clientes como ROOSTER o METÁLICOS BS repiten
+   piezas de una cotización a otra, mezcladas con piezas nuevas. Esto
+   busca en TODAS las cotizaciones de servicio ya hechas al mismo cliente
+   (menos la que se está editando) y deja traer cualquier ítem tal cual,
+   con su calculadora completa — el precio que se ve acá es el de esa
+   vez; al agregarla, recalcLine() la vuelve a calcular con las tarifas
+   de hoy. No se colapsan piezas repetidas: si salió en varias
+   cotizaciones, se ven todas para que la persona elija cuál traer.
+   ========================================================= */
+let PANTES=null;
+function piezasAntesAbrir(){
+  const cliente=((document.getElementById('f_cliente')||{}).value||'').trim();
+  if(!cliente){toast('Escribe primero el cliente');return;}
+  const key=cliente.toLowerCase();
+  const cots=(CACHE.cotizaciones||[]).filter(c=>c.tipo!=='producto'
+    &&(c.cliente||'').trim().toLowerCase()===key&&String(c.id)!==String(editing.id));
+  const rows=[];
+  cots.forEach(c=>{(c.items||[]).forEach(it=>{
+    if(!(it.desc||'').trim())return;
+    rows.push({desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',
+      cant:+it.cant||1,vu:+it.vu||0,procs:Array.isArray(it.procs)?it.procs:[],
+      calc:it.calc||blankCalc(),subpiezas:it.subpiezas||[],
+      numero:c.numero||'',fecha:c.fecha||'',cotId:c.id,sel:false});
+  });});
+  rows.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||((+b.cotId||0)-(+a.cotId||0)));
+  if(!rows.length){toast('No hay piezas cotizadas antes para «'+cliente+'»');return;}
+  PANTES={cliente,rows};
+  let box=document.getElementById('pantLayer');
+  if(!box){
+    box=document.createElement('div');box.id='pantLayer';box.className='confirm-layer';
+    document.body.appendChild(box);
+    box.addEventListener('click',e=>{if(e.target===box)cerrarPiezasAntes();});
+  }
+  box.innerHTML=`<div class="confirm-box pant-box">
+    <div class="pant-t">Piezas ya cotizadas a ${esc(cliente)}</div>
+    <div class="pant-sub">Marca las que quieras traer a esta cotización. El precio se recalcula con las tarifas de hoy al agregarlas — el que ves acá es el que tenía esa vez.</div>
+    <div class="pant-rows" id="pantRows"></div>
+    <div class="pant-actions">
+      <button type="button" class="btn ghost" onclick="cerrarPiezasAntes()">Cancelar</button>
+      <button type="button" class="btn" id="pantOk" onclick="piezasAntesAgregar()">Agregar</button>
+    </div>
+  </div>`;
+  box.classList.add('show');
+  piezasAntesDibujar();
+}
+function piezasAntesDibujar(){
+  const el=document.getElementById('pantRows');if(!el)return;
+  el.innerHTML=PANTES.rows.map((r,i)=>{
+    const meta=[r.material,r.calibre].filter(Boolean).join(' · ');
+    return `<div class="pant-row" onclick="piezasAntesToggle(${i})">
+      <input type="checkbox" ${r.sel?'checked':''} onclick="event.stopPropagation();piezasAntesToggle(${i})">
+      <div class="pant-d">${esc(r.desc)}${meta?`<span>${esc(meta)}</span>`:''}<span>${esc(r.numero)} · ${fmtDate(r.fecha)} · ${(+r.cant||0).toLocaleString('es-CO')} und</span></div>
+      <div class="pant-v">${COP(r.vu)}</div>
+    </div>`;
+  }).join('');
+  const n=PANTES.rows.filter(r=>r.sel).length;
+  const ok=document.getElementById('pantOk');
+  if(ok)ok.textContent=n?('Agregar '+n+' pieza'+(n===1?'':'s')):'Agregar';
+}
+function piezasAntesToggle(i){const r=PANTES&&PANTES.rows[i];if(!r)return;r.sel=!r.sel;piezasAntesDibujar();}
+function cerrarPiezasAntes(){const b=document.getElementById('pantLayer');if(b)b.classList.remove('show');}
+function piezasAntesAgregar(){
+  const sel=(PANTES&&PANTES.rows||[]).filter(r=>r.sel);
+  if(!sel.length){toast('Marca al menos una pieza');return;}
+  /* si lo único que hay es el ítem vacío de siempre, se reemplaza en vez de dejarlo suelto */
+  if(cotItems.length===1&&!(cotItems[0].desc||'').trim()&&!(+cotItems[0].vu>0))cotItems.length=0;
+  sel.forEach(r=>{
+    cotItems.push({proc:r.procs.join(' + '),procs:r.procs,desc:r.desc,material:r.material,calibre:r.calibre,
+      cant:r.cant,vu:r.vu,_open:false,_procManual:r.procs.length>0,
+      calc:Object.assign(blankCalc(),r.calc||{}),
+      subpiezas:(r.subpiezas||[]).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,_open:false,calc:Object.assign(blankCalc(),sp.calc||{})}))});
+  });
+  cerrarPiezasAntes();
+  renderCotItems();
+  toast('Se agreg'+(sel.length===1?'ó':'aron')+' '+sel.length+' pieza'+(sel.length===1?'':'s'));
+}
+
 /* Repetir una cotización es siempre el mismo camino: se abre el cuadro con las
    piezas tal como quedaron, y de ahí se puede confirmar sin tocar nada (queda
    una copia idéntica) o ajustar cantidades, sacar piezas y agregar nuevas.
@@ -5390,6 +5479,7 @@ function formCot(r){r=r||{};return `<div class="fgrid">
     <div class="cot-editor-h"><label>Ítems — cada ítem trae su calculadora de costos, igual que el Excel</label></div>
     <div id="cotRows"></div>
     <button class="btn ghost sm" style="margin-top:10px" onclick="addCotItem()">+ Agregar ítem</button>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="piezasAntesAbrir()">+ Pieza de antes</button>
     <div class="cot-totals"><div class="r cot-gan" id="cotGanRow"><span class="lab">Ganancia estimada</span><span class="tnum" id="cotGan">—</span></div><div class="r"><span class="lab">Total antes de IVA</span><span class="tnum" id="cotSub">$0</span></div><div class="r"><span class="lab">IVA 19%</span><span class="tnum" id="cotIva">$0</span></div><div class="r tot"><span>Valor total</span><span class="tnum" id="cotTot">$0</span></div></div>
   </div>`}
 
