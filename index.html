@@ -419,6 +419,8 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .av-listo svg{width:16px;height:16px;color:#c9c9c9;margin-left:auto;flex:none}
 .av-row-chk:has(input:checked) .av-listo{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
 .av-row-chk:has(input:checked) .av-listo svg{color:#16a34a}
+.av-fecha{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3);margin-top:6px;padding:0 2px;flex-wrap:wrap}
+.av-fecha input[type=date]{padding:5px 8px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;background:var(--card);color:var(--ink)}
 .av-tot strong{font-size:15px;color:var(--ink)}
 /* barra de avance en las tablas */
 .pbar{display:flex;align-items:center;gap:7px;min-width:96px}
@@ -3593,6 +3595,7 @@ function openForm(t,id){
     ropPiezas=(row&&Array.isArray(row.piezas))?row.piezas.map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:+p.precio||0})):[];
     ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null})):[];
     ropAvanceVal=Object.assign({},ropAvance(row||{}));
+    ropPinturaFecha=(row&&row.pinturaFecha)||'';
     renderRopMat();renderRopPz();renderRopBitacora();renderRopAvance();ropCostCompare();
   }
   if(t==='piezascli'){
@@ -5119,6 +5122,17 @@ function renderRopAvance(){
       <label class="av-listo"><input type="checkbox" ${v>=100?'checked':''} onchange="avSet('${esc(s)}',this.checked?100:0)"> Alistado para entrega <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></label>
     </div>`;
     }
+    if(s==='Pintura'){
+      let hint='';
+      if(ropPinturaFecha&&v<100){
+        const dias=Math.floor((Date.now()-new Date(ropPinturaFecha+'T00:00:00').getTime())/86400000);
+        if(dias>=0)hint=`<span>${dias===0?'Enviada hoy':'Enviada hace '+dias+(dias===1?' día':' días')}</span>`;
+      }
+      return `<div class="av-row av-row-chk" data-st="${esc(s)}">
+      <label class="av-listo"><input type="checkbox" ${v>=100?'checked':''} onchange="avSet('${esc(s)}',this.checked?100:0)"> Pintura lista <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></label>
+      <div class="av-fecha"><label>Enviada a pintar el</label><input type="date" id="f_pinturaFecha" value="${esc(ropPinturaFecha)}" onchange="ropPinturaFecha=this.value;renderRopAvance()">${hint}</div>
+    </div>`;
+    }
     return `<div class="av-row" data-st="${esc(s)}">
       <span class="av-lbl">${esc(s)}</span>
       <input type="range" min="0" max="100" step="5" value="${v}" oninput="avSet('${esc(s)}',this.value)">
@@ -5127,6 +5141,7 @@ function renderRopAvance(){
   avPaint();
 }
 let ropAvanceVal={};
+let ropPinturaFecha='';
 function avSet(s,v){ropAvanceVal[s]=Math.max(0,Math.min(100,+v||0));const e=document.getElementById('avv_'+s);if(e)e.textContent=ropAvanceVal[s]+'%';avPaint();}
 function avPaint(){
   const box=document.getElementById('ropAvanceBox');if(!box)return;
@@ -5513,7 +5528,7 @@ async function saveForm(){
       alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
       return;
     }
-    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
+    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
