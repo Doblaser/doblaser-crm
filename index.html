@@ -690,6 +690,9 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .firma-quien>div{flex:1;min-width:150px}
 .firma-quien label{display:block;font-size:11px;color:var(--ink-3);margin-bottom:3px}
 .firma-quien input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13.5px;background:var(--card,#fff);color:inherit}
+.firma-obs{margin:10px 0}
+.firma-obs label{display:block;font-size:11px;color:var(--ink-3);margin-bottom:3px}
+.firma-obs textarea{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13px;background:var(--card,#fff);color:inherit;resize:vertical;min-height:40px}
 .mp-firma{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .mp-firma-t{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:8px}
 .mp-firma-box{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;display:inline-block;max-width:100%}
@@ -727,6 +730,11 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .recant-tot b{font-size:16px}
 .recant-tot .rc-nue b{color:var(--brand,#7b1e2b)}
 .recant-tot .rc-iva b{font-size:14px;color:var(--ink-3)}
+.siniva-btn{display:flex;align-items:center;gap:9px;cursor:pointer;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#fff;transition:background .12s,border-color .12s}
+.siniva-btn:hover{border-color:#c7c7c7}
+.siniva-btn.on{background:#fff7ed;border-color:#fdba74}
+.siniva-btn input{width:16px;height:16px;accent-color:#ea580c;margin:0;cursor:pointer}
+.siniva-txt{font-size:12.5px;line-height:1.35}
 .rc-aviso{margin-top:13px;border:1px solid var(--line);border-left:3px solid #b45309;border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.5;background:rgba(180,83,9,.07)}
 .rc-ok{margin-top:13px;font-size:12.5px;color:var(--ink-3);line-height:1.45;border-left:3px solid var(--line);padding-left:10px}
 .recant-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
@@ -1094,7 +1102,7 @@ td.c,th.c{text-align:center}
       <a data-view="estadisticas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>Estadísticas</a>
       <div class="lbl">Herramientas</div>
       <a data-view="precios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Lista de precios</a>
-      <a data-view="papelera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Papelera <span class="count" id="c-papelera">0</span></a>
+      <a data-view="papelera" data-vista-propia="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Papelera <span class="count" id="c-papelera">0</span></a>
       <a data-view="sugerencias"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Sugerencias <span class="count" id="c-sugerencias">0</span></a>
       <a data-view="piezascli"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Piezas por cliente <span class="count" id="c-piezascli">0</span></a>
       <a data-view="facturacion" id="navFact" data-vista-propia="1" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Facturación</a>
@@ -1688,6 +1696,10 @@ const calClass=c=>({'Caliente':'cal-hot','Tibio':'cal-warm','Frio':'cal-cold','N
 const leadPill=e=>({'Ganado':'st-proc','Cotizacion enviada':'st-prog','En negociacion':'st-proceso','Contactado':'st-prog','Por contactar':'st-sin','Perdido':'st-sin','Descartado':'st-sin'}[e]||'st-sin');
 function cotTotal(c){
   const sub=(c.items||[]).reduce((a,i)=>a+((+i.cant||0)*(+i.vu||0)),0);
+  /* Clientes que pagan sin IVA: no se les factura, le pagan directo a
+     gerencia. El total es el subtotal pelado y el IVA no aparece en ninguna
+     parte: pantalla, PDF, WhatsApp, exportaciones ni ventas. */
+  if(c.sinIva)return{sub,iva:0,total:sub,base:sub,sinIva:true};
   if(c.tipo==='producto'&&c.modo==='aiu'){
     const adm=sub*((+c.aiuAdm||0)/100),imp=sub*((+c.aiuImp||0)/100),uti=sub*((+c.aiuUti||0)/100);
     const sub2=sub+adm+imp+uti,iva=uti*IVA;
@@ -2316,7 +2328,7 @@ function renderVentas(){
   const porCobrar=rows.reduce((a,x)=>a+Math.max(0,(+x.valor||0)*(1+IVA)-(+x.abonado||0)),0);
   const sub=`${rows.length} registro(s)`+(porCobrar>0?` · por cobrar ${COP(porCobrar)}`:'');
   return panel('Registro de ventas',sub,`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Descripción</th><th>Servicio</th><th class="num">Valor con IVA</th><th class="num">Abonado</th><th class="num">Saldo</th><th>Cotiz.</th><th>Factura</th><th>Asesor</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const valSin=+x.valor||0,val=valSin*(1+IVA),ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}<div class="muted" style="font-size:10.5px">sin IVA: ${COP(valSin)}</div></td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${x.soportePago?`<button class="ic-btn" title="Ver soporte de pago" onclick="event.stopPropagation();verFotoGrande('${x.soportePago}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>`:''}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
+  ${rows.map(x=>{const valSin=+x.valor||0,val=x.sinIva?valSin:valSin*(1+IVA),ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}<div class="muted" style="font-size:10.5px">${x.sinIva?'sin IVA · no se factura':'sin IVA: '+COP(valSin)}</div></td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${x.soportePago?`<button class="ic-btn" title="Ver soporte de pago" onclick="event.stopPropagation();verFotoGrande('${x.soportePago}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>`:''}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
   </tbody></table>`);
 }
 
@@ -2476,7 +2488,7 @@ async function createRopFromCot(id){
   let extra='';
   if(!CACHE.ventas.some(v=>v.cotizacion&&v.cotizacion===c.numero)){
     const piezasFactura=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0,precio:+it.vu||0}));
-    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id,piezasFactura});
+    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,sinIva:!!c.sinIva,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id,piezasFactura});
     extra=' · venta registrada ('+COP(sub*(1+IVA))+' con IVA)';
   }
   if(c.estado!=='Aprobada')await saveRow('cotizaciones',{...c,estado:'Aprobada'});
@@ -3587,6 +3599,10 @@ const opts=(arr,sel)=>arr.map(o=>`<option ${o===sel?'selected':''}>${o}</option>
 /* ---- Borrador automático de cotización (evita perder el avance) ---- */
 const COT_DRAFT_KEY='db_cot_draft';
 let DRAFT_TIMER=null;
+/* true/false de un checkbox del formulario, aunque no exista en pantalla */
+function chk(id){const e=document.getElementById(id);return !!(e&&e.checked);}
+/* Al prender 'Sin IVA' se repintan los totales del formulario. */
+function sinIvaChange(){const w=document.getElementById('sinIvaWrap');if(w)w.classList.toggle('on',chk('f_sinIva'));try{renderCotItems();}catch(e){}try{prodRender();}catch(e){}}
 function cotHeaderFromDOM(){const g=id=>{const e=document.getElementById(id);return e?e.value:'';};return {numero:g('f_numero'),fecha:g('f_fecha'),cliente:g('f_cliente'),contacto:g('f_contacto'),email:g('f_email'),nit:g('f_nit'),asesor:g('f_asesor'),pago:g('f_pago'),estado:g('f_estado')};}
 function cotHasData(){const hdr=cotHeaderFromDOM();if((hdr.cliente||'').trim())return true;return cotItems.some(i=>(i.desc||'').trim()||(+i.vu>0)||(i.calc&&['lmin','golpes','vgolpe','mig','vmig','marca','vmarca','otros','mcant','mpeso','pkg','tcant','tvu','transp'].some(k=>+i.calc[k]>0)));}
 function saveCotDraft(){if(editing.t!=='cotizaciones'||editing.id||COT_MODE==='prod')return;try{if(!cotHasData())return;localStorage.setItem(COT_DRAFT_KEY,JSON.stringify({ts:Date.now(),header:cotHeaderFromDOM(),items:cotItems}));}catch(e){}}
@@ -3719,6 +3735,9 @@ function formCotProd(r){
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
   <div class="field"><label>Forma de pago</label><input id="f_pago" list="pagoList" value="${esc(r.pago)||'50% anticipo · 50% al terminar instalación'}"><datalist id="pagoList">${[...PAGO_OPC,'50% anticipo · 50% al terminar instalación'].map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
   <div class="field"><label>Estado</label><select id="f_estado" onchange="cotEstadoChange()">${opts(['Borrador','Enviada','Aprobada','Perdida','Rechazada'],r.estado||'Borrador')}</select></div>
+  <div class="field full"><label>Facturación</label>
+    <label class="siniva-btn ${r.sinIva?'on':''}" id="sinIvaWrap"><input type="checkbox" id="f_sinIva" ${r.sinIva?"checked":""} onchange="sinIvaChange()"><span class="siniva-txt"><b>Sin IVA — no se factura</b><span class="muted"> · el cliente le paga directo a gerencia</span></span></label>
+  </div>
   <div class="field"><label>Modo de totales</label><select id="f_modo" onchange="prodModoChange()"><option value="iva" ${modo!=='aiu'?'selected':''}>Solo IVA 19%</option><option value="aiu" ${modo==='aiu'?'selected':''}>AIU (Adm + Imprev + Utilidad, IVA sobre utilidad)</option></select></div>
   <div class="field full" id="motivoWrap" style="${(r.estado==='Perdida'||r.estado==='Rechazada')?'':'display:none'}"><label>Motivo (por qué se perdió)</label><input id="f_motivo" value="${esc(r.motivo)}"></div>
   <div class="field full" id="aiuWrap" style="${modo==='aiu'?'':'display:none'}"><div class="aiu-row"><span class="aiu-lbl">AIU:</span>
@@ -3821,7 +3840,7 @@ function piCalcRefresh(i){const it=prodItems[i];const costo=piCosto(it);
   const p=document.getElementById('piPrecio_'+i);if(p)p.textContent=COP(precio);}
 function piUsar(i){const it=prodItems[i];const costo=piCosto(it);
   const m=it.calc.margen===''?30:(+it.calc.margen||0);it.vu=m>=100?0:Math.round(costo/(1-m/100));renderProdItems();recalcProdTotals();toast('Precio aplicado al ítem '+(i+1));}
-function prodRowFromDOM(){return{tipo:'producto',modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),items:prodItems.map(i=>({cant:+i.cant||1,vu:+i.vu||0}))};}
+function prodRowFromDOM(){return{tipo:'producto',sinIva:chk('f_sinIva'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),items:prodItems.map(i=>({cant:+i.cant||1,vu:+i.vu||0}))};}
 function recalcProdTotals(){
   const el=document.getElementById('prodTotals');if(!el)return;
   const t=cotTotal(prodRowFromDOM());
@@ -3831,11 +3850,11 @@ function recalcProdTotals(){
       <div class="pt-row"><span>Imprevistos ${numv('f_aiuImp')}%</span><b class="tnum">${COP(t.imp)}</b></div>
       <div class="pt-row"><span>Utilidad ${numv('f_aiuUti')}%</span><b class="tnum">${COP(t.uti)}</b></div>
       <div class="pt-row"><span>Subtotal</span><b class="tnum">${COP(t.sub)}</b></div>
-      <div class="pt-row"><span>IVA 19% sobre utilidad</span><b class="tnum">${COP(t.iva)}</b></div>
+      ${t.sinIva?'':`<div class="pt-row"><span>IVA 19% sobre utilidad</span><b class="tnum">${COP(t.iva)}</b></div>`}
       <div class="pt-row g"><span>TOTAL</span><b class="tnum">${COP(t.total)}</b></div>`;
   }else{
     el.innerHTML=`<div class="pt-row"><span>Total antes de IVA</span><b class="tnum">${COP(t.sub)}</b></div>
-      <div class="pt-row"><span>IVA 19%</span><b class="tnum">${COP(t.iva)}</b></div>
+      ${t.sinIva?'':`<div class="pt-row"><span>IVA 19%</span><b class="tnum">${COP(t.iva)}</b></div>`}
       <div class="pt-row g"><span>TOTAL</span><b class="tnum">${COP(t.total)}</b></div>`;
   }
 }
@@ -3897,7 +3916,7 @@ function prodPrintHTML(c){
       <tr><td>IVA 19% sobre utilidad</td><td class="r">${COP(t.iva)}</td></tr>
       <tr class="g"><td>VALOR TOTAL</td><td class="r">${COP(t.total)}</td></tr>`
     :`<tr><td>Total antes de IVA</td><td class="r">${COP(t.sub)}</td></tr>
-      <tr><td>IVA 19%</td><td class="r">${COP(t.iva)}</td></tr>
+      ${t.sinIva?'':`<tr><td>IVA 19%</td><td class="r">${COP(t.iva)}</td></tr>`}
       <tr class="g"><td>VALOR TOTAL</td><td class="r">${COP(t.total)}</td></tr>`;
   const imgs=[c.img1,c.img2].filter(Boolean);
   const imgBlock=imgs.length?`<div class="sec-t">IMÁGENES DE REFERENCIA</div><div class="imgs">${imgs.map(s=>`<div class="imgb"><img src="${s}"></div>`).join('')}</div>`:'';
@@ -4140,8 +4159,14 @@ function printRemision(id){
 function _remisionImprimir(r,fecha){
   abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||'')+(fecha?' \u00b7 entrega del '+fmtDate(fecha):''),
     resumenEntrega(r,fecha),(firma,quien)=>{
-    if(firma)saveRow('rop',{...r,firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
+    const cambios={};
+    if(firma)Object.assign(cambios,{firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
       firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null});
+    /* la observaci\u00f3n de la remisi\u00f3n (ej. material adicional entregado) queda
+       en la bit\u00e1cora de la orden, no solo en el papel impreso una vez */
+    if(quien&&quien.obs)cambios.bitacora=[...(Array.isArray(r.bitacora)?r.bitacora:[]),
+      {tipo:'nota',fecha:fecha||today(),texto:quien.obs,autor:currentUser()?currentUser().name:null}];
+    if(Object.keys(cambios).length)saveRow('rop',{...r,...cambios});
     printDoc(remisionHTML(r,fecha,firma,quien),
       cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'cliente')+(fecha?' - entrega '+fecha:'')));
   });
@@ -4326,6 +4351,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   .leyenda{display:flex;gap:16px;margin-top:9px;font-size:9.5px;color:#555}
   .leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid rgba(0,0,0,.08)}
   .pend-note{margin-top:8px;font-size:10.5px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:7px;padding:8px 11px}
+  .obs-nota{margin-top:8px;font-size:10.5px;background:#f0f7ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:7px;padding:8px 11px}
   .note{font-size:9.5px;color:#777;margin-top:10px;font-style:italic}
   .firmas{display:flex;gap:24px;margin-top:34px}
   .firma{flex:1;border:1px solid #ddd;border-radius:8px;padding:12px 14px;min-height:118px}
@@ -4366,6 +4392,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   <table class="items"><thead>${head}</thead><tbody>${rows}</tbody></table>
   ${leyenda}
   ${avisoPend}
+  ${(recibe&&recibe.obs)?`<div class="obs-nota"><b>Observaciones:</b> ${esc(recibe.obs)}</div>`:''}
   <div class="note">El cliente declara recibir los \u00edtems relacionados en esta remisi\u00f3n, verificados en cantidad y estado al momento de la entrega. Documento de entrega — no constituye factura.</div>
   <div class="firmas">
     <div class="firma sello"><div class="sl-marco"><div class="sl-logo"><img src="${LOGO_POS}" alt="DOBLASER"></div><div class="sl-nit">NIT 901.682.190</div><div class="sl-fecha">${_selloFecha}</div><div class="sl-tel">&#9743; 321 673 4990</div><div class="sl-linea"></div><div class="sl-ok">&#10004; ENTREGADO</div>${_firmaEmpresa?`<div class="sl-firma"><img src="${_firmaEmpresa}" alt="Firma"></div>`:'<div class="sl-rayita"></div>'}<div class="sl-quien">${currentUser()?esc(currentUser().name):'Entrega'}</div></div></div>
@@ -5204,8 +5231,12 @@ function printRemisionDeFecha(fecha){
   const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
   const r={...base,piezas:ropPiezas,bitacora:ropBitacora,rop:(document.getElementById('f_rop')||{}).value||base.rop,cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
   abrirFirma('Firma de recibido — '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+fmtDate(fecha),resumenEntrega(r,fecha),(firma,quien)=>{
-    if(firma&&base.id)saveRow('rop',{...base,firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
+    const cambios={};
+    if(firma)Object.assign(cambios,{firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
       firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null});
+    if(quien&&quien.obs)cambios.bitacora=[...(Array.isArray(base.bitacora)?base.bitacora:[]),
+      {tipo:'nota',fecha,texto:quien.obs,autor:currentUser()?currentUser().name:null}];
+    if(base.id&&Object.keys(cambios).length)saveRow('rop',{...base,...cambios});
     printDoc(remisionHTML(r,fecha,firma,quien),cleanFileName('Remisión '+(r.rop||'')+' - '+(r.cliente||'cliente')+' - entrega '+fecha));
   });
 }
@@ -5491,6 +5522,9 @@ function formCot(r){r=r||{};return `<div class="fgrid">
   <div class="field"><label>NIT</label><input id="f_nit" value="${esc(r.nit)}"></div>
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||'Daniel')}</select></div>
   <div class="field"><label>Forma de pago</label><select id="f_pago">${opts(PAGO_OPC,r.pago||'100% contraentrega')}</select></div>
+  <div class="field full"><label>Facturación</label>
+    <label class="siniva-btn ${r.sinIva?'on':''}" id="sinIvaWrap"><input type="checkbox" id="f_sinIva" ${r.sinIva?"checked":""} onchange="sinIvaChange()"><span class="siniva-txt"><b>Sin IVA — no se factura</b><span class="muted"> · el cliente le paga directo a gerencia</span></span></label>
+  </div>
   <div class="field"><label>Estado</label><select id="f_estado" onchange="cotEstadoChange()">${opts(['Borrador','Enviada','Aprobada','Perdida','Rechazada'],r.estado||'Borrador')}</select></div>
   <div class="field"><label>Válida hasta</label><input type="date" id="f_validez" value="${r.validez||addDays(r.fecha||today(),15)}"></div>
   <div class="field full" id="motivoWrap" style="${(r.estado==='Perdida'||r.estado==='Rechazada')?'':'display:none'}"><label>Motivo (por qué se perdió)</label><input id="f_motivo" value="${esc(r.motivo)}" placeholder="Ej. precio, tiempo de entrega, eligió otro proveedor"></div>
@@ -5665,9 +5699,9 @@ async function saveForm(){
       return;
     }
     if(COT_MODE==='prod'){
-      row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
+      row={...row,tipo:'producto',sinIva:chk('f_sinIva'),numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
     }else{
-    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
+    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),sinIva:chk('f_sinIva'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
   else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:numv('f_ancho'),cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
   else if(t==='piezascli'){if(!val('f_pzcCliente')){toast('Indica el cliente');return}if(!val('f_pzcPieza')){toast('Indica la pieza');return}row={...row,cliente:val('f_pzcCliente'),pieza:val('f_pzcPieza'),material:val('f_pzcMaterial'),notas:val('f_pzcNotas'),compras:pzcCompras.filter(c=>c.fecha||+c.cantidad>0||+c.costo>0).map(c=>({fecha:c.fecha||'',cantidad:+c.cantidad||0,costo:+c.costo||0,notas:(c.notas||'').trim()}))};}
   const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—',_ex=id?CACHE[t].find(x=>x.id===id):null;
@@ -5880,9 +5914,8 @@ function cotPrintHTML(c){
   <div class="below">
     <div class="pay"><div class="h">Forma de pago</div>${esc(c.pago)||'100% contraentrega'}<br><b>BANCOLOMBIA</b> · cuenta de ahorros <b>00700008291</b><br><span style="color:#7b1e2b;font-weight:600">Entrega: ${esc(textoEntrega(c))}</span><br><span style="font-size:9.5px;color:#666">Puede estar lista antes; se avisa apenas termine.</span></div>
     <div class="tot"><div class="cap">Resumen</div>
-      <div class="ln"><span class="lab">Total antes de IVA</span><span>${COP(t.sub)}</span></div>
-      <div class="ln"><span class="lab">IVA 19%</span><span>${COP(t.iva)}</span></div>
-      <div class="grand"><span class="lab">Valor total</span><span class="v">${COP(t.total)}</span></div>
+      ${c.sinIva?`<div class="ln"><span class="lab">Valor</span><span>${COP(t.sub)}</span></div>`:`<div class="ln"><span class="lab">Total antes de IVA</span><span>${COP(t.sub)}</span></div><div class="ln"><span class="lab">IVA 19%</span><span>${COP(t.iva)}</span></div>`}
+      <div class="grand"><span class="lab">Valor total</span><span class="v">${COP(t.total)}</span></div>${c.sinIva?`<div style="font-size:9.5px;color:#666;margin-top:3px">No incluye IVA · no se factura</div>`:''}
     </div>
   </div>
   ${(c.observaciones||'').trim()?`<div class="obs-cot"><div class="h">Observaciones</div>${esc(c.observaciones).replace(/\n/g,'<br>')}</div>`:''}
@@ -5927,9 +5960,10 @@ function cotTexto(c){
     L.push('   '+cant+' und × '+COP(vu)+' = '+COP(cant*vu));
   });
   L.push('');
-  L.push('Subtotal: '+COP(t.sub));
+  if(c.sinIva){L.push('*TOTAL: '+COP(t.total)+'*');L.push('(no incluye IVA)');}
+  else{L.push('Subtotal: '+COP(t.sub));
   L.push('IVA: '+COP(t.iva));
-  L.push('*TOTAL: '+COP(t.total)+'*');
+  L.push('*TOTAL: '+COP(t.total)+'*');}
   L.push('');
   L.push('Entrega: '+textoEntrega(c));
   L.push('(puede estar antes, le avisamos apenas termine)');
@@ -6372,6 +6406,12 @@ function notifDesdeCambio(t,payload){
   const quien=(row.createdBy||row.autor||'').trim();
   if(quien&&quien===u.name)return;
   if(t==='ventas'){
+    /* Una venta le suena solo al asesor que lleva ese cliente. Antes le
+       sonaba a todo el que tuviera prendida la campana de 'Nueva venta',
+       y cada quien terminaba enterandose de los clientes de los demas.
+       Si la venta no trae asesor, se cae al comportamiento de antes. */
+    const duenio=(row.asesor||'').trim();
+    if(duenio&&duenio!==u.name)return;
     notifSiPuede('ventas','venta','Nueva venta: '+(row.cliente||'cliente')+' · '+COP(+row.valor||0),{view:'ventas',id:row.id});
   }else if(t==='rop'){
     notifSiPuede('rop','rop','Nueva orden '+(row.rop||'')+' — '+(row.cliente||''),{view:'rop',id:row.id});
@@ -6784,6 +6824,7 @@ function abrirFirma(titulo,resumen,onListo,opts){
       </div>
       <div class="firma-canvas-wrap"><canvas id="firmaCanvas"></canvas></div>
       <div class="firma-hint">El cliente firma aquí con el dedo o el lápiz de la tablet</div>
+      <div class="firma-obs"><label>Observaciones (opcional)</label><textarea id="firmaObs" rows="2" placeholder="Ej: se entrega además 40 kg de lámina sobrante del corte"></textarea></div>
       <div class="firma-actions">
         <button type="button" class="btn ghost" onclick="firmaCancelar()">Cancelar</button>
         <button type="button" class="btn ghost" onclick="firmaLimpiar()">Limpiar</button>
@@ -6796,8 +6837,8 @@ function abrirFirma(titulo,resumen,onListo,opts){
   }
   document.getElementById('firmaTitulo').textContent=titulo;
   document.getElementById('firmaResumen').innerHTML=resumenEntregaHTML(resumen);
-  const n=document.getElementById('firmaNombre'),ce=document.getElementById('firmaCedula');
-  if(n)n.value='';if(ce)ce.value='';
+  const n=document.getElementById('firmaNombre'),ce=document.getElementById('firmaCedula'),ob=document.getElementById('firmaObs');
+  if(n)n.value='';if(ce)ce.value='';if(ob)ob.value='';
   /* al guardar la firma propia del equipo no se piden nombre ni cédula:
      ya se sabe quién es, y no se está imprimiendo nada */
   const quien=document.querySelector('.firma-quien');
@@ -6842,7 +6883,8 @@ function firmaCancelar(){FIRMA.onListo=null;cerrarFirma();}
 function firmaDatosQuien(){
   const n=(document.getElementById('firmaNombre')||{}).value||'';
   const c=(document.getElementById('firmaCedula')||{}).value||'';
-  return {nombre:n.trim(),cedula:c.trim()};
+  const o=(document.getElementById('firmaObs')||{}).value||'';
+  return {nombre:n.trim(),cedula:c.trim(),obs:o.trim()};
 }
 function firmaConfirmar(){
   if(!FIRMA.hasStroke){toast('Todavía no hay firma — usa "Imprimir sin firma" si no aplica');return;}
@@ -7149,7 +7191,10 @@ function userViews(){
 }
 /* 'taller' no está en ALL_VIEWS ni en los permisos: el candado es el nombre
    del usuario, para que ningún perfil de acceso total se lo gane solo */
-function canView(v){if(v===DEV_VIEW)return esDev();if(v==='facturacion')return esContable();return userViews().includes(v);}
+/* La papelera es el registro de cambios del CRM: quien borro que y cuando.
+   Por eso es de Daniel y de nadie mas, con candado por NOMBRE y no por
+   permisos, para que ningun perfil de acceso total se la gane solo. */
+function canView(v){if(v===DEV_VIEW)return esDev();if(v==='papelera')return esDev();if(v==='facturacion')return esContable();return userViews().includes(v);}
 function firstView(){const v=userViews();return v.includes('resumen')?'resumen':(v[0]||'resumen');}
 function applyNavPerms(){
   const allowed=userViews();
@@ -7205,16 +7250,18 @@ function doLogin(){
 function logout(){if(confirm('¿Cerrar sesión?')){localStorage.removeItem('db_user');location.reload()}}
 function renderUserBadge(){
   const u=currentUser();const b=document.getElementById('userBadge');if(!u||!b)return;
-  b.innerHTML=`<button class="ub-avbtn" title="Mi perfil y foto" onclick="openMiPerfil()">${avatarHTML(u.name,'')}</button><span class="ub-info"><span class="ub-name">${esc(u.name)}</span><span class="ub-role">${esc(u.role)}</span></span>${isAdmin()?`<button class="ub-ic" title="Usuarios y contraseñas" onclick="openUsuarios()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg></button>`:''}<button class="ub-ic" title="Cerrar sesión" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>`;
+  b.innerHTML=`<button class="ub-avbtn" title="Mi perfil y foto" onclick="openMiPerfil()">${avatarHTML(u.name,'')}</button><span class="ub-info"><span class="ub-name">${esc(u.name)}</span><span class="ub-role">${esc(u.role)}</span></span>${esDev()?`<button class="ub-ic" title="Usuarios y contraseñas" onclick="openUsuarios()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg></button>`:''}<button class="ub-ic" title="Cerrar sesión" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>`;
 }
 /* ---- usuarios y contraseñas (solo admin) ---- */
 function openUsuarios(){
-  if(!isAdmin()){toast('Solo Daniel o la gerencia pueden gestionar usuarios y accesos');return}
+  /* Los accesos de los demas los toca solo Daniel: es quien responde por
+     el CRM. Ni siquiera gerencia, para que nadie se suba permisos solo. */
+  if(!esDev()){toast('Solo Daniel puede ver y cambiar los accesos del equipo');return}
   document.getElementById('mTitle').textContent='Usuarios, contraseñas y accesos';document.getElementById('modal').classList.add('wide');
   document.getElementById('mBody').innerHTML=`<div class="cfg-note">Define la contraseña, la foto y las pestañas que puede ver cada perfil. ${USING_SB?'Se guardan en la nube y aplican para todo el equipo.':'Se guardan en este navegador (modo local).'}</div>
     ${PERFILES.map((p,i)=>`<div class="usr-card">
       <div class="usr-row"><button class="usr-avbtn" id="usrAv_${i}" title="Cambiar foto de ${esc(p.name)}" onclick="changeProfPhoto(${i})">${avatarHTML(p.name,'')}</button><div class="usr-meta"><strong>${esc(p.name)}</strong><span>${esc(p.role)}</span></div><input type="text" id="usr_${i}" value="${esc(p.pass||'')}" placeholder="Contraseña"></div>
-      <div class="usr-perms"><div class="up-t">Pestañas a las que tiene acceso</div><div class="up-chips" id="usrViews_${i}">${ALL_VIEWS.map(v=>{const on=(p.views||[]).includes(v);return `<label class="serv-chip ${on?'on':''}"><input type="checkbox" value="${v}" ${on?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${esc(VIEW_LBL[v])}</label>`;}).join('')}</div>
+      <div class="usr-perms"><div class="up-t">Pestañas a las que tiene acceso</div><div class="up-chips" id="usrViews_${i}">${ALL_VIEWS.filter(v=>v!=='papelera').map(v=>{const on=(p.views||[]).includes(v);return `<label class="serv-chip ${on?'on':''}"><input type="checkbox" value="${v}" ${on?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${esc(VIEW_LBL[v])}</label>`;}).join('')}</div>
       <div class="up-fast"><button type="button" class="btn ghost sm" onclick="permAll(${i},true)">Marcar todas</button><button type="button" class="btn ghost sm" onclick="permAll(${i},false)">Ninguna</button></div></div>
       <div class="usr-perms"><div class="up-t">Notificaciones que le llegan a la campana — el chat le llega siempre, aparte de esto</div><div class="up-chips" id="usrNotifs_${i}">${NOTIF_TIPOS.map(t=>{const on=(p.notifs||NOTIF_TIPOS).includes(t);return `<label class="serv-chip ${on?'on':''}"><input type="checkbox" value="${t}" ${on?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked)"> ${esc(NOTIF_TIPO_LBL[t])}</label>`;}).join('')}</div></div>
     </div>`).join('')}`;
