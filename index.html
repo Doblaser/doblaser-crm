@@ -1696,10 +1696,6 @@ const calClass=c=>({'Caliente':'cal-hot','Tibio':'cal-warm','Frio':'cal-cold','N
 const leadPill=e=>({'Ganado':'st-proc','Cotizacion enviada':'st-prog','En negociacion':'st-proceso','Contactado':'st-prog','Por contactar':'st-sin','Perdido':'st-sin','Descartado':'st-sin'}[e]||'st-sin');
 function cotTotal(c){
   const sub=(c.items||[]).reduce((a,i)=>a+((+i.cant||0)*(+i.vu||0)),0);
-  /* Clientes que pagan sin IVA: no se les factura, le pagan directo a
-     gerencia. El total es el subtotal pelado y el IVA no aparece en ninguna
-     parte: pantalla, PDF, WhatsApp, exportaciones ni ventas. */
-  if(c.sinIva)return{sub,iva:0,total:sub,base:sub,sinIva:true};
   if(c.tipo==='producto'&&c.modo==='aiu'){
     const adm=sub*((+c.aiuAdm||0)/100),imp=sub*((+c.aiuImp||0)/100),uti=sub*((+c.aiuUti||0)/100);
     const sub2=sub+adm+imp+uti,iva=uti*IVA;
@@ -2328,7 +2324,7 @@ function renderVentas(){
   const porCobrar=rows.reduce((a,x)=>a+Math.max(0,(+x.valor||0)*(1+IVA)-(+x.abonado||0)),0);
   const sub=`${rows.length} registro(s)`+(porCobrar>0?` · por cobrar ${COP(porCobrar)}`:'');
   return panel('Registro de ventas',sub,`<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Descripción</th><th>Servicio</th><th class="num">Valor con IVA</th><th class="num">Abonado</th><th class="num">Saldo</th><th>Cotiz.</th><th>Factura</th><th>Asesor</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const valSin=+x.valor||0,val=x.sinIva?valSin:valSin*(1+IVA),ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}<div class="muted" style="font-size:10.5px">${x.sinIva?'sin IVA · no se factura':'sin IVA: '+COP(valSin)}</div></td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>'}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${x.soportePago?`<button class="ic-btn" title="Ver soporte de pago" onclick="event.stopPropagation();verFotoGrande('${x.soportePago}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>`:''}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
+  ${rows.map(x=>{const valSin=+x.valor||0,val=x.sinIva?valSin:valSin*(1+IVA),ab=+x.abonado||0,sal=Math.max(0,val-ab);const pag=ab>=val&&val>0;const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;return `<tr><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}</td><td style="max-width:210px">${esc(x.descripcion)}${rEl?`<div class="muted" style="font-size:10.5px">Desde <span class="code lk" onclick="event.stopPropagation();openForm('rop','${rEl.id}')">${esc(rEl.rop)}</span></div>`:''}</td><td>${ventaServTags(x)}</td><td class="num tnum">${COP(val)}<div class="muted" style="font-size:10.5px">${x.sinIva?'sin IVA · no se factura':'sin IVA: '+COP(valSin)}</div></td><td class="num tnum muted">${ab?COP(ab):'—'}</td><td class="num tnum">${pag?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Pagada</span>${x.fechaPago?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaPago)}${x.pagoPor?' · '+esc(x.pagoPor):''}</div>`:''}`:(sal>0&&ab>0?`<strong style="color:#b45309">${COP(sal)}</strong>`:COP(sal))}</td><td><span class="code">${esc(x.cotizacion)||'—'}</span>${x.ordenCompra?`<div class="muted" style="font-size:10.5px">${esc(x.ordenCompra)}</div>`:''}</td><td>${x.facturada?`<span class="pill st-proc" style="padding:1px 8px"><span class="d"></span>Facturada</span>${x.fechaFactura?`<div class="muted" style="font-size:10.5px">${fmtDate(x.fechaFactura)}${x.facturadaPor?' · '+esc(x.facturadaPor):''}</div>`:''}`:(x.sinIva?'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>No se factura</span>':'<span class="pill st-sin" style="padding:1px 8px"><span class="d"></span>Sin facturar</span>')}</td><td>${av(x.asesor)}</td><td><div class="row-act">${(x.ropId||(Array.isArray(x.piezasFactura)&&x.piezasFactura.length))?`<button class="ic-btn" title="Imprimir cuenta de cobro" onclick="printFactura('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></svg></button>`:''}${pag?`<button class="ic-btn" title="Quitar el pago" onclick="marcarPagada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como pagada" onclick="marcarPagada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>`}${x.facturada?`<button class="ic-btn" title="Quitar factura" onclick="marcarFacturada('${x.id}',false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>`:`<button class="ic-btn pagar" title="Marcar como facturada" onclick="marcarFacturada('${x.id}',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/></svg></button>`}${x.soportePago?`<button class="ic-btn" title="Ver soporte de pago" onclick="event.stopPropagation();verFotoGrande('${x.soportePago}',null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>`:''}${rowActions('ventas',x.id).replace('<div class="row-act">','').replace(/<\/div>$/,'')}</div></td></tr>`}).join('')||emptyRow(11)}
   </tbody></table>`);
 }
 
@@ -2488,7 +2484,7 @@ async function createRopFromCot(id){
   let extra='';
   if(!CACHE.ventas.some(v=>v.cotizacion&&v.cotizacion===c.numero)){
     const piezasFactura=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0,precio:+it.vu||0}));
-    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,sinIva:!!c.sinIva,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id,piezasFactura});
+    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id,piezasFactura});
     extra=' · venta registrada ('+COP(sub*(1+IVA))+' con IVA)';
   }
   if(c.estado!=='Aprobada')await saveRow('cotizaciones',{...c,estado:'Aprobada'});
@@ -3602,7 +3598,7 @@ let DRAFT_TIMER=null;
 /* true/false de un checkbox del formulario, aunque no exista en pantalla */
 function chk(id){const e=document.getElementById(id);return !!(e&&e.checked);}
 /* Al prender 'Sin IVA' se repintan los totales del formulario. */
-function sinIvaChange(){const w=document.getElementById('sinIvaWrap');if(w)w.classList.toggle('on',chk('f_sinIva'));try{renderCotItems();}catch(e){}try{prodRender();}catch(e){}}
+function sinIvaChange(){const w=document.getElementById('sinIvaWrap');if(w)w.classList.toggle('on',chk('f_sinIva'));try{ventaValorConIva();}catch(e){}}
 function cotHeaderFromDOM(){const g=id=>{const e=document.getElementById(id);return e?e.value:'';};return {numero:g('f_numero'),fecha:g('f_fecha'),cliente:g('f_cliente'),contacto:g('f_contacto'),email:g('f_email'),nit:g('f_nit'),asesor:g('f_asesor'),pago:g('f_pago'),estado:g('f_estado')};}
 function cotHasData(){const hdr=cotHeaderFromDOM();if((hdr.cliente||'').trim())return true;return cotItems.some(i=>(i.desc||'').trim()||(+i.vu>0)||(i.calc&&['lmin','golpes','vgolpe','mig','vmig','marca','vmarca','otros','mcant','mpeso','pkg','tcant','tvu','transp'].some(k=>+i.calc[k]>0)));}
 function saveCotDraft(){if(editing.t!=='cotizaciones'||editing.id||COT_MODE==='prod')return;try{if(!cotHasData())return;localStorage.setItem(COT_DRAFT_KEY,JSON.stringify({ts:Date.now(),header:cotHeaderFromDOM(),items:cotItems}));}catch(e){}}
@@ -3735,9 +3731,6 @@ function formCotProd(r){
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
   <div class="field"><label>Forma de pago</label><input id="f_pago" list="pagoList" value="${esc(r.pago)||'50% anticipo · 50% al terminar instalación'}"><datalist id="pagoList">${[...PAGO_OPC,'50% anticipo · 50% al terminar instalación'].map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
   <div class="field"><label>Estado</label><select id="f_estado" onchange="cotEstadoChange()">${opts(['Borrador','Enviada','Aprobada','Perdida','Rechazada'],r.estado||'Borrador')}</select></div>
-  <div class="field full"><label>Facturación</label>
-    <label class="siniva-btn ${r.sinIva?'on':''}" id="sinIvaWrap"><input type="checkbox" id="f_sinIva" ${r.sinIva?"checked":""} onchange="sinIvaChange()"><span class="siniva-txt"><b>Sin IVA — no se factura</b><span class="muted"> · el cliente le paga directo a gerencia</span></span></label>
-  </div>
   <div class="field"><label>Modo de totales</label><select id="f_modo" onchange="prodModoChange()"><option value="iva" ${modo!=='aiu'?'selected':''}>Solo IVA 19%</option><option value="aiu" ${modo==='aiu'?'selected':''}>AIU (Adm + Imprev + Utilidad, IVA sobre utilidad)</option></select></div>
   <div class="field full" id="motivoWrap" style="${(r.estado==='Perdida'||r.estado==='Rechazada')?'':'display:none'}"><label>Motivo (por qué se perdió)</label><input id="f_motivo" value="${esc(r.motivo)}"></div>
   <div class="field full" id="aiuWrap" style="${modo==='aiu'?'':'display:none'}"><div class="aiu-row"><span class="aiu-lbl">AIU:</span>
@@ -3840,7 +3833,7 @@ function piCalcRefresh(i){const it=prodItems[i];const costo=piCosto(it);
   const p=document.getElementById('piPrecio_'+i);if(p)p.textContent=COP(precio);}
 function piUsar(i){const it=prodItems[i];const costo=piCosto(it);
   const m=it.calc.margen===''?30:(+it.calc.margen||0);it.vu=m>=100?0:Math.round(costo/(1-m/100));renderProdItems();recalcProdTotals();toast('Precio aplicado al ítem '+(i+1));}
-function prodRowFromDOM(){return{tipo:'producto',sinIva:chk('f_sinIva'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),items:prodItems.map(i=>({cant:+i.cant||1,vu:+i.vu||0}))};}
+function prodRowFromDOM(){return{tipo:'producto',modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),items:prodItems.map(i=>({cant:+i.cant||1,vu:+i.vu||0}))};}
 function recalcProdTotals(){
   const el=document.getElementById('prodTotals');if(!el)return;
   const t=cotTotal(prodRowFromDOM());
@@ -3850,11 +3843,11 @@ function recalcProdTotals(){
       <div class="pt-row"><span>Imprevistos ${numv('f_aiuImp')}%</span><b class="tnum">${COP(t.imp)}</b></div>
       <div class="pt-row"><span>Utilidad ${numv('f_aiuUti')}%</span><b class="tnum">${COP(t.uti)}</b></div>
       <div class="pt-row"><span>Subtotal</span><b class="tnum">${COP(t.sub)}</b></div>
-      ${t.sinIva?'':`<div class="pt-row"><span>IVA 19% sobre utilidad</span><b class="tnum">${COP(t.iva)}</b></div>`}
+      <div class="pt-row"><span>IVA 19% sobre utilidad</span><b class="tnum">${COP(t.iva)}</b></div>
       <div class="pt-row g"><span>TOTAL</span><b class="tnum">${COP(t.total)}</b></div>`;
   }else{
     el.innerHTML=`<div class="pt-row"><span>Total antes de IVA</span><b class="tnum">${COP(t.sub)}</b></div>
-      ${t.sinIva?'':`<div class="pt-row"><span>IVA 19%</span><b class="tnum">${COP(t.iva)}</b></div>`}
+      <div class="pt-row"><span>IVA 19%</span><b class="tnum">${COP(t.iva)}</b></div>
       <div class="pt-row g"><span>TOTAL</span><b class="tnum">${COP(t.total)}</b></div>`;
   }
 }
@@ -3916,7 +3909,7 @@ function prodPrintHTML(c){
       <tr><td>IVA 19% sobre utilidad</td><td class="r">${COP(t.iva)}</td></tr>
       <tr class="g"><td>VALOR TOTAL</td><td class="r">${COP(t.total)}</td></tr>`
     :`<tr><td>Total antes de IVA</td><td class="r">${COP(t.sub)}</td></tr>
-      ${t.sinIva?'':`<tr><td>IVA 19%</td><td class="r">${COP(t.iva)}</td></tr>`}
+      <tr><td>IVA 19%</td><td class="r">${COP(t.iva)}</td></tr>
       <tr class="g"><td>VALOR TOTAL</td><td class="r">${COP(t.total)}</td></tr>`;
   const imgs=[c.img1,c.img2].filter(Boolean);
   const imgBlock=imgs.length?`<div class="sec-t">IMÁGENES DE REFERENCIA</div><div class="imgs">${imgs.map(s=>`<div class="imgb"><img src="${s}"></div>`).join('')}</div>`:'';
@@ -4733,7 +4726,10 @@ function formVenta(r){r=r||{};return `<div class="fgrid">
   <div class="field"><label>N° Cotización</label><input id="f_cotizacion" value="${esc(r.cotizacion)}" placeholder="DB-0000"></div>
   <div class="field"><label>Orden de compra (OC)</label><input id="f_ordenCompra" value="${esc(r.ordenCompra)}" placeholder="Ej. OC 668"></div>
   <div class="field full"><label>Descripción</label><textarea id="f_descripcion">${esc(r.descripcion)}</textarea></div>
-  <div class="field"><label>Valor (sin IVA)</label><input type="number" id="f_valor" value="${r.valor||''}" oninput="ventaValorConIva()"><div class="muted" style="font-size:11px;margin-top:3px">Total con IVA (lo que paga el cliente): <b id="f_valorConIva">${COP((+r.valor||0)*(1+IVA))}</b></div></div>
+  <div class="field"><label>Valor (sin IVA)</label><input type="number" id="f_valor" value="${r.valor||''}" oninput="ventaValorConIva()"><div class="muted" style="font-size:11px;margin-top:3px"><span id="f_valorConIvaLbl">${r.sinIva?'Lo que paga el cliente (sin IVA):':'Total con IVA (lo que paga el cliente):'}</span> <b id="f_valorConIva">${COP((+r.valor||0)*(r.sinIva?1:(1+IVA)))}</b></div></div>
+  <div class="field full"><label>Facturación</label>
+    <label class="siniva-btn ${r.sinIva?'on':''}" id="sinIvaWrap"><input type="checkbox" id="f_sinIva" ${r.sinIva?"checked":""} onchange="sinIvaChange()"><span class="siniva-txt"><b>Sin IVA — no se factura</b><span class="muted"> · el cliente le paga directo a gerencia</span></span></label>
+  </div>
   <div class="field"><label>Abonado (pagos recibidos)</label><input type="number" id="f_abonado" value="${r.abonado||''}" placeholder="0 = sin abonos"></div>
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
   <input type="hidden" id="f_ropId" value="${esc(r.ropId)}">
@@ -4899,7 +4895,11 @@ let ventaPiezas=[];
 let ventaSoportePago=null;
 function ventaValorConIva(){
   const e=document.getElementById('f_valorConIva');if(!e)return;
-  e.textContent=COP((+val('f_valor')||0)*(1+IVA));
+  /* Si la venta va sin IVA, lo que paga el cliente es el valor pelado. */
+  const v=+val('f_valor')||0, sin=chk('f_sinIva');
+  e.textContent=COP(sin?v:v*(1+IVA));
+  const lbl=document.getElementById('f_valorConIvaLbl');
+  if(lbl)lbl.textContent=sin?'Lo que paga el cliente (sin IVA):':'Total con IVA (lo que paga el cliente):';
 }
 function renderVentaSoporte(){
   const box=document.getElementById('ventaSoporteBox');if(!box)return;
@@ -5522,9 +5522,6 @@ function formCot(r){r=r||{};return `<div class="fgrid">
   <div class="field"><label>NIT</label><input id="f_nit" value="${esc(r.nit)}"></div>
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||'Daniel')}</select></div>
   <div class="field"><label>Forma de pago</label><select id="f_pago">${opts(PAGO_OPC,r.pago||'100% contraentrega')}</select></div>
-  <div class="field full"><label>Facturación</label>
-    <label class="siniva-btn ${r.sinIva?'on':''}" id="sinIvaWrap"><input type="checkbox" id="f_sinIva" ${r.sinIva?"checked":""} onchange="sinIvaChange()"><span class="siniva-txt"><b>Sin IVA — no se factura</b><span class="muted"> · el cliente le paga directo a gerencia</span></span></label>
-  </div>
   <div class="field"><label>Estado</label><select id="f_estado" onchange="cotEstadoChange()">${opts(['Borrador','Enviada','Aprobada','Perdida','Rechazada'],r.estado||'Borrador')}</select></div>
   <div class="field"><label>Válida hasta</label><input type="date" id="f_validez" value="${r.validez||addDays(r.fecha||today(),15)}"></div>
   <div class="field full" id="motivoWrap" style="${(r.estado==='Perdida'||r.estado==='Rechazada')?'':'display:none'}"><label>Motivo (por qué se perdió)</label><input id="f_motivo" value="${esc(r.motivo)}" placeholder="Ej. precio, tiempo de entrega, eligió otro proveedor"></div>
@@ -5677,7 +5674,7 @@ const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
 const numv=id=>{const e=document.getElementById(id);return e?(+e.value||0):0};
 async function saveForm(){
   const{t,id}=editing;let row={id:id||uid()};
-  if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),ordenCompra:val('f_ordenCompra'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),soportePago:ventaSoportePago||null};}
+  if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),sinIva:chk('f_sinIva'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),ordenCompra:val('f_ordenCompra'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),soportePago:ventaSoportePago||null};}
   else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let ropNum=val('f_rop');
     if(ropNum&&CACHE.rop.some(r=>r.rop===ropNum&&r.id!==id)){
@@ -5699,9 +5696,9 @@ async function saveForm(){
       return;
     }
     if(COT_MODE==='prod'){
-      row={...row,tipo:'producto',sinIva:chk('f_sinIva'),numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
+      row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
     }else{
-    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),sinIva:chk('f_sinIva'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
+    row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
   else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:numv('f_ancho'),cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
   else if(t==='piezascli'){if(!val('f_pzcCliente')){toast('Indica el cliente');return}if(!val('f_pzcPieza')){toast('Indica la pieza');return}row={...row,cliente:val('f_pzcCliente'),pieza:val('f_pzcPieza'),material:val('f_pzcMaterial'),notas:val('f_pzcNotas'),compras:pzcCompras.filter(c=>c.fecha||+c.cantidad>0||+c.costo>0).map(c=>({fecha:c.fecha||'',cantidad:+c.cantidad||0,costo:+c.costo||0,notas:(c.notas||'').trim()}))};}
   const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—',_ex=id?CACHE[t].find(x=>x.id===id):null;
@@ -5914,8 +5911,9 @@ function cotPrintHTML(c){
   <div class="below">
     <div class="pay"><div class="h">Forma de pago</div>${esc(c.pago)||'100% contraentrega'}<br><b>BANCOLOMBIA</b> · cuenta de ahorros <b>00700008291</b><br><span style="color:#7b1e2b;font-weight:600">Entrega: ${esc(textoEntrega(c))}</span><br><span style="font-size:9.5px;color:#666">Puede estar lista antes; se avisa apenas termine.</span></div>
     <div class="tot"><div class="cap">Resumen</div>
-      ${c.sinIva?`<div class="ln"><span class="lab">Valor</span><span>${COP(t.sub)}</span></div>`:`<div class="ln"><span class="lab">Total antes de IVA</span><span>${COP(t.sub)}</span></div><div class="ln"><span class="lab">IVA 19%</span><span>${COP(t.iva)}</span></div>`}
-      <div class="grand"><span class="lab">Valor total</span><span class="v">${COP(t.total)}</span></div>${c.sinIva?`<div style="font-size:9.5px;color:#666;margin-top:3px">No incluye IVA · no se factura</div>`:''}
+      <div class="ln"><span class="lab">Total antes de IVA</span><span>${COP(t.sub)}</span></div>
+      <div class="ln"><span class="lab">IVA 19%</span><span>${COP(t.iva)}</span></div>
+      <div class="grand"><span class="lab">Valor total</span><span class="v">${COP(t.total)}</span></div>
     </div>
   </div>
   ${(c.observaciones||'').trim()?`<div class="obs-cot"><div class="h">Observaciones</div>${esc(c.observaciones).replace(/\n/g,'<br>')}</div>`:''}
@@ -5960,10 +5958,9 @@ function cotTexto(c){
     L.push('   '+cant+' und × '+COP(vu)+' = '+COP(cant*vu));
   });
   L.push('');
-  if(c.sinIva){L.push('*TOTAL: '+COP(t.total)+'*');L.push('(no incluye IVA)');}
-  else{L.push('Subtotal: '+COP(t.sub));
+  L.push('Subtotal: '+COP(t.sub));
   L.push('IVA: '+COP(t.iva));
-  L.push('*TOTAL: '+COP(t.total)+'*');}
+  L.push('*TOTAL: '+COP(t.total)+'*');
   L.push('');
   L.push('Entrega: '+textoEntrega(c));
   L.push('(puede estar antes, le avisamos apenas termine)');
