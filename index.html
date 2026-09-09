@@ -7217,6 +7217,10 @@ function applyNavPerms(){
   const db=document.getElementById('dbState');if(db)db.style.display=isAdmin()?'':'none';
 }
 function auditBanner(row){
+  /* Quien creo y quien modifico cada registro es informacion de auditoria:
+     la ve solo Daniel. Al resto del equipo no le aporta y de paso deja de
+     quedar expuesto quien toco que. */
+  if(!esDev())return '';
   const c=row.createdBy?`Creado por <strong>${esc(row.createdBy)}</strong>${row.createdAt?' · '+fmtDateTime(row.createdAt):''}`:'';
   const u=row.updatedBy?`Última modificación: <strong>${esc(row.updatedBy)}</strong>${row.updatedAt?' · '+fmtDateTime(row.updatedAt):''}`:'';
   const t=[c,u].filter(Boolean).join(' &nbsp;·&nbsp; ');
