@@ -4040,8 +4040,15 @@ async function compartirRemision(id,fecha){
   if(!r){toast('Orden no encontrada');return;}
   const firma=r.firmaCliente||null;
   const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
-  const titulo='Remisión '+(r.rop||'')+(r.cliente?' · '+r.cliente:'');
-  const nombre=(('Remision '+(r.rop||'')+(firma?' firmada':'')+(r.cliente?' - '+r.cliente:''))
+  return _compartirRemisionDoc(r,fecha,firma,recibe);
+}
+/* recibe (r,fecha,firma,recibe) directos en vez de leerlos de CACHE, para
+   poder ofrecer "Compartir" justo al terminar de firmar — desde el celular
+   no hace falta imprimir, y esperar a que el guardado llegue a CACHE antes
+   de leer la firma de ahí metía una condición de carrera innecesaria. */
+async function _compartirRemisionDoc(r,fecha,firma,recibe){
+  const titulo='Remisión '+(r.rop||'')+(r.cliente?' · '+r.cliente:'')+(fecha?' · entrega '+fmtDate(fecha):'');
+  const nombre=(('Remision '+(r.rop||'')+(firma?' firmada':'')+(r.cliente?' - '+r.cliente:'')+(fecha?' - '+fecha:''))
     .replace(/[\\/:*?"<>|]/g,''))+'.pdf';
 
   dialogoCompartir({
@@ -4080,16 +4087,30 @@ async function compartirRemision(id,fecha){
       try{await navigator.share({title:titulo,text:'Remisión '+(r.rop||'')+' · Doblaser SAS',files:[file]});cerrarCompartir();}
       catch(e){if(e&&e.name!=='AbortError')toast('No se pudo compartir. Descárgalo y adjúntalo.');}
     }});
+  }else{
+    /* En el PC no existe el menú de compartir del celular y el navegador no
+       deja adjuntar un archivo por código. Lo más cerca que se puede llegar:
+       bajar el PDF y abrir WhatsApp con el texto listo, para arrastrar el
+       archivo al chat. Antes acá no salía ningún botón de enviar y parecía
+       que desde el computador no se podía mandar la remisión. */
+    acciones.push({txt:'Enviar por WhatsApp',fn:()=>{
+      descargarBlob(blob,nombre);
+      try{window.open('https://wa.me/?text='+encodeURIComponent(remisionTexto(r,fecha)),'_blank','noopener');}catch(e){}
+      cerrarCompartir();
+      toast('El PDF se descargó — adjúntalo en el chat');
+    }});
   }
-  acciones.push({txt:'Descargar',ghost:puede,fn:()=>{descargarBlob(blob,nombre);cerrarCompartir();toast('PDF descargado');}});
+  acciones.push({txt:'Imprimir',ghost:true,fn:()=>{printDoc(remisionHTML(r,fecha,firma,recibe),nombre.replace(/\.pdf$/,''));cerrarCompartir();}});
+  acciones.push({txt:'Descargar',ghost:true,fn:()=>{descargarBlob(blob,nombre);cerrarCompartir();toast('PDF descargado');}});
   acciones.push({txt:'Cerrar',ghost:true,fn:cerrarCompartir});
 
+  const notas=[];
+  if(!firma)notas.push('<div class="sh-nota">Esta orden todavía no tiene la firma del cliente. Se envía sin firmar; para firmarla, usa el botón de imprimir remisión.</div>');
+  if(!puede)notas.push('<div class="sh-nota">Este equipo no tiene el menú de compartir del celular: el PDF se descarga y se adjunta a mano en el chat que abre.</div>');
   dialogoCompartir({
     titulo:firma?'Remisión firmada lista':'Remisión lista',
     detalle:nombre+' · '+kb+' KB',
-    estado:firma
-      ?''
-      :'<div class="sh-nota">Esta orden todavía no tiene la firma del cliente. Se envía sin firmar; para firmarla, usa el botón de imprimir remisión.</div>',
+    estado:notas.join(''),
     acciones
   });
 }
@@ -4160,8 +4181,9 @@ function _remisionImprimir(r,fecha){
     if(quien&&quien.obs)cambios.bitacora=[...(Array.isArray(r.bitacora)?r.bitacora:[]),
       {tipo:'nota',fecha:fecha||today(),texto:quien.obs,autor:currentUser()?currentUser().name:null}];
     if(Object.keys(cambios).length)saveRow('rop',{...r,...cambios});
-    printDoc(remisionHTML(r,fecha,firma,quien),
-      cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'cliente')+(fecha?' - entrega '+fecha:'')));
+    /* en vez de mandar directo a imprimir: desde el celular no hace falta
+       imprimir, con "Compartir" se manda por WhatsApp de una vez */
+    _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
   });
 }
 function _elegirEntrega(r,fechas,entregas){
@@ -5194,38 +5216,9 @@ async function compartirRemisionDeFecha(fecha){
     cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
   const firma=r.firmaCliente||null;
   const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
-  const titulo='Remisión '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+fmtDate(fecha);
-  const nombre=(('Remision '+(r.rop||'')+(firma?' firmada':'')+' - '+(r.cliente||'cliente')+' - '+fecha)
-    .replace(/[\/:*?"<>|]/g,''))+'.pdf';
-  dialogoCompartir({titulo:'Preparando el PDF…',detalle:titulo,
-    estado:'<div class="sh-spin"></div>',
-    acciones:[{txt:'Cancelar',ghost:true,fn:cerrarCompartir}]});
-  let blob=null,fallo='';
-  try{blob=await remisionPDF(r,fecha,firma,recibe);}catch(e){fallo=e&&e.message||'error desconocido';}
-  if(!document.getElementById('shareLayer').classList.contains('show'))return;
-  if(!blob){
-    const texto=remisionTexto(r,fecha);
-    dialogoCompartir({titulo:'No se pudo armar el PDF',
-      detalle:'Puedes enviar el resumen en texto. Detalle: '+fallo,
-      acciones:[
-        {txt:'Enviar texto',fn:async()=>{cerrarCompartir();
-          if(navigator.share){try{await navigator.share({title:titulo,text:texto})}catch(e){}}
-          else{try{await navigator.clipboard.writeText(texto);toast('Resumen copiado')}catch(e){}}}},
-        {txt:'Cerrar',ghost:true,fn:cerrarCompartir}]});
-    return;
-  }
-  const file=new File([blob],nombre,{type:'application/pdf'});
-  const puede=!!(navigator.canShare&&navigator.canShare({files:[file]}));
-  const acciones=[];
-  if(puede)acciones.push({txt:'Compartir',fn:async()=>{
-    try{await navigator.share({title:titulo,text:'Remisión '+(r.rop||'')+' · Doblaser SAS',files:[file]});cerrarCompartir();}
-    catch(e){if(e&&e.name!=='AbortError')toast('No se pudo compartir. Descárgalo y adjúntalo.');}}});
-  acciones.push({txt:'Descargar',ghost:puede,fn:()=>{descargarBlob(blob,nombre);cerrarCompartir();toast('PDF descargado');}});
-  acciones.push({txt:'Cerrar',ghost:true,fn:cerrarCompartir});
-  dialogoCompartir({titulo:firma?'Remisión firmada lista':'Remisión lista',
-    detalle:nombre+' · '+Math.round(blob.size/1024)+' KB',
-    estado:firma?'':'<div class="sh-nota">Esta orden todavía no tiene la firma del cliente.</div>',
-    acciones});
+  /* antes esta función repetía todo el armado del PDF y el diálogo de compartir;
+     era la misma lógica en dos sitios y los arreglos solo caían en uno */
+  return _compartirRemisionDoc(r,fecha,firma,recibe);
 }
 function printRemisionDeFecha(fecha){
   const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
@@ -5237,7 +5230,7 @@ function printRemisionDeFecha(fecha){
     if(quien&&quien.obs)cambios.bitacora=[...(Array.isArray(base.bitacora)?base.bitacora:[]),
       {tipo:'nota',fecha,texto:quien.obs,autor:currentUser()?currentUser().name:null}];
     if(base.id&&Object.keys(cambios).length)saveRow('rop',{...base,...cambios});
-    printDoc(remisionHTML(r,fecha,firma,quien),cleanFileName('Remisión '+(r.rop||'')+' - '+(r.cliente||'cliente')+' - entrega '+fecha));
+    _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
   });
 }
 function renderRopBitacora(){
@@ -6825,8 +6818,8 @@ function abrirFirma(titulo,resumen,onListo,opts){
       <div class="firma-actions">
         <button type="button" class="btn ghost" onclick="firmaCancelar()">Cancelar</button>
         <button type="button" class="btn ghost" onclick="firmaLimpiar()">Limpiar</button>
-        <button type="button" class="btn ghost" onclick="firmaOmitir()">Imprimir sin firma</button>
-        <button type="button" class="btn" onclick="firmaConfirmar()">Confirmar e imprimir</button>
+        <button type="button" class="btn ghost" onclick="firmaOmitir()">Seguir sin firma</button>
+        <button type="button" class="btn" onclick="firmaConfirmar()">Confirmar y compartir</button>
       </div>
     </div>`;
     document.body.appendChild(c);
@@ -6845,7 +6838,7 @@ function abrirFirma(titulo,resumen,onListo,opts){
   const bOm=document.querySelector('#firmaLayer .firma-actions button[onclick="firmaOmitir()"]');
   if(bOm)bOm.style.display=opts.sinOmitir?'none':'';
   const bOk=document.querySelector('#firmaLayer .firma-actions button[onclick="firmaConfirmar()"]');
-  if(bOk)bOk.textContent=opts.textoOk||'Confirmar e imprimir';
+  if(bOk)bOk.textContent=opts.textoOk||'Confirmar y compartir';
   FIRMA.sinQuien=!!opts.sinQuien;
   FIRMA.onListo=onListo;
   c.classList.add('show');
@@ -6884,7 +6877,7 @@ function firmaDatosQuien(){
   return {nombre:n.trim(),cedula:c.trim(),obs:o.trim()};
 }
 function firmaConfirmar(){
-  if(!FIRMA.hasStroke){toast('Todavía no hay firma — usa "Imprimir sin firma" si no aplica');return;}
+  if(!FIRMA.hasStroke){toast('Todavía no hay firma — usa "Seguir sin firma" si no aplica');return;}
   const d=firmaDatosQuien();
   if(!FIRMA.sinQuien&&!d.nombre){toast('Falta el nombre de quien recibe');const n=document.getElementById('firmaNombre');if(n)n.focus();return;}
   const cv=document.getElementById('firmaCanvas');
