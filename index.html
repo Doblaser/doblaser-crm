@@ -1571,8 +1571,16 @@ async function saveRow(t,row){
     for(let intento=0;intento<8;intento++){
       let res;
       if(row.id&&!isLocalId(row.id)){res=await sb.from(t).update(r).eq('id',row.id)}
-      else{const r2={...r};delete r2.id;res=await sb.from(t).insert(r2)}
-      if(!res||!res.error){if(omitidas.length)avisarMigracion(omitidas);return true}
+      /* al insertar se pide de vuelta la fila: el id que trae el navegador es
+         provisional y Supabase lo descarta para poner el suyo. Si no se lee el
+         definitivo, todo lo que se guarde después apuntando a esta fila
+         (la venta de una ROP, los movimientos de inventario) queda enlazado a
+         un id que no existe. Pasó con las 21 ventas de ROP-2588 a ROP-2630. */
+      else{const r2={...r};delete r2.id;res=await sb.from(t).insert(r2).select();}
+      if(!res||!res.error){
+        const real=res&&res.data&&(Array.isArray(res.data)?res.data[0]:res.data);
+        if(real&&real.id!==undefined&&real.id!==null)row.id=real.id;
+        if(omitidas.length)avisarMigracion(omitidas);return true}
       /* PGRST204: la columna no existe todavía en la base */
       const m=/Could not find the '([^']+)' column/.exec(res.error.message||'');
       if(m&&m[1] in r){delete r[m[1]];omitidas.push(m[1]);continue}
@@ -1778,12 +1786,26 @@ async function cargarHistorialPrecios(){
 }
 const q=()=>(document.getElementById('searchInput').value||'').toLowerCase().trim();
 const match=o=>{const s=q();return !s||JSON.stringify(o).toLowerCase().includes(s)};
-/* además de los campos propios, busca por la orden de compra (aprobación)
-   de la ROP vinculada — para poder encontrar la venta escribiendo el OC */
+/* además de los campos propios, busca por la orden de compra (aprobación) y
+   por el número de la ROP vinculada — para poder encontrar la venta
+   escribiendo el OC o "ROP-2614".
+   La orden se busca por ropId y, si eso no da (ventas viejas que se guardaron
+   sin ropId), por el número de cotización que comparten: era justo el caso en
+   que escribir el número de la orden en Ventas no encontraba nada. */
+function ventaRopDe(x){
+  if(x.ropId){const r=CACHE.rop.find(r=>String(r.id)===String(x.ropId));if(r)return r;}
+  const num=(x.cotizacion||'').trim();
+  if(!num)return null;
+  return (CACHE.rop||[]).find(r=>{
+    if((r.aprobacion||'').trim()===num)return true;
+    const c=r.cotId&&CACHE.cotizaciones.find(c=>String(c.id)===String(r.cotId));
+    return !!(c&&(c.numero||'').trim()===num);
+  })||null;
+}
 const ventaMatch=x=>{
   if(match(x))return true;
   const s=q();if(!s)return true;
-  const rEl=x.ropId?CACHE.rop.find(r=>String(r.id)===String(x.ropId)):null;
+  const rEl=ventaRopDe(x);
   return !!(rEl&&((rEl.aprobacion||'').toLowerCase().includes(s)||(rEl.rop||'').toLowerCase().includes(s)));
 };
 
@@ -2078,6 +2100,38 @@ function devSalud(){
     return{k,lbl,n:d.length,muertos,flojos};
   });
 }
+/* ---- enlaces rotos entre órdenes y ventas ----
+   Una orden nace en el navegador con un id provisional y Supabase le pone el
+   suyo al guardarla. Durante meses la venta que se creaba sola se guardó con
+   el id provisional, así que apuntaba a una orden que no existe: la venta
+   estaba, pero buscar "ROP-2614" en Ventas no encontraba nada. Ya se arregló
+   de raíz (saveRow relee el id real), pero esto queda vigilando: si el enlace
+   se vuelve a romper por otro lado, se ve aquí en vez de descubrirse por
+   casualidad meses después. */
+function devEnlaces(){
+  const rop=CACHE.rop||[],ven=CACHE.ventas||[];
+  const ids=new Set(rop.map(r=>String(r.id)));
+  const rotas=ven.filter(v=>v.ropId&&!ids.has(String(v.ropId)));
+  /* Órdenes entregadas que vienen de una cotización y no tienen venta.
+     Se exige cotId, no basta 'aprobacion': las de maquila (ALGAMAR, DEFENDER,
+     material del cliente) llevan ahí una OC suelta y no generan venta sola a
+     propósito — meterlas aquí serían 72 avisos falsos y nadie volvería a mirar. */
+  const sinVenta=rop.filter(r=>r.estado==='Entregado'&&r.cotId&&!ropVentaDe(r));
+  return{rotas,sinVenta};
+}
+function devEnlacesHTML(){
+  const{rotas,sinVenta}=devEnlaces();
+  const ok=!rotas.length&&!sinVenta.length;
+  return `<div class="dv-card">
+    <div class="dv-ch"><b>Enlaces entre órdenes y ventas</b><span>${(CACHE.ventas||[]).length} ventas · ${(CACHE.rop||[]).length} órdenes</span></div>
+    ${ok?'<div class="dv-ok">Todas las ventas apuntan a una orden que existe, y toda orden entregada con cotización tiene su venta.</div>':''}
+    ${rotas.length?`<div class="dv-lbl dv-mal">Ventas que apuntan a una orden que no existe (${rotas.length})</div>
+      <div class="dv-chips">${rotas.slice(0,20).map(v=>`<span class="dv-chip mal">venta ${v.id} · ${esc(v.cotizacion||v.cliente||'')} <i>${esc(String(v.ropId))}</i></span>`).join('')}</div>`:''}
+    ${sinVenta.length?`<div class="dv-lbl dv-tibio">Órdenes entregadas con cotización pero sin venta (${sinVenta.length})</div>
+      <div class="dv-chips">${sinVenta.slice(0,20).map(r=>`<span class="dv-chip tibio">${esc(r.rop||'')} <i>${esc((r.cliente||'').slice(0,18))}</i></span>`).join('')}</div>
+      <div class="dv-intro" style="margin:8px 0 0">Se mandan a Ventas con el botón del signo de pesos en la fila de la orden.</div>`:''}
+  </div>`;
+}
 function devSaludHTML(){
   const s=devSalud();
   const totM=s.reduce((a,x)=>a+x.muertos.length,0);
@@ -2094,6 +2148,7 @@ function devSaludHTML(){
   return `<div class="dv-intro">Esto se calcula solo, en vivo, sobre los datos de verdad. Un campo que nadie
     llena casi siempre es una función que se construyó y no se usa — o vale la pena enseñarla, o vale la pena quitarla.
     Hoy hay <b>${totM} campos muertos</b> y <b>${totF} que casi no se usan</b>.</div>
+    ${devEnlacesHTML()}
     <div class="dv-grid">${filas}</div>`;
 }
 
@@ -2484,7 +2539,12 @@ async function createRopFromCot(id){
   let extra='';
   if(!CACHE.ventas.some(v=>v.cotizacion&&v.cotizacion===c.numero)){
     const piezasFactura=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0,precio:+it.vu||0}));
-    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:row.id,piezasFactura});
+    /* row.id ya es el definitivo: saveRow lo relee de Supabase al insertar.
+       Si aun así viniera provisional, mejor dejarlo vacío que guardar un
+       enlace falso — sin ropId la venta todavía se encuentra por el número
+       de cotización, con un id inventado no se encuentra por ningún lado */
+    const ropIdReal=(row.id&&!isLocalId(row.id))?row.id:null;
+    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:ropIdReal,piezasFactura});
     extra=' · venta registrada ('+COP(sub*(1+IVA))+' con IVA)';
   }
   if(c.estado!=='Aprobada')await saveRow('cotizaciones',{...c,estado:'Aprobada'});
