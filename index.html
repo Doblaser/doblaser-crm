@@ -317,6 +317,13 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .kcard:hover{box-shadow:0 3px 10px rgba(0,0,0,.12)}
 .kcard:active{cursor:grabbing;transform:scale(.99)}
 .kcard.late{border-left:3px solid #dc2626}
+.kcard.con-color{border-left:5px solid var(--rc)}
+.rop-sub{font-size:12px;color:var(--ink-3);font-weight:500;line-height:1.3;margin:-1px 0 3px}
+.kcard.con-color .rop-sub{color:var(--rc);font-weight:600}
+tr.rop-tr-color>td:first-child{box-shadow:inset 4px 0 0 var(--rc)}
+.rop-colores{display:flex;gap:8px;flex-wrap:wrap}
+.rop-col{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:var(--c,transparent);color:var(--ink-3);font-size:14px;cursor:pointer;padding:0}
+.rop-col.on{outline:3px solid var(--ink,#222);outline-offset:2px}
 .kcard-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px}
 .kcard-cli{font-weight:700;font-size:13.5px;line-height:1.25;margin-bottom:3px}
 .kcard-meta{font-size:11.5px;margin-bottom:7px}
@@ -2454,7 +2461,7 @@ function renderRop(){
 }
 function ropTableHTML(rows,total){
   return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th class="num">Valor</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}</td><td class="hide-sm">${cotLinkCell(x)}</td><td class="num tnum">${(()=>{const v=ropValor(x);return v?`${COP(v.total)}<div class="muted" style="font-size:10px">${{venta:'de la venta',cot:'de la cotización',orden:'de las piezas'}[v.fuente]}</div>`:'<span class="muted">—</span>';})()}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(10)}
+  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr${x.color?` class="rop-tr-color" style="--rc:${esc(x.color)}"`:''}><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}${x.subtitulo?`<div class="rop-sub">${esc(x.subtitulo)}</div>`:''}</td><td class="hide-sm">${cotLinkCell(x)}</td><td class="num tnum">${(()=>{const v=ropValor(x);return v?`${COP(v.total)}<div class="muted" style="font-size:10px">${{venta:'de la venta',cot:'de la cotización',orden:'de las piezas'}[v.fuente]}</div>`:'<span class="muted">—</span>';})()}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(10)}
   </tbody></table>`);
 }
 let ropFilterH='Todas';
@@ -2489,9 +2496,10 @@ function ropCard(x){
   const nov=ropNovedadAbierta(x),parc=ropParciales(x),pz=ropPiezasResumen(x);
   const pzChip=pz?`<div class="kcard-parcial rp-${pz.estado}">${pz.ent} de ${pz.tot} entregado${pz.estado==='verde'?' · completo':''}</div>`
     :(parc?`<div class="kcard-parcial">${parc} entrega${parc===1?'':'s'} parcial${parc===1?'':'es'}</div>`:'');
-  return `<div class="kcard${al&&al.level==='late'?' late':''}${nov?' con-novedad':''}" draggable="true" ondragstart="ropDragStart(event,'${x.id}')" onclick="openForm('rop','${x.id}')">
+  return `<div class="kcard${al&&al.level==='late'?' late':''}${nov?' con-novedad':''}${x.color?' con-color':''}" ${x.color?`style="--rc:${esc(x.color)}"`:''} draggable="true" ondragstart="ropDragStart(event,'${x.id}')" onclick="openForm('rop','${x.id}')">
     <div class="kcard-top"><span class="code">${esc(x.rop)}</span>${al?`<span class="due ${al.level}">${al.label}</span>`:''}</div>
     <div class="kcard-cli">${esc(x.cliente)}</div>
+    ${x.subtitulo?`<div class="rop-sub">${esc(x.subtitulo)}</div>`:''}
     <div class="kcard-meta">${cotLinkCell(x)}${x.entrega?`<span class="muted"> · ${fmtDate(x.entrega)}</span>`:''}</div>
     ${(()=>{const v=ropValor(x);return v?`<div class="kcard-valor" title="Valor con IVA — ${{venta:'tomado de la venta',cot:'tomado de la cotización',orden:'sumado de los precios de las piezas'}[v.fuente]}">${COP(v.total)}</div>`:'';})()}
     <div class="kcard-stages">${dots}<span class="kprog">${pr.done}/${pr.total}</span></div>
@@ -4839,10 +4847,21 @@ function formVenta(r){r=r||{};return `<div class="fgrid">
     <div class="dfiles-hint">Foto o captura del comprobante de transferencia/consignación — queda guardado con la venta para la contadora. No sale en la factura impresa.</div>
   </div>
 </div>`}
+/* color por orden: paleta fija (no un selector libre) para que los colores se
+   distingan entre sí en el tablero y no terminen 12 tonos de azul parecidos */
+const ROP_COLORES=[['','Sin color'],['#dc2626','Rojo'],['#ea580c','Naranja'],['#ca8a04','Amarillo'],['#16a34a','Verde'],
+  ['#0891b2','Turquesa'],['#2563eb','Azul'],['#7c3aed','Morado'],['#db2777','Rosado'],['#57534e','Gris']];
+function ropColor(c){
+  const h=document.getElementById('f_color');if(h)h.value=c;
+  document.querySelectorAll('#ropColores .rop-col').forEach(b=>b.classList.toggle('on',(b.style.getPropertyValue('--c')||'').trim()===c));
+}
 function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option value="${c.id}" ${String(r.cotId)===String(c.id)?'selected':''}>${esc(c.numero)} · ${esc(c.cliente)}</option>`).join('');return `<div class="fgrid">
   <div class="field"><label>N° ROP</label><input id="f_rop" value="${esc(r.rop)||nextRop()}"></div>
   <div class="field"><label>Estado</label><select id="f_estado">${opts(ROP_ESTADOS,r.estado||'Sin procesar')}</select></div>
   <div class="field full"><label>Cliente</label><input id="f_cliente" value="${esc(r.cliente)}" oninput="ropDuenoAuto()"></div>
+  <div class="field full"><label>Subtítulo del proyecto (opcional)</label><input id="f_subtitulo" value="${esc(r.subtitulo)}" placeholder="Ej. Puertas Torre 3 · Mesas IRENE" maxlength="60"></div>
+  <div class="field full"><label>Color para identificarla</label><input type="hidden" id="f_color" value="${esc(r.color||'')}">
+    <div class="rop-colores" id="ropColores">${ROP_COLORES.map(([c,n])=>`<button type="button" class="rop-col${(r.color||'')===c?' on':''}" style="${c?'--c:'+c:''}" title="${n}" onclick="ropColor('${c}')">${c?'':'—'}</button>`).join('')}</div></div>
   <div class="field"><label>Cotización vinculada (trazabilidad)</label><select id="f_cotId" onchange="ropCotPick()"><option value="">— ninguna —</option>${cotOpts}</select></div>
   <div class="field"><label>Aprobación (COT DB / OC)</label><input id="f_aprobacion" value="${esc(r.aprobacion)}" placeholder="COT 1xxx / OC"></div>
   <div class="field"><label>Suministro material</label><select id="f_suministro">${opts(['Cliente','Doblaser'],r.suministro||'Cliente')}</select></div>
@@ -5378,13 +5397,11 @@ function renderRopMat(){
   if(!ropConsumo.length){c.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin material agregado. Pulsa “+ Material usado” para descontar láminas del inventario al guardar.</div>';return;}
   const matOpts=sel=>{const lista=MAT_INV.slice();if(sel&&!lista.includes(sel))lista.push(sel);return lista.map(m=>`<option ${sel===m?'selected':''}>${esc(m)}</option>`).join('');};
   c.innerHTML=ropConsumo.map((r,i)=>{
-    const detalle=[(r.largo||r.ancho)?`${r.largo||'—'}×${r.ancho||'—'} mm`:'',r.ubicacion||'',r.clase==='retal'?'retal':''].filter(Boolean).join(' · ');
-    const disp=rmDisponible(r);
     return `<div class="rm-row"><select onchange="rmEdit(${i},'material',this.value)">${matOpts(r.material)}</select>`
       +`<input list="calListRop" value="${esc(r.calibre)}" placeholder="Calibre" onchange="rmEdit(${i},'calibre',this.value)">`
-      +`<input type="number" min="0" value="${r.cant||''}" placeholder="Cant." onchange="rmEdit(${i},'cant',this.value)">`
+      +`<input type="number" min="0" value="${r.cant||''}" placeholder="Cant." oninput="rmCant(${i},this.value)">`
       +`<button type="button" class="ic-btn del" title="Quitar" onclick="rmDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
-      +(detalle||disp!=null?`<div class="rm-det">${esc(detalle)}${disp!=null?` <span class="${(+r.cant||0)>disp?'rm-falta':'rm-hay'}">disponible: ${disp}</span>`:''}</div>`:'')
+      +`<div class="rm-det" id="rmDet_${i}">${rmDetHTML(i)}</div>`
       +`</div>`;
   }).join('')+`<datalist id="calListRop">${CAL_INV.map(c=>`<option value="${c}">`).join('')}</datalist>`;
 }
@@ -5397,6 +5414,41 @@ function rmDisponible(r){
     &&(!r.largo||x.largo===+r.largo)&&(!r.ancho||x.ancho===+r.ancho)
     &&(!r.ubicacion||x.ubicacion===r.ubicacion));
   return s?s.cant:null;
+}
+/* Cuánto quedaría de esa referencia después de esta orden, en vivo.
+   Ojo al editar una orden ya guardada: el inventario YA tiene descontado lo
+   que esta orden consumía antes (movimientos automáticos con su ropId), así
+   que eso se devuelve primero — si no, subir de 300 a 320 mostraría que quedan
+   300 menos de los reales. Y si dos filas de la orden piden la misma lámina,
+   se restan juntas. */
+const rmMismaRef=(a,b)=>a.material===b.material&&(a.calibre||'')===(b.calibre||'')
+  &&(+a.largo||0)===(+b.largo||0)&&(+a.ancho||0)===(+b.ancho||0)&&(a.ubicacion||'')===(b.ubicacion||'');
+function rmQueda(i){
+  const r=ropConsumo[i];if(!r||!r.material)return null;
+  const disp=rmDisponible(r);
+  const dueno=(document.getElementById('f_consumoDueno')||{}).value||DUENO_GEN;
+  const propio=editing&&editing.id?(CACHE.inventario||[]).filter(m=>m.auto&&m.tipo==='salida'
+    &&String(m.ropId)===String(editing.id)&&(m.dueno||DUENO_GEN)===dueno&&rmMismaRef(m,r))
+    .reduce((a,m)=>a+(+m.cantidad||0),0):0;
+  if(disp==null&&!propio)return null;
+  const pedido=ropConsumo.filter(o=>rmMismaRef(o,r)).reduce((a,o)=>a+(+o.cant||0),0);
+  const hay=(disp||0)+propio;
+  return{hay,pedido,queda:hay-pedido};
+}
+function rmDetHTML(i){
+  const r=ropConsumo[i];if(!r)return '';
+  const detalle=[(r.largo||r.ancho)?`${r.largo||'—'}×${r.ancho||'—'} mm`:'',r.ubicacion||'',r.clase==='retal'?'retal':''].filter(Boolean).join(' · ');
+  const q=rmQueda(i);
+  const stock=q?` <span class="${q.queda<0?'rm-falta':'rm-hay'}">hay ${q.hay} · quedarían <b>${q.queda}</b>${q.queda<0?' — faltan '+(-q.queda):''}</span>`
+    :(r.material?' <span class="muted">sin registro en inventario para esta referencia</span>':'');
+  return esc(detalle)+stock;
+}
+/* la cantidad actualiza solo los textos de stock, sin repintar las filas:
+   repintar le quitaba el foco al campo en cada tecla */
+function rmCant(i,v){
+  if(!ropConsumo[i])return;
+  ropConsumo[i].cant=+v||0;
+  ropConsumo.forEach((_,j)=>{const d=document.getElementById('rmDet_'+j);if(d)d.innerHTML=rmDetHTML(j);});
 }
 function rmAdd(){ropConsumo.push({material:MAT_INV[0],calibre:'',cant:0});renderRopMat();}
 
@@ -5737,7 +5789,7 @@ async function saveForm(){
       alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
       return;
     }
-    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
+    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
