@@ -2623,6 +2623,48 @@ async function archivarRopManual(id,val){
     pedirConfirmacion('¿Devolver esta orden al ROP activo?',(r.rop||'')+' — '+(r.cliente||''),hacer,'Devolver');
   }
 }
+/* REGLA DEL NEGOCIO: todo lo que entra al ROP es una venta. Al guardar una
+   orden se crea su venta sola — también maquila (ALGAMAR, DEFENDER) y órdenes
+   sin cotización. Antes esas dependían de pulsar el botón $ y se olvidaban
+   (ROP-2612, $9,6 M). Si la venta ya existe y sigue en $0 porque la orden no
+   tenía precios, se le pasan las piezas con precio cuando aparecen; lo que
+   ya tenga valor en Ventas no se toca (puede haberse ajustado a mano). */
+function ropVentaDatos(r){
+  const cotR=ropCotOf(r);
+  const MAP={'Corte':'Corte láser','Marcado':'Corte láser','Doblez':'Doblez','Soldadura':'Soldadura','Pintura':'Pintura','Terceros':'Terceros'};
+  const servicios=[...new Set(ropStages(r).filter(p=>p!=='Entrega').map(p=>MAP[p]).filter(Boolean))];
+  if(r.suministro==='Doblaser')servicios.push('Material');
+  if(!servicios.length)servicios.push('Corte láser');
+  const pcR={};
+  if(cotR)(cotR.items||[]).forEach(it=>{const k=(it.desc||'').trim().toLowerCase();if(k&&+it.vu>0)pcR[k]=+it.vu||0;});
+  const piezasFactura=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0)
+    .map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:(+p.precio||0)||pcR[(p.desc||'').trim().toLowerCase()]||0}));
+  let valor=piezasFactura.reduce((a,p)=>a+(+p.cant||0)*(+p.precio||0),0);
+  if(!(valor>0)&&cotR)valor=cotTotal(cotR).sub||0;
+  const desc=['Orden '+(r.rop||'')];
+  if((r.subtitulo||'').trim())desc.push(r.subtitulo.trim());
+  if((r.observaciones||'').trim())desc.push(r.observaciones.trim());
+  return{fecha:r.ingreso||today(),servicios,servicio:servicios[0],cliente:r.cliente||'',descripcion:desc.join(' — '),
+    valor,cotizacion:cotR?cotR.numero:'',ordenCompra:r.aprobacion||'',asesor:r.asesor||'Daniel',piezasFactura};
+}
+async function syncRopVenta(r){
+  try{
+    if(!r||!r.id||isLocalId(r.id))return;
+    CACHE.rop=await getAll('rop');
+    const v=ropVentaDe(r);
+    const d=ropVentaDatos(r);
+    if(!v){
+      const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—';
+      const ok=await saveRow('ventas',{id:uid(),...d,ropId:r.id,abonado:0,createdBy:_un,createdAt:_now,updatedBy:_un,updatedAt:_now});
+      if(ok!==false){CACHE.ventas=await getAll('ventas');toast('Venta registrada para '+(r.rop||'la orden'));}
+      return;
+    }
+    const cambios={};
+    if(!v.ropId||String(v.ropId)!==String(r.id))cambios.ropId=r.id;
+    if(!(+v.valor>0)&&d.valor>0){cambios.valor=d.valor;cambios.piezasFactura=d.piezasFactura;}
+    if(Object.keys(cambios).length){await saveRow('ventas',{...v,...cambios});CACHE.ventas=await getAll('ventas');}
+  }catch(e){toast('La orden se guardó, pero no se pudo registrar la venta: '+(e&&e.message||e));}
+}
 function createVentaFromRop(id){
   const r=CACHE.rop.find(x=>x.id===id);if(!r){toast('Orden no encontrada');return}
   const existente=ropVentaDe(r);
@@ -5822,6 +5864,7 @@ async function saveForm(){
   row.updatedBy=_un;row.updatedAt=_now;
   const ok=await saveRow(t,row);if(ok===false)return;
   if(t==='rop')await syncRopInventory(row);
+  if(t==='rop')await syncRopVenta(row);
   closeModal();if(t==='cotizaciones')clearCotDraft();CACHE[t]=await getAll(t);if(t==='rop')CACHE.inventario=await getAll('inventario');render();toast(id?'Cambios guardados':'Registro creado');
 }
 
