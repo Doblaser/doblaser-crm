@@ -1949,10 +1949,28 @@ function factPorFacturarHTML(){
     .filter(v=>!s||JSON.stringify(v).toLowerCase().includes(s)||factRef(v).toLowerCase().includes(s))
     .sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
   const total=rows.reduce((a,v)=>a+factTotal(v),0);
-  const sinValor=(CACHE.ventas||[]).filter(v=>!(+v.valor>0)).length;
+  /* Toda orden del ROP es una venta, también la maquila. Las que llegan sin
+     precio (en $0) antes se escondían de aquí y la contadora nunca se enteraba
+     de que existían; ahora salen aparte, para ponerles el valor y facturarlas. */
+  const sinPrecio=(CACHE.ventas||[])
+    .filter(v=>!v.facturada&&!(+v.valor>0))
+    .filter(v=>!s||JSON.stringify(v).toLowerCase().includes(s)||factRef(v).toLowerCase().includes(s))
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const tablaSinPrecio=sinPrecio.length?`<div class="fc-intro" style="margin-top:22px">
+      <b>${sinPrecio.length} ventas sin precio</b> — están registradas pero en $0, casi siempre maquila (material del cliente).
+      Hay que ponerles el valor antes de facturarlas: en la orden, precio a cada pieza; la venta lo toma sola.</div>
+    <table class="fc-tabla"><thead><tr><th>Fecha</th><th>Cliente</th><th>Orden / cotización</th><th class="num">Piezas</th><th></th></tr></thead><tbody>
+    ${sinPrecio.map(v=>{
+      const r=ventaRopDe(v);const pz=Array.isArray(v.piezasFactura)?v.piezasFactura.length:0;
+      return `<tr><td class="nw">${v.fecha?fmtDate(v.fecha):'—'}</td>
+        <td><b>${esc(v.cliente)||'—'}</b>${v.descripcion?`<div class="fc-sub">${esc(v.descripcion).slice(0,58)}</div>`:''}</td>
+        <td><span class="code">${esc(r?r.rop:factRef(v))}</span></td>
+        <td class="num tnum">${pz||'—'}</td>
+        <td>${r?`<button class="btn ghost sm" onclick="openForm('rop','${r.id}')">Poner precios</button>`:`<button class="btn ghost sm" onclick="openForm('ventas','${v.id}')">Poner valor</button>`}</td></tr>`;}).join('')}
+    </tbody></table>`:'';
   return `<div class="fc-intro">
       <b>${rows.length} ventas por facturar</b> · ${COP(total)} con IVA. Las más viejas primero.
-      ${sinValor?`<br><span class="fc-nota">Hay ${sinValor} ventas en $0 (material del cliente) que no aparecen aquí porque no hay nada que facturar.</span>`:''}
+      ${sinPrecio.length?`<br><span class="fc-nota">Abajo hay ${sinPrecio.length} ventas más que todavía no tienen precio.</span>`:''}
     </div>
     ${rows.length?`<table class="fc-tabla"><thead><tr>
       <th>Fecha</th><th>Cliente</th><th>Orden / cotización</th><th class="num">Total con IVA</th><th>Días</th><th></th>
@@ -1967,7 +1985,7 @@ function factPorFacturarHTML(){
         <td class="nw ${viejo?'fc-viejo':''}">${d==null?'—':d+'d'}</td>
         <td><button class="btn sm" onclick="factAbrir('${v.id}')">Facturar</button></td>
       </tr>`;}).join('')}</tbody></table>`
-    :'<div class="fc-vacio">No hay nada pendiente por facturar.</div>'}`;
+    :'<div class="fc-vacio">No hay nada con precio pendiente por facturar.</div>'}${tablaSinPrecio}`;
 }
 
 /* ---- 2. cartera ---- */
@@ -2063,7 +2081,7 @@ function factExportar(){
 
 function renderFacturacion(){
   if(!esContable())return '<div class="fc-vacio">Este apartado es de facturación.</div>';
-  const pend=(CACHE.ventas||[]).filter(v=>!v.facturada&&(+v.valor||0)>0).length;
+  const pend=(CACHE.ventas||[]).filter(v=>!v.facturada).length;
   const deben=(CACHE.ventas||[]).filter(v=>(+v.valor||0)>0&&factSaldo(v)>1000);
   const tabs=[['porfacturar','Por facturar'+(pend?' ('+pend+')':'')],
               ['cartera','Cartera'],['resumen','Resumen mensual']];
