@@ -319,6 +319,7 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .kcard.late{border-left:3px solid #dc2626}
 .kcard.con-color{border-left:5px solid var(--rc);background:color-mix(in srgb,var(--rc) 11%,var(--card,#fff));border-color:color-mix(in srgb,var(--rc) 30%,transparent)}
 .rop-sub{font-size:12px;color:var(--ink-3);font-weight:600;line-height:1.3;margin:-1px 0 3px}
+.sin-venta{display:inline-block;margin-left:5px;padding:2px 7px;border-radius:999px;background:#fee2e2;color:#b91c1c;font-size:10.5px;font-weight:700;white-space:nowrap}
 .rop-sub-top{font-size:17px;font-weight:800;line-height:1.2;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink,#1a1a1a)}
 .kcard.con-color .rop-sub-top{color:color-mix(in srgb,var(--rc) 80%,#000)}
 tr.rop-tr-color>td{background:color-mix(in srgb,var(--rc) 10%,transparent)}
@@ -2122,11 +2123,11 @@ function devEnlaces(){
   const rop=CACHE.rop||[],ven=CACHE.ventas||[];
   const ids=new Set(rop.map(r=>String(r.id)));
   const rotas=ven.filter(v=>v.ropId&&!ids.has(String(v.ropId)));
-  /* Órdenes entregadas que vienen de una cotización y no tienen venta.
-     Se exige cotId, no basta 'aprobacion': las de maquila (ALGAMAR, DEFENDER,
-     material del cliente) llevan ahí una OC suelta y no generan venta sola a
-     propósito — meterlas aquí serían 72 avisos falsos y nadie volvería a mirar. */
-  const sinVenta=rop.filter(r=>r.estado==='Entregado'&&r.cotId&&!ropVentaDe(r));
+  /* Órdenes entregadas, todavía en el ROP activo, sin venta. Incluye las de
+     maquila (ALGAMAR, DEFENDER): esas no generan venta sola y era justo por
+     donde se escapaban (ROP-2612, $9,6 millones). Las archivadas no cuentan:
+     son históricas de antes de que Ventas llevara el vínculo con la orden. */
+  const sinVenta=rop.filter(ropSinVenta);
   return{rotas,sinVenta};
 }
 function devEnlacesHTML(){
@@ -2134,10 +2135,10 @@ function devEnlacesHTML(){
   const ok=!rotas.length&&!sinVenta.length;
   return `<div class="dv-card">
     <div class="dv-ch"><b>Enlaces entre órdenes y ventas</b><span>${(CACHE.ventas||[]).length} ventas · ${(CACHE.rop||[]).length} órdenes</span></div>
-    ${ok?'<div class="dv-ok">Todas las ventas apuntan a una orden que existe, y toda orden entregada con cotización tiene su venta.</div>':''}
+    ${ok?'<div class="dv-ok">Todas las ventas apuntan a una orden que existe, y toda orden entregada tiene su venta.</div>':''}
     ${rotas.length?`<div class="dv-lbl dv-mal">Ventas que apuntan a una orden que no existe (${rotas.length})</div>
       <div class="dv-chips">${rotas.slice(0,20).map(v=>`<span class="dv-chip mal">venta ${v.id} · ${esc(v.cotizacion||v.cliente||'')} <i>${esc(String(v.ropId))}</i></span>`).join('')}</div>`:''}
-    ${sinVenta.length?`<div class="dv-lbl dv-tibio">Órdenes entregadas con cotización pero sin venta (${sinVenta.length})</div>
+    ${sinVenta.length?`<div class="dv-lbl dv-tibio">Órdenes entregadas que no están en Ventas (${sinVenta.length})</div>
       <div class="dv-chips">${sinVenta.slice(0,20).map(r=>`<span class="dv-chip tibio">${esc(r.rop||'')} <i>${esc((r.cliente||'').slice(0,18))}</i></span>`).join('')}</div>
       <div class="dv-intro" style="margin:8px 0 0">Se mandan a Ventas con el botón del signo de pesos en la fila de la orden.</div>`:''}
   </div>`;
@@ -2464,7 +2465,7 @@ function renderRop(){
 }
 function ropTableHTML(rows,total){
   return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th class="num">Valor</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
-  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr${x.color?` class="rop-tr-color" style="--rc:${esc(x.color)}"`:''}><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}${x.subtitulo?`<div class="rop-sub">${esc(x.subtitulo)}</div>`:''}</td><td class="hide-sm">${cotLinkCell(x)}</td><td class="num tnum">${(()=>{const v=ropValor(x);return v?`${COP(v.total)}<div class="muted" style="font-size:10px">${{venta:'de la venta',cot:'de la cotización',orden:'de las piezas'}[v.fuente]}</div>`:'<span class="muted">—</span>';})()}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span></td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(10)}
+  ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr${x.color?` class="rop-tr-color" style="--rc:${esc(x.color)}"`:''}><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}${x.subtitulo?`<div class="rop-sub">${esc(x.subtitulo)}</div>`:''}</td><td class="hide-sm">${cotLinkCell(x)}</td><td class="num tnum">${(()=>{const v=ropValor(x);return v?`${COP(v.total)}<div class="muted" style="font-size:10px">${{venta:'de la venta',cot:'de la cotización',orden:'de las piezas'}[v.fuente]}</div>`:'<span class="muted">—</span>';})()}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span>${ropSinVenta(x)?'<div><span class="sin-venta" title="Entregada y todavía no está en Ventas — mándala con el botón $">Sin venta</span></div>':''}</td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(10)}
   </tbody></table>`);
 }
 let ropFilterH='Todas';
@@ -2511,7 +2512,7 @@ function ropCard(x){
     ${nov?`<div class="kcard-novedad" title="${esc(nov.texto)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>${esc(nov.texto)}</span></div>`:''}
     <div class="kcard-foot" onclick="event.stopPropagation()">
       ${(x.corteUrl||x.doblezUrl||x.planosUrl)?`<div class="kcard-files">${files}</div>`:'<span></span>'}
-      <span class="pill ${ropClass(x.estado)}" style="font-size:10px"><span class="d"></span>${esc(x.estado)}</span>
+      <span class="pill ${ropClass(x.estado)}" style="font-size:10px"><span class="d"></span>${esc(x.estado)}</span>${ropSinVenta(x)?'<span class="sin-venta" title="Entregada y todavía no está en Ventas — mándala con el botón $">Sin venta</span>':''}
       ${rowActions('rop',x.id)}
     </div>
   </div>`;
@@ -2519,7 +2520,7 @@ function ropCard(x){
 let ropDragId=null;
 function ropDragStart(ev,id){ropDragId=id;if(ev.dataTransfer){ev.dataTransfer.effectAllowed='move';try{ev.dataTransfer.setData('text/plain',id);}catch(e){}}}
 function ropAllowDrop(ev){ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';ev.currentTarget.classList.add('kover');}
-async function ropDrop(ev,estado){ev.preventDefault();ev.currentTarget.classList.remove('kover');const id=ropDragId||(ev.dataTransfer?ev.dataTransfer.getData('text/plain'):null);ropDragId=null;if(!id)return;const r=CACHE.rop.find(x=>x.id===id);if(!r||r.estado===estado)return;const upd={...r,estado};if(ROP_DONE.includes(estado)&&!r.entrega)upd.entrega=today();const ok=await saveRow('rop',upd);if(ok===false)return;CACHE.rop=await getAll('rop');render();toast('Orden '+r.rop+' \u2192 '+estado+(upd.entrega&&!r.entrega?' \u00b7 entrega registrada hoy':''));}
+async function ropDrop(ev,estado){ev.preventDefault();ev.currentTarget.classList.remove('kover');const id=ropDragId||(ev.dataTransfer?ev.dataTransfer.getData('text/plain'):null);ropDragId=null;if(!id)return;const r=CACHE.rop.find(x=>x.id===id);if(!r||r.estado===estado)return;const upd={...r,estado};if(ROP_DONE.includes(estado)&&!r.entrega)upd.entrega=today();const ok=await saveRow('rop',upd);if(ok===false)return;CACHE.rop=await getAll('rop');render();toast('Orden '+r.rop+' \u2192 '+estado+(upd.entrega&&!r.entrega?' \u00b7 entrega registrada hoy':'')+(ropSinVenta(upd)?' \u00b7 OJO: no est\u00e1 en Ventas, m\u00e1ndala con el bot\u00f3n $':''));}
 async function createRopFromCot(id){
   const c=CACHE.cotizaciones.find(x=>x.id===id);if(!c){toast('Cotización no encontrada');return}
   if(CACHE.rop.some(r=>String(r.cotId)===String(c.id))){if(!confirm('Ya existe una orden para esta cotización. ¿Crear otra?'))return;}
@@ -2564,6 +2565,13 @@ async function createRopFromCot(id){
 /* órdenes sin cotización (material del cliente: ALGAMAR, DEFENDER...) no
    generan venta solas — hay que mandarlas a Ventas a mano cuando se
    entregan, porque el valor no sale de ninguna cotización. */
+/* entregada, sin archivar, sin venta y no marcada como sin cobro (reproceso,
+   uso interno de Doblaser): la que se tiene que mandar a Ventas y se olvida */
+function ropSinVenta(r){
+  if(!r||r.estado!=='Entregado'||r.archivadaManual)return false;
+  if(/reproceso|garant|interno/i.test(r.aprobacion||'')||/^doblaser$/i.test((r.cliente||'').trim()))return false;
+  return !ropVentaDe(r);
+}
 function ropVentaDe(r){
   const porId=(CACHE.ventas||[]).find(v=>v.ropId&&String(v.ropId)===String(r.id));
   if(porId)return porId;
