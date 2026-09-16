@@ -3243,6 +3243,8 @@ function cotDel(i){
    Inventario de material (stock derivado de movimientos)
    ========================================================= */
 function invKey(m){const d=m.dueno||DUENO_GEN,clase=m.clase||'lamina',mat=(m.material||'').trim(),cal=(m.calibre||'').trim();
+  /* tubería: el mismo material y calibre en 1" y en 2x1" son cosas distintas */
+  if(clase==='tubo')return [d,clase,mat,cal,(m.perfil||'').trim(),(m.medida||'').trim(),+m.largo||0,ubicOf(m)].join('|');
   /* el burro entra en la clave: la misma lámina puede estar en dos burros
      distintos y hay que poder ir a buscarla, como en el formato en Excel */
   if(d===DUENO_GEN)return [d,clase,mat,cal,+m.largo||0,+m.ancho||0,ubicOf(m)].join('|');
@@ -3251,13 +3253,17 @@ function invStock(){
   const map={};
   (CACHE.inventario||[]).forEach(m=>{
     const k=invKey(m);
-    if(!map[k])map[k]={dueno:m.dueno||DUENO_GEN,clase:m.clase||'lamina',material:m.material||'',calibre:m.calibre||'',largo:+m.largo||0,ancho:+m.ancho||0,ubicacion:ubicOf(m),cant:0,ult:null};
+    if(!map[k])map[k]={dueno:m.dueno||DUENO_GEN,clase:m.clase||'lamina',material:m.material||'',calibre:m.calibre||'',largo:+m.largo||0,ancho:+m.ancho||0,perfil:m.perfil||'',medida:m.medida||'',ubicacion:ubicOf(m),cant:0,ult:null};
     map[k].cant += ((m.tipo==='salida'||m.tipo==='novedad')?-1:1)*(+m.cantidad||0);
     if(!map[k].ult||(m.fecha||'')>=(map[k].ult.fecha||''))map[k].ult=m;
   });
   return Object.values(map).filter(s=>Math.abs(s.cant)>0.0001);
 }
-function invDims(s){return (s.largo||s.ancho)?`${s.largo||'—'} × ${s.ancho||'—'} mm`:'—';}
+const TUBO_PERFILES=['Redonda','Cuadrada','Rectangular'];
+const TUBO_MEDIDAS=['1/2"','3/4"','1"','1 1/4"','1 1/2"','2"','3"','4"','3/4x3/4"','1x1"','1 1/2x1 1/2"','2x2"','3x3"','4x4"','2x1"','3x1"','3x1 1/2"','4x2"','6x3"'];
+function invDims(s){
+  if(s.clase==='tubo')return [s.perfil,s.medida].filter(Boolean).join(' ')+(s.largo?` · ${s.largo} mm`:'')||'—';
+  return (s.largo||s.ancho)?`${s.largo||'—'} × ${s.ancho||'—'} mm`:'—';}
 /* Igual que el formato en Excel: una sección por tipo de material,
    con el calibre, la medida, la cantidad y en qué burro está. */
 function invStockTable(clase,dueno){
@@ -3265,7 +3271,7 @@ function invStockTable(clase,dueno){
   if(dueno&&dueno!=='Todos')rows=rows.filter(s=>s.dueno===dueno);
   if(invBurro!=='Todos')rows=rows.filter(s=>s.ubicacion===invBurro);
   if(invMat!=='Todos')rows=rows.filter(s=>s.material===invMat);
-  if(!rows.length)return `<div class="lp-note">Sin ${clase==='lamina'?'láminas':'retales'}${invMat!=='Todos'?' de '+esc(invMat.replace(/\s*\(.*\)/,'')):''}${invBurro!=='Todos'?' en '+esc(invBurro):''}.</div>`;
+  if(!rows.length)return `<div class="lp-note">Sin ${clase==='lamina'?'láminas':(clase==='tubo'?'tubería':'retales')}${invMat!=='Todos'?' de '+esc(invMat.replace(/\s*\(.*\)/,'')):''}${invBurro!=='Todos'?' en '+esc(invBurro):''}.</div>`;
   rows.sort((a,b)=>ordenMat(a.material)-ordenMat(b.material)
     ||a.material.localeCompare(b.material)
     ||String(a.calibre).localeCompare(String(b.calibre),'es',{numeric:true})
@@ -3370,7 +3376,7 @@ function renderInventario(){
     const ent=m.tipo==='entrada';const sign=ent?'+':'−';
     return `<tr><td class="muted">${m.fecha?fmtDate(m.fecha):'—'}</td>
       <td>${tipoPill(m)}</td>
-      <td><strong>${esc(m.material)}</strong> <span class="muted">${esc(m.calibre)||''}</span>${(m.largo||m.ancho)?`<div class="muted" style="font-size:11.5px">${m.largo||'—'}×${m.ancho||'—'} mm</div>`:''}</td>
+      <td>${m.clase==='tubo'?'<span class="tag" style="font-size:10px">tubería</span> ':''}<strong>${esc(m.material)}</strong> <span class="muted">${esc(m.calibre)||''}</span>${(m.clase==='tubo'||m.largo||m.ancho)?`<div class="muted" style="font-size:11.5px">${esc(invDims(m))}</div>`:''}</td>
       <td class="c tnum">${sign}${+m.cantidad||0}</td>
       <td>${invDueno==='Todos'?`<span class="tag ${(m.dueno&&m.dueno!==DUENO_GEN)?'dobl':'mat'}">${esc(m.dueno&&m.dueno!==DUENO_GEN?m.dueno:'General')}</span> `:''}${esc(m.cliente)||(m.rop?'<span class="muted">ROP '+esc(m.rop)+'</span>':'<span class="muted">—</span>')}${m.auto?' <span class="muted" style="font-size:10px">(auto ROP)</span>':''}${m.notas?`<div class="muted" style="font-size:11px">${esc(m.notas)}</div>`:''}</td>
       <td class="num tnum">${m.costo?COP(m.costo):'—'}</td>
@@ -3381,11 +3387,22 @@ function renderInventario(){
     : `<div class="grid2">
         <div class="panel"><div class="panel-h"><h3>Stock de láminas</h3></div><div class="tbl-wrap">${invStockTable('lamina',invDueno)}</div></div>
         <div class="panel"><div class="panel-h"><h3>Stock de retales</h3></div><div class="tbl-wrap">${invStockTable('retal',invDueno)}</div></div>
-      </div>`;
+      </div>
+      <div class="panel"><div class="panel-h"><h3>Stock de tubería</h3></div><div class="tbl-wrap">${invStockTable('tubo',invDueno)}</div></div>`;
   const novPanel=novList.length?`<div class="panel"><div class="panel-h"><h3>Novedades — material defectuoso o perdido</h3></div><div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Material</th><th class="c">Cant.</th>${invDueno==='Todos'?'<th>Dueño</th>':''}<th>Observación</th></tr></thead><tbody>${novList.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(m=>`<tr><td class="muted">${fmtDate(m.fecha)}</td><td><strong>${esc(m.material)}</strong> <span class="muted">${esc(m.calibre)||''}</span></td><td class="c tnum inv-neg">−${+m.cantidad||0}</td>${invDueno==='Todos'?`<td>${esc(m.dueno&&m.dueno!==DUENO_GEN?m.dueno:'General')}</td>`:''}<td>${esc(m.notas)||'<span class="muted">Sin detalle</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:'';
   return invChips()+kpis+stockPanels+novPanel+
     panel('Movimientos de material',`${mov.length} registros${invDueno!=='Todos'?' · '+esc(invDueno):''} · lo más reciente primero`,
       `<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th class="c">Cant.</th><th>Cliente / proyecto</th><th class="num">Costo</th><th></th></tr></thead><tbody>${movRows}</tbody></table>`);
+}
+/* tubería: se piden perfil y medida, no el ancho; el largo por defecto es el
+   tubo entero de 6 m que se compra */
+function invClaseChange(){
+  const t=(document.getElementById('f_clase')||{}).value==='tubo';
+  document.querySelectorAll('.inv-tubo').forEach(e=>e.style.display=t?'':'none');
+  document.querySelectorAll('.inv-lamina').forEach(e=>e.style.display=t?'none':'');
+  const cl=document.getElementById('f_cantidadLbl');if(cl)cl.textContent=t?'Cantidad (tubos)':'Cantidad (piezas)';
+  const ll=document.getElementById('f_largoLbl');if(ll)ll.textContent=t?'Largo del tubo (mm)':'Largo (mm) — opcional';
+  const la=document.getElementById('f_largo');if(la){la.placeholder=t?'Ej. 6000':'Ej. 2440';if(t&&!la.value)la.value=6000;}
 }
 function formInventario(r){
   r=r||{};
@@ -3400,12 +3417,14 @@ function formInventario(r){
     <div class="field"><label>Tipo de movimiento</label><select id="f_tipo"><option value="entrada" ${tv==='entrada'?'selected':''}>Entrada — llega o sobra material</option><option value="salida" ${tv==='salida'?'selected':''}>Salida — se consume</option><option value="novedad" ${tv==='novedad'?'selected':''}>Novedad — defectuoso o perdido</option></select></div>
     <div class="field"><label>Dueño del material</label><select id="f_dueno" onchange="if(this.value==='__nuevoCliente__')agregarClienteDesdeSelect(this);">${duenoOpts}</select></div>
     <div class="inv-hint full"><strong>Entrada</strong>: llega lámina (compra de Doblaser o material que trae el cliente) o sobra un retal. <strong>Salida</strong>: se consume en un proyecto. <strong>Novedad</strong>: lámina dañada o perdida (descuenta del stock y queda registrada con la observación). Para material de un cliente, elige su nombre en <strong>Dueño</strong>.</div>
-    <div class="field"><label>Clase</label><select id="f_clase">${opts(['lamina','retal'],r.clase||'lamina')}</select></div>
+    <div class="field"><label>Clase</label><select id="f_clase" onchange="invClaseChange()">${[['lamina','Lámina'],['retal','Retal'],['tubo','Tubería']].map(([v,t])=>`<option value="${v}" ${(r.clase||'lamina')===v?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="field"><label>Material</label><select id="f_material">${matOpts}</select></div>
+    <div class="field inv-tubo" style="${r.clase==='tubo'?'':'display:none'}"><label>Perfil del tubo</label><select id="f_perfil">${TUBO_PERFILES.map(p=>`<option ${(r.perfil||'Cuadrada')===p?'selected':''}>${p}</option>`).join('')}</select></div>
+    <div class="field inv-tubo" style="${r.clase==='tubo'?'':'display:none'}"><label>Medida del tubo</label><input id="f_medida" list="tuboMedList" value="${esc(r.medida)}" placeholder='Ej. 1" · 2x1" · 1 1/2x1 1/2"'><datalist id="tuboMedList">${TUBO_MEDIDAS.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></div>
     <div class="field"><label>Calibre</label><input id="f_calibre" list="calList" value="${esc(r.calibre)}" placeholder="Ej. Cal 16 / 1/4&quot;"><datalist id="calList">${calList}</datalist></div>
-    <div class="field"><label>Cantidad (piezas)</label><input type="number" id="f_cantidad" value="${r.cantidad||''}" placeholder="Ej. 5"></div>
-    <div class="field"><label>Largo (mm) — opcional</label><input type="number" id="f_largo" value="${r.largo||''}" placeholder="Ej. 2440"></div>
-    <div class="field"><label>Ancho (mm) — opcional</label><input type="number" id="f_ancho" value="${r.ancho||''}" placeholder="Ej. 1220"></div>
+    <div class="field"><label id="f_cantidadLbl">${r.clase==='tubo'?'Cantidad (tubos)':'Cantidad (piezas)'}</label><input type="number" id="f_cantidad" value="${r.cantidad||''}" placeholder="Ej. 5"></div>
+    <div class="field"><label id="f_largoLbl">${r.clase==='tubo'?'Largo del tubo (mm)':'Largo (mm) — opcional'}</label><input type="number" id="f_largo" value="${r.largo||(r.clase==='tubo'?6000:'')}" placeholder="${r.clase==='tubo'?'Ej. 6000':'Ej. 2440'}"></div>
+    <div class="field inv-lamina" style="${r.clase==='tubo'?'display:none':''}"><label>Ancho (mm) — opcional</label><input type="number" id="f_ancho" value="${r.ancho||''}" placeholder="Ej. 1220"></div>
     <div class="field"><label>Cliente / proyecto (trazabilidad)</label><input id="f_cliente" value="${esc(r.cliente)}" placeholder="Para qué proyecto entró o se usó"></div>
     <div class="field"><label>ROP vinculada (opcional)</label><select id="f_rop"><option value="">— ninguna —</option>${ropOpts}</select></div>
     <div class="field"><label>Proveedor (en entradas)</label><input id="f_proveedor" value="${esc(r.proveedor)}" placeholder="Quién vendió el material"></div>
@@ -3764,7 +3783,7 @@ function openForm(t,id){
     cotItems=row&&row.items&&row.items.length?row.items.map(it=>{const procs=Array.isArray(it.procs)?it.procs:(it.proc&&it.proc!=='Mixto'?it.proc.split(' + ').map(s=>s.trim()).filter(Boolean):[]);return{proc:procs.join(' + '),procs,desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:false,_procManual:procs.length>0,calc:Object.assign(blankCalc(),it.calc||{}),subpiezas:hidratarSubpiezas(it)};}):[blankItem()];renderCotItems();
     if(!id){const bh=draftBannerHTML();if(bh){const mb=document.getElementById('mBody');mb.insertAdjacentHTML('afterbegin',bh);}}}
   if(t==='rop'){
-    ropConsumo=(row&&Array.isArray(row.consumo))?row.consumo.map(c=>({material:c.material||MAT_INV[0],calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0})):[];
+    ropConsumo=(row&&Array.isArray(row.consumo))?row.consumo.map(c=>({material:c.material||MAT_INV[0],calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0})):[];
     ropPiezas=(row&&Array.isArray(row.piezas))?row.piezas.map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:+p.precio||0})):[];
     ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null})):[];
     ropAvanceVal=Object.assign({},ropAvance(row||{}));
@@ -5483,7 +5502,8 @@ function rmDisponible(r){
   const s=invStock().find(x=>x.dueno===dueno&&x.material===r.material
     &&(x.calibre||'')===(r.calibre||'')
     &&(!r.largo||x.largo===+r.largo)&&(!r.ancho||x.ancho===+r.ancho)
-    &&(!r.ubicacion||x.ubicacion===r.ubicacion));
+    &&(!r.ubicacion||x.ubicacion===r.ubicacion)
+    &&(!r.medida||x.medida===r.medida)&&(!r.perfil||x.perfil===r.perfil));
   return s?s.cant:null;
 }
 /* Cuánto quedaría de esa referencia después de esta orden, en vivo.
@@ -5493,7 +5513,8 @@ function rmDisponible(r){
    300 menos de los reales. Y si dos filas de la orden piden la misma lámina,
    se restan juntas. */
 const rmMismaRef=(a,b)=>a.material===b.material&&(a.calibre||'')===(b.calibre||'')
-  &&(+a.largo||0)===(+b.largo||0)&&(+a.ancho||0)===(+b.ancho||0)&&(a.ubicacion||'')===(b.ubicacion||'');
+  &&(+a.largo||0)===(+b.largo||0)&&(+a.ancho||0)===(+b.ancho||0)&&(a.ubicacion||'')===(b.ubicacion||'')
+  &&(a.perfil||'')===(b.perfil||'')&&(a.medida||'')===(b.medida||'');
 function rmQueda(i){
   const r=ropConsumo[i];if(!r||!r.material)return null;
   const disp=rmDisponible(r);
@@ -5508,7 +5529,7 @@ function rmQueda(i){
 }
 function rmDetHTML(i){
   const r=ropConsumo[i];if(!r)return '';
-  const detalle=[(r.largo||r.ancho)?`${r.largo||'—'}×${r.ancho||'—'} mm`:'',r.ubicacion||'',r.clase==='retal'?'retal':''].filter(Boolean).join(' · ');
+  const detalle=[r.clase==='tubo'?'tubería '+invDims(r):((r.largo||r.ancho)?`${r.largo||'—'}×${r.ancho||'—'} mm`:''),r.ubicacion||'',r.clase==='retal'?'retal':''].filter(Boolean).join(' · ');
   const q=rmQueda(i);
   const stock=q?` <span class="${q.queda<0?'rm-falta':'rm-hay'}">hay ${q.hay} · quedarían <b>${q.queda}</b>${q.queda<0?' — faltan '+(-q.queda):''}</span>`
     :(r.material?' <span class="muted">sin registro en inventario para esta referencia</span>':'');
@@ -5584,7 +5605,7 @@ function rmPintarLista(){
   if(!st.length){box.innerHTML='<div class="pick-vacio">Nada en el inventario de este dueño con esa búsqueda.</div>';return}
   box.innerHTML=st.map((s,i)=>`<button type="button" class="pick-it" onclick="rmElegir(${i})">
       <div class="pick-t"><span class="tag mat">${esc(s.material)}</span> <b>${esc(s.calibre)||'—'}</b>
-        ${s.clase==='retal'?'<span class="tag" style="font-size:10px">retal</span>':''}</div>
+        ${s.clase==='retal'?'<span class="tag" style="font-size:10px">retal</span>':''}${s.clase==='tubo'?'<span class="tag" style="font-size:10px">tubería</span>':''}</div>
       <div class="pick-s">${invDims(s)} · ${s.ubicacion===SIN_UBIC?'sin ubicar':esc(s.ubicacion)}</div>
       <div class="pick-n">${s.cant}</div></button>`).join('');
   c._lista=st;
@@ -5593,11 +5614,10 @@ function rmElegir(i){
   const c=document.getElementById('pickLayer');
   const s=(c&&c._lista||[])[i];if(!s)return;
   /* si ya está en la lista, se le suma uno en vez de duplicar la fila */
-  const ya=ropConsumo.findIndex(r=>r.material===s.material&&(r.calibre||'')===(s.calibre||'')
-    &&(+r.largo||0)===s.largo&&(+r.ancho||0)===s.ancho&&(r.ubicacion||'')===s.ubicacion);
+  const ya=ropConsumo.findIndex(r=>rmMismaRef(r,s));
   if(ya>=0){ropConsumo[ya].cant=(+ropConsumo[ya].cant||0)+1;}
   else{ropConsumo.push({material:s.material,calibre:s.calibre,clase:s.clase,
-    largo:s.largo,ancho:s.ancho,ubicacion:s.ubicacion,cant:1});}
+    largo:s.largo,ancho:s.ancho,perfil:s.perfil||'',medida:s.medida||'',ubicacion:s.ubicacion,cant:1});}
   renderRopMat();cerrarPicker();
   toast('Agregado: '+s.material+' '+(s.calibre||''));
 }
@@ -5636,7 +5656,7 @@ async function syncRopInventory(row){
     for(const m of prev)await deleteRow('inventario',m.id);
     for(const c of (row.consumo||[])){
       if(!c.material||!(+c.cant>0))continue;
-      await saveRow('inventario',{id:uid(),tipo:'salida',clase:c.clase||'lamina',dueno:row.consumoDueno||DUENO_GEN,material:c.material,calibre:c.calibre||'',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cantidad:+c.cant||0,cliente:row.cliente||'',rop:row.rop||'',ropId:row.id,fecha:row.ingreso||today(),auto:true,notas:'Consumo automático · ROP '+(row.rop||'')});
+      await saveRow('inventario',{id:uid(),tipo:'salida',clase:c.clase||'lamina',dueno:row.consumoDueno||DUENO_GEN,material:c.material,calibre:c.calibre||'',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cantidad:+c.cant||0,cliente:row.cliente||'',rop:row.rop||'',ropId:row.id,fecha:row.ingreso||today(),auto:true,notas:'Consumo automático · ROP '+(row.rop||'')});
     }
     CACHE.inventario=await getAll('inventario');
   }catch(e){}
@@ -5860,7 +5880,7 @@ async function saveForm(){
       alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
       return;
     }
-    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
+    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
@@ -5875,7 +5895,7 @@ async function saveForm(){
       row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
     }else{
     row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
-  else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:numv('f_ancho'),cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
+  else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:val('f_clase')==='tubo'?0:numv('f_ancho'),perfil:val('f_clase')==='tubo'?val('f_perfil'):'',medida:val('f_clase')==='tubo'?val('f_medida'):'',cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
   else if(t==='piezascli'){if(!val('f_pzcCliente')){toast('Indica el cliente');return}if(!val('f_pzcPieza')){toast('Indica la pieza');return}row={...row,cliente:val('f_pzcCliente'),pieza:val('f_pzcPieza'),material:val('f_pzcMaterial'),notas:val('f_pzcNotas'),compras:pzcCompras.filter(c=>c.fecha||+c.cantidad>0||+c.costo>0).map(c=>({fecha:c.fecha||'',cantidad:+c.cantidad||0,costo:+c.costo||0,notas:(c.notas||'').trim()}))};}
   const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—',_ex=id?CACHE[t].find(x=>x.id===id):null;
   row.createdBy=(_ex&&_ex.createdBy)?_ex.createdBy:_un;row.createdAt=(_ex&&_ex.createdAt)?_ex.createdAt:_now;
