@@ -5133,7 +5133,7 @@ function renderVentaPz(){
     <input type="number" min="0" value="${p.precio||''}" placeholder="Precio und." onchange="vpEdit(${i},'precio',this.value)">
     <button type="button" class="ic-btn del" title="Quitar" onclick="vpDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     ${sub?`<div class="rb-pz-info"><span class="rb-pz-entrega">${COP(sub)}</span></div>`:''}
-  </div>`;}).join('')+`<div class="rp-tot">${ventaPiezas.length} pieza${ventaPiezas.length===1?'':'s'} · total del desglose ${COP(ventaPiezas.reduce((a,p)=>a+(+p.cant||0)*(+p.precio||0),0))}</div>`;
+  </div>`;}).join('')+`<div class="rp-tot">${ventaPiezas.length} pieza${ventaPiezas.length===1?'':'s'} · total del desglose ${COP(vpTotal())}${vpTotal()>0?' <span class="muted">· el Valor de la venta se actualiza solo con esta suma</span>':''}</div>`;
 }
 function vpAdd(){ventaPiezas.push({desc:'',mat:'',cant:0,precio:0});renderVentaPz();}
 function vpDel(i){
@@ -5142,7 +5142,24 @@ function vpDel(i){
   if(!(p.desc||'').trim()&&!+p.cant)return borrar();
   pedirConfirmacion('¿Quitar esta pieza del desglose?',(p.desc||'Pieza '+(i+1)),borrar,'Quitar');
 }
-function vpEdit(i,k,v){if(!ventaPiezas[i])return;ventaPiezas[i][k]=(k==='cant'||k==='precio')?(+v||0):v;renderVentaPz();}
+const vpTotal=()=>ventaPiezas.reduce((a,p)=>a+(+p.cant||0)*(+p.precio||0),0);
+/* El valor de la venta sigue al desglose. Antes había que acordarse de pulsar
+   "usar total": Yuliana puso los precios pieza por pieza en varias ventas y el
+   valor se quedó en $0, así que salían en $0 en Ventas y en Facturación.
+   Solo se pisa si el valor está vacío o si venía del desglose anterior: un
+   valor escrito a mano (un acuerdo distinto con el cliente) no se toca. */
+function vpEdit(i,k,v){
+  if(!ventaPiezas[i])return;
+  const antes=vpTotal();
+  ventaPiezas[i][k]=(k==='cant'||k==='precio')?(+v||0):v;
+  const ahora=vpTotal();
+  const el=document.getElementById('f_valor');
+  if(el&&ahora>0&&ahora!==antes&&(!(+el.value>0)||+el.value===antes)){
+    el.value=ahora;
+    if(typeof ventaValorConIva==='function')ventaValorConIva();
+  }
+  renderVentaPz();
+}
 function vpUsarTotal(){
   const tot=ventaPiezas.reduce((a,p)=>a+(+p.cant||0)*(+p.precio||0),0);
   const el=document.getElementById('f_valor');if(!el)return;
