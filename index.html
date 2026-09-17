@@ -319,6 +319,13 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .kcard.late{border-left:3px solid #dc2626}
 .kcard.con-color{border-left:5px solid var(--rc);background:color-mix(in srgb,var(--rc) 11%,var(--card,#fff));border-color:color-mix(in srgb,var(--rc) 30%,transparent)}
 .rop-sub{font-size:12px;color:var(--ink-3);font-weight:600;line-height:1.3;margin:-1px 0 3px}
+.tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.tp-row{display:grid;grid-template-columns:92px 90px 1fr;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2,rgba(0,0,0,.02))}
+.tp-lbl{font-size:13px;font-weight:600;color:var(--ink-2)}
+.tp-row input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:14px;text-align:right}
+.tp-h{font-size:12px;color:var(--ink-3)}
+.tp-tot{font-size:13px;color:var(--ink-2);margin-top:8px}
+.kcard-tiempos{font-size:11px;color:var(--ink-3);margin-top:6px;line-height:1.35}
 .sin-venta{display:inline-block;margin-left:5px;padding:2px 7px;border-radius:999px;background:#fee2e2;color:#b91c1c;font-size:10.5px;font-weight:700;white-space:nowrap}
 .rop-sub-top{font-size:17px;font-weight:800;line-height:1.2;letter-spacing:-.01em;margin:0 0 4px;color:var(--ink,#1a1a1a)}
 .kcard.con-color .rop-sub-top{color:color-mix(in srgb,var(--rc) 80%,#000)}
@@ -2471,13 +2478,16 @@ function renderRop(){
   const vrows=CACHE.rop.filter(match).filter(x=>!ropCerrada(x)).filter(ropPasaKpi)
     .filter(x=>ropFilter==='Todas'||x.estado===ropFilter)
     .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
-  const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button></div></div>`;
+  const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button><button class="${ropMode==='tiempos'?'on':''}" onclick="ropMode='tiempos';render()">⏱ Tiempos</button></div></div>`;
   const NOM={prod:'en producción',late:'atrasadas',soon:'por vencer'};
   const hint=ropKpi&&NOM[ropKpi]
     ?`<div class="board-hint filtrando">Mostrando solo las órdenes <b>${NOM[ropKpi]}</b>. <button type="button" class="lnk" onclick="ropSetKpi('${ropKpi}')">Ver todas</button></div>`
     :`<div class="board-hint">${activas.length} órdenes activas. Las ya entregadas y facturadas están en <b>Historial de órdenes</b>.</div>`;
   if(ropMode==='tablero'){
     return kpis+toolbar+hint+renderRopBoard(vrows);
+  }
+  if(ropMode==='tiempos'){
+    return kpis+toolbar+renderRopTiemposResumen();
   }
   return kpis+toolbar+hint+ropTableHTML(vrows,activas.length);
 }
@@ -2526,6 +2536,7 @@ function ropCard(x){
     ${(()=>{const v=ropValor(x);return v?`<div class="kcard-valor" title="Valor con IVA — ${{venta:'tomado de la venta',cot:'tomado de la cotización',orden:'sumado de los precios de las piezas'}[v.fuente]}">${COP(v.total)}</div>`:'';})()}
     <div class="kcard-stages">${dots}<span class="kprog">${pr.done}/${pr.total}</span></div>
     <div class="pbar" style="margin-top:6px"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div>
+    ${(()=>{const t=x.tiempos||{};const p=TIEMPO_PROC.filter(([k])=>+t[k]>0);return p.length?`<div class="kcard-tiempos">⏱ ${p.map(([k,l])=>`${esc(l)} ${fmtMin(t[k])}`).join(' · ')}</div>`:'';})()}
     ${pzChip}
     ${nov?`<div class="kcard-novedad" title="${esc(nov.texto)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>${esc(nov.texto)}</span></div>`:''}
     <div class="kcard-foot" onclick="event.stopPropagation()">
@@ -3788,6 +3799,7 @@ function openForm(t,id){
     ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null})):[];
     ropAvanceVal=Object.assign({},ropAvance(row||{}));
     ropPinturaFecha=(row&&row.pinturaFecha)||'';
+    ropTiemposVal=Object.assign({},(row&&row.tiempos&&typeof row.tiempos==='object')?row.tiempos:{});
     renderRopMat();renderRopPz();renderRopBitacora();renderRopAvance();ropCostCompare();
   }
   if(t==='piezascli'){
@@ -4967,6 +4979,9 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
   <div class="field full"><label>Avance de producción — mueve la barra de cada proceso</label>
     <div id="ropAvanceBox"></div>
   </div>
+  <div class="field full"><label>Tiempos de producción — minutos que tomó cada proceso</label>
+    <div id="ropTiemposBox"></div>
+  </div>
   <div class="field full rop-bit"><label>Bitácora — entregas parciales y novedades</label>
     <div id="ropBitRows"></div>
     <div class="rb-nueva">
@@ -5456,8 +5471,73 @@ function renderRopAvance(){
       <span class="av-val" id="avv_${esc(s)}">${v}%</span>
     </div>`;}).join('')+`<div class="av-tot">Avance general <strong id="avTot">0%</strong></div>`;
   avPaint();
+  renderRopTiempos();
 }
 let ropAvanceVal={};
+/* ---- Tiempos de producción: minutos por proceso, escritos a mano ----
+   El director operativo necesita saber cuánto se demora cada orden en láser,
+   doblez, soldadura y pintura. Solo se piden los procesos que la orden lleva. */
+const TIEMPO_PROC=[['Corte','Corte láser'],['Doblez','Doblez'],['Soldadura','Soldadura'],['Pintura','Pintura']];
+let ropTiemposVal={};
+const fmtMin=m=>{m=Math.round(+m||0);if(!m)return '0 min';const h=Math.floor(m/60),r=m%60;return h?(h+' h'+(r?' '+r+' min':'')):(r+' min');};
+function ropTiemposProcs(){
+  const st=ropStages({procesos:ropProcSel(),cotId:(document.getElementById('f_cotId')||{}).value,avance:ropAvanceVal,fases:[]});
+  return TIEMPO_PROC.filter(([k])=>st.includes(k));
+}
+function renderRopTiempos(){
+  const box=document.getElementById('ropTiemposBox');if(!box)return;
+  const ps=ropTiemposProcs();
+  if(!ps.length){box.innerHTML='<div class="muted" style="font-size:12px">Marca arriba los procesos de la orden para registrar sus tiempos.</div>';return;}
+  box.innerHTML=`<div class="tp-grid">${ps.map(([k,l])=>`<div class="tp-row">
+      <span class="tp-lbl">${esc(l)}</span>
+      <input type="number" min="0" step="1" value="${+ropTiemposVal[k]||''}" placeholder="min" oninput="ropTiempoSet('${k}',this.value)">
+      <span class="tp-h" id="tpH_${k}">${+ropTiemposVal[k]?fmtMin(ropTiemposVal[k]):''}</span>
+    </div>`).join('')}</div><div class="tp-tot">Total de la orden <strong id="tpTot">${fmtMin(ropTiemposTotal())}</strong></div>`;
+}
+function ropTiemposTotal(){return ropTiemposProcs().reduce((a,[k])=>a+(+ropTiemposVal[k]||0),0);}
+function ropTiempoSet(k,v){
+  ropTiemposVal[k]=Math.max(0,Math.round(+v||0));
+  const h=document.getElementById('tpH_'+k);if(h)h.textContent=ropTiemposVal[k]?fmtMin(ropTiemposVal[k]):'';
+  const t=document.getElementById('tpTot');if(t)t.textContent=fmtMin(ropTiemposTotal());
+}
+function ropTiemposSave(){
+  const out={};ropTiemposProcs().forEach(([k])=>{if(+ropTiemposVal[k]>0)out[k]=+ropTiemposVal[k];});
+  return out;
+}
+/* vista "Tiempos": horas por proceso por mes (mes de entrega, o de ingreso si no tiene) */
+function renderRopTiemposResumen(){
+  const rops=(CACHE.rop||[]).filter(match);
+  const con=rops.filter(r=>r.tiempos&&Object.values(r.tiempos).some(v=>+v>0));
+  const meses={};
+  con.forEach(r=>{
+    const k=((r.entrega||r.ingreso||'')+'').slice(0,7)||'sin fecha';
+    const m=meses[k]=meses[k]||{n:0,tot:{},cnt:{}};
+    m.n++;
+    TIEMPO_PROC.forEach(([p])=>{const v=+(r.tiempos[p]||0);if(v>0){m.tot[p]=(m.tot[p]||0)+v;m.cnt[p]=(m.cnt[p]||0)+1;}});
+  });
+  const NOM=['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const lbl=k=>k==='sin fecha'?'Sin fecha':NOM[+k.slice(5,7)]+' '+k.slice(0,4);
+  const filas=Object.keys(meses).sort((a,b)=>b.localeCompare(a)).map(k=>{
+    const m=meses[k];
+    const celdas=TIEMPO_PROC.map(([p])=>m.tot[p]
+      ?`<td class="num tnum"><b>${fmtMin(m.tot[p])}</b><div class="muted" style="font-size:10.5px">${m.cnt[p]} orden${m.cnt[p]===1?'':'es'} · prom. ${fmtMin(m.tot[p]/m.cnt[p])}</div></td>`
+      :'<td class="num muted">—</td>').join('');
+    const total=Object.values(m.tot).reduce((a,b)=>a+b,0);
+    return `<tr><td class="nw"><b>${lbl(k)}</b></td><td class="c">${m.n}</td>${celdas}<td class="num tnum"><b>${fmtMin(total)}</b></td></tr>`;
+  }).join('');
+  const recientes=con.slice().sort((a,b)=>((b.entrega||b.ingreso||'').localeCompare(a.entrega||a.ingreso||''))).slice(0,30).map(r=>{
+    const t=r.tiempos,total=TIEMPO_PROC.reduce((a,[p])=>a+(+t[p]||0),0);
+    return `<tr style="cursor:pointer" onclick="openForm('rop','${r.id}')"><td><span class="code">${esc(r.rop)}</span></td><td>${esc(r.cliente)}${r.subtitulo?`<div class="rop-sub">${esc(r.subtitulo)}</div>`:''}</td>
+      ${TIEMPO_PROC.map(([p])=>`<td class="num tnum">${+t[p]?fmtMin(t[p]):'<span class="muted">—</span>'}</td>`).join('')}<td class="num tnum"><b>${fmtMin(total)}</b></td></tr>`;
+  }).join('');
+  const sin=rops.filter(r=>r.estado==='Entregado'&&!con.includes(r)).length;
+  const head=TIEMPO_PROC.map(([,l])=>`<th class="num">${l}</th>`).join('');
+  return `<div class="board-hint">${con.length} órdenes con tiempos registrados${sin?` · <b>${sin} entregadas todavía sin tiempos</b>`:''}. Los tiempos se escriben en cada orden, en "Tiempos de producción".</div>`
+    +panel('Tiempos por mes','horas por proceso · mes de entrega',
+      con.length?`<table><thead><tr><th>Mes</th><th class="c">Órdenes</th>${head}<th class="num">Total</th></tr></thead><tbody>${filas}</tbody></table>`
+      :'<div class="lp-note">Todavía no hay órdenes con tiempos registrados.</div>')
+    +(con.length?panel('Órdenes recientes con tiempos','las 30 más recientes',`<table><thead><tr><th>ROP</th><th>Cliente</th>${head}<th class="num">Total</th></tr></thead><tbody>${recientes}</tbody></table>`):'');
+}
 let ropPinturaFecha='';
 function avSet(s,v){ropAvanceVal[s]=Math.max(0,Math.min(100,+v||0));const e=document.getElementById('avv_'+s);if(e)e.textContent=ropAvanceVal[s]+'%';avPaint();}
 function avPaint(){
@@ -5880,7 +5960,7 @@ async function saveForm(){
       alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
       return;
     }
-    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
+    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),tiempos:ropTiemposSave(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
