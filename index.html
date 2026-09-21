@@ -1344,22 +1344,42 @@ const DOBLEZ_DEF={
     {key:'acero',lbl:'Acero CR · HR · Galvanizado'},
     {key:'inox', lbl:'Inoxidable · Aluminio'}
   ],
+  /* Acero: tabla de gerencia del 21/09/2026 (HR C/12, 3, 4,5 y 6 mm; tramos
+     0-1200 y 1200-3000). Lo que esa tabla no trae se completó así:
+     · más delgado que C/12 cobra como C/12
+     · 8, 10 y 12,7 mm: extrapolado en línea recta desde 4,5→6 mm (redondeado a 100)
+     · inox/aluminio: el acero por el factor que ya tenía la tabla vieja
+       (x1,39 hasta cal 12, x1,14 de 3 a 6 mm, x1,2 desde 8 mm)
+     · los 0 (8 mm o más en golpes de 1,2 a 3 m) siguen sin precio a propósito:
+       el CRM avisa en vez de inventar. */
   filas:[
-    {lbl:'Cal 26 – 14',   max:2.00},
-    {lbl:'2,5 – 6,35 mm', max:6.35},
-    {lbl:'8 mm – 1/2"',   max:12.70}
+    {lbl:'Cal 26 – C/12',     max:2.70},
+    {lbl:'3 mm (1/8")',       max:3.40},
+    {lbl:'4,5 mm (3/16")',    max:4.90},
+    {lbl:'6 mm (1/4")',       max:6.50},
+    {lbl:'8 mm (5/16")',      max:8.50},
+    {lbl:'10 mm (3/8")',      max:10.50},
+    {lbl:'12,7 mm (1/2")',    max:12.70}
   ],
-  tramos:[500,1500,3000],
+  tramos:[1200,3000],
   precios:{
     acero:[
-      [1800, 2500, 4000],
-      [4000, 5800, 7800],
-      [8000,12000,    0]
+      [1400, 2500],
+      [2000, 3500],
+      [2300, 4000],
+      [2700, 6000],
+      [3200,    0],
+      [3800,    0],
+      [4300,    0]
     ],
     inox:[
-      [2500, 3500, 5500],
-      [4500, 6500, 9100],
-      [10000,12000,   0]
+      [1900, 3500],
+      [2300, 4000],
+      [2600, 4600],
+      [3100, 6800],
+      [3800,    0],
+      [4600,    0],
+      [5200,    0]
     ]
   }
 };
@@ -3498,7 +3518,7 @@ function renderPrecios(){
   <div class="panel">
     <div class="panel">
     <div class="panel-h"><h3>Doblez — precio del golpe por material, calibre y largo</h3><div class="spacer"></div><span class="hint" style="margin-right:10px">Tabla oficial de gerencia</span><button class="btn ghost sm" onclick="doblezReset()">Volver a la tabla de gerencia</button><button class="btn sm" onclick="saveDoblez()">Guardar tabla</button></div>
-    <div class="lp-note">Valores de la tabla de gerencia (<b>Precio doblez.xlsx</b>, 27/08/2026). El <b>inoxidable y el aluminio</b> cuestan más que el acero al carbono, por eso van en dos bloques aparte. Cuando una pieza lleva varios golpes se cobra según el <b>más largo</b>, que es el que manda el montaje. Un golpe que caiga entre dos tramos se cobra en el de arriba: uno de 700 mm paga como uno de 1.500. Son valores de <b>costo</b> — debajo de cada casilla se ve en gris lo que queda de venta con la utilidad de procesos (${fac2pct(TARIFAS.mProcesos)}%). Las dos casillas en cero son así en el archivo de gerencia: no dieron precio para 8 mm–1/2" en golpes de más de 1,5 m.</div>
+    <div class="lp-note">Acero: tabla de gerencia del 21/09/2026 (HR C/12 a 6 mm). Lo demás se completó a partir de ella: más delgado que C/12 cobra como C/12; 8 mm o más está extrapolado; inox y aluminio llevan el factor que ya tenían (x1,39 · x1,14 · x1,2). El <b>inoxidable y el aluminio</b> cuestan más que el acero al carbono, por eso van en dos bloques aparte. Cuando una pieza lleva varios golpes se cobra según el <b>más largo</b>, que es el que manda el montaje. Un golpe que caiga entre dos tramos se cobra en el de arriba: uno de 1.300 mm paga como uno de 3.000. Son valores de <b>costo</b> — debajo de cada casilla se ve en gris lo que queda de venta con la utilidad de procesos (${fac2pct(TARIFAS.mProcesos)}%). Las casillas en cero (8 mm o más, golpes de 1,2 a 3 m) no tienen precio a propósito: el CRM avisa en vez de inventarlo.</div>
     <div class="tbl-wrap"><table class="dbl-tabla"><thead><tr><th>Espesor</th>${DOBLEZ.tramos.map((t,n)=>`<th class="num">${n===0?'hasta':(+DOBLEZ.tramos[n-1]+1)+' a'} ${t} mm</th>`).join('')}</tr></thead><tbody>
       ${(DOBLEZ.familias||[]).map(fam=>`<tr class="dbl-fam"><td colspan="${DOBLEZ.tramos.length+1}">${esc(fam.lbl)}</td></tr>`
         +DOBLEZ.filas.map((f,r)=>`<tr><td class="dbl-lbl"><b>${esc(f.lbl)}</b><span>hasta ${f.max} mm</span></td>${DOBLEZ.tramos.map((t,cn)=>{
