@@ -393,6 +393,13 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .rb-row.parcial{border-left-color:#1d4ed8}
 .rb-row.total{border-left-color:#16a34a}
 .rb-row.nota{border-left-color:#9ca3af}
+.rb-row.correccion{border-left-color:#dc2626;background:#fef2f2}
+.rb-tag.correccion{background:#dc2626;color:#fff}
+.rbcorr{text-align:left;max-width:440px}
+.rbcorr h3{margin-bottom:4px}
+.rbc-l{display:block;font-size:11.5px;color:var(--ink-3);margin:10px 0 3px}
+.rbcorr input,.rbcorr textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;background:var(--card,#fff);color:inherit}
+.rbc-aviso{margin:10px 0 4px;font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:7px 10px}
 .rb-row-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
 .rb-tag{font-size:10.5px}
 .rb-tag.novedad{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}
@@ -1097,6 +1104,37 @@ td.c,th.c{text-align:center}
 .dfile-open{flex-shrink:0;font-size:11.5px;font-weight:700;color:var(--wine);text-decoration:none;padding:7px 11px;border:1px solid var(--wine-line);border-radius:7px;background:var(--wine-soft)}
 .dfile-open:hover{background:var(--wine);color:#fff}
 .dfiles-hint{font-size:11px;color:var(--ink-3);margin-top:7px}
+
+/* ===== Vista en teléfono (21/09/2026) =====
+   · las tablas de lista pasan a tarjetas: antes se cortaban a la derecha y los
+     botones de editar/imprimir/remisión quedaban fuera de la pantalla
+   · los botones de fila eran visibles solo al pasar el mouse (hover): en el
+     celular no existía ese gesto, así que no se veían nunca
+   · "Nueva ..." queda como botón flotante en vez de salirse del encabezado */
+@media(max-width:760px),(hover:none){.row-act{opacity:1!important}}
+@media(max-width:760px){
+  .topbar #vSub{display:none}
+  .topbar{gap:4px!important}
+  .topbar .btn.ghost{padding-left:10px;padding-right:10px}
+  #addBtn{position:fixed!important;right:14px;bottom:78px;z-index:60;border-radius:999px;padding:13px 18px;box-shadow:0 6px 18px rgba(123,30,43,.35)}
+  #content .tbl-wrap{overflow:visible;border:0;background:transparent;box-shadow:none}
+  #content .tbl-wrap>table,#content .tbl-wrap>table>tbody{display:block;width:100%;min-width:0}
+  #content .tbl-wrap>table>thead{display:none}
+  #content .tbl-wrap>table>tbody>tr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:12px 12px 10px;margin:0 0 10px;border:1px solid var(--line);border-radius:12px;background:var(--card,#fff)}
+  #content .tbl-wrap>table>tbody>tr>td{display:block;padding:0!important;border:0!important;width:auto;min-width:0}
+  #content .tbl-wrap>table>tbody>tr>td:empty{display:none}
+  #content .tbl-wrap>table>tbody>tr>td:first-child{font-weight:700}
+  #content .tbl-wrap>table>tbody>tr>td:nth-child(2){flex:1 1 40%}
+  #content .tbl-wrap>table>tbody>tr>td.num{margin-left:auto;text-align:right}
+  #content .tbl-wrap>table>tbody>tr>td:has(.pbar){flex:1 1 100%}
+  #content .tbl-wrap>table>tbody>tr>td:has(.row-act){flex:1 1 100%;border-top:1px solid var(--line)!important;padding-top:8px!important;margin-top:2px}
+  #content .tbl-wrap .row-act{justify-content:flex-start;flex-wrap:wrap;gap:6px}
+  #content .tbl-wrap .row-act .ic-btn,.rb-row .ic-btn,.he-row .ic-btn{min-width:40px;min-height:40px}
+  .he-row{grid-template-columns:1fr 44px}
+  .he-row .he-fecha{grid-column:1/-1;font-weight:700}
+  .rb-row-h .spacer{flex:1 1 100%;height:0}
+  .rbcorr{max-width:none}
+}
 </style>
 </head>
 <body>
@@ -1810,7 +1848,7 @@ async function loadAll(){
   await cargarPapelera();
   await cargarSugerencias();
   updateCounts();
-  loadNotifs();renderNotifBell();scanAlertas();await cargarMensajesPendientes();
+  loadNotifs();renderNotifBell();scanAlertas();alertarCorreccionesRecientes();await cargarMensajesPendientes();
   await cargarDev();
 }
 function setView(v){
@@ -3832,7 +3870,7 @@ function openForm(t,id){
   if(t==='rop'){
     ropConsumo=(row&&Array.isArray(row.consumo))?row.consumo.map(c=>({material:c.material||MAT_INV[0],calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0})):[];
     ropPiezas=(row&&Array.isArray(row.piezas))?row.piezas.map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:+p.precio||0})):[];
-    ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null})):[];
+    ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null,id:b.id||'',ts:b.ts||''})):[];
     ropAvanceVal=Object.assign({},ropAvance(row||{}));
     ropPinturaFecha=(row&&row.pinturaFecha)||'';
     ropTiemposVal=Object.assign({},(row&&row.tiempos&&typeof row.tiempos==='object')?row.tiempos:{});
@@ -5250,7 +5288,7 @@ function vpFromRop(){
 }
 
 /* ---- Bitácora: entregas parciales y novedades de la orden ---- */
-const RB_LBL={parcial:'Entrega parcial',total:'Entrega total',novedad:'Novedad',nota:'Nota'};
+const RB_LBL={parcial:'Entrega parcial',total:'Entrega total',novedad:'Novedad',nota:'Nota',correccion:'Corrección de entrega'};
 let ropBitacora=[];
 /* cuánto se ha entregado de una pieza, sumando todas las entregas parciales
    que la referencian (se identifican por su descripción, igual que el
@@ -5414,10 +5452,74 @@ function rbAdd(){
 }
 function rbDel(i){
   const b=ropBitacora[i];if(!b)return;
+  if(b.tipo==='parcial'||b.tipo==='total')return rbCorregir(i,'del');
+  if(b.tipo==='correccion'){toast('Las correcciones no se pueden borrar: son el registro de lo que se cambió');return;}
   const detalle=b.piezaDesc?(b.piezaDesc+' · '+(b.cantEntregada||0)+' de '+(b.piezaTotal||0)):(b.cantidad||'');
   pedirConfirmacion('¿Quitar esta entrada de la bitácora?',
     RB_LBL[b.tipo]+' · '+fmtDate(b.fecha)+(detalle?'\n'+detalle:'')+(b.texto?'\n'+b.texto:''),
     ()=>{ropBitacora=ropBitacora.filter((_,ix)=>ix!==i);renderRopBitacora();renderRopPz();},'Quitar');
+}
+/* Corregir o eliminar una entrega que se registró por error. Nunca en silencio:
+   pide el motivo, deja una "Corrección de entrega" en la bitácora (quién, cuándo,
+   qué había antes y qué quedó) que no se puede borrar, y al guardar la orden le
+   suena una alarma a todo el equipo (ver alertarCorrecciones). */
+function rbCorregir(i,modo){
+  const b=ropBitacora[i];if(!b)return;
+  let c=document.getElementById('rbCorrLayer');
+  if(!c){c=document.createElement('div');c.id='rbCorrLayer';c.className='confirm-layer';document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)c.classList.remove('show');});}
+  const que=(RB_LBL[b.tipo]||'Entrega')+' · '+fmtDate(b.fecha)+(b.piezaDesc?' · '+b.piezaDesc+': '+(+b.cantEntregada||0)+(b.piezaTotal?' de '+b.piezaTotal:''):' · toda la orden');
+  c.innerHTML=`<div class="confirm-box rbcorr">
+    <h3>${modo==='del'?'Eliminar esta entrega':'Modificar esta entrega'}</h3>
+    <p style="margin-bottom:10px">${esc(que)}</p>
+    ${modo==='edit'?`<label class="rbc-l">Fecha de la entrega</label><input type="date" id="rcFecha" value="${esc(String(b.fecha||today()).slice(0,10))}">
+      ${b.piezaDesc?`<label class="rbc-l">Cantidad realmente entregada</label><input type="number" min="0" inputmode="numeric" id="rcCant" value="${+b.cantEntregada||0}">`:''}`:''}
+    <label class="rbc-l">¿Por qué se corrige? (obligatorio)</label>
+    <textarea id="rcMotivo" rows="3" placeholder="Ej: se marcó entregada por error, el cliente aún no la recoge"></textarea>
+    <div class="rbc-aviso">Queda registrado con tu nombre y la fecha, y al guardar la orden le llega una alarma a todo el equipo.</div>
+    <div class="confirm-btns">
+      <button type="button" class="btn ghost" onclick="document.getElementById('rbCorrLayer').classList.remove('show')">Cancelar</button>
+      <button type="button" class="btn confirm-si" onclick="rbCorregirOk(${i},'${modo}')">${modo==='del'?'Eliminar entrega':'Guardar cambio'}</button>
+    </div></div>`;
+  c.classList.add('show');
+  setTimeout(()=>{const m=document.getElementById(modo==='edit'?'rcFecha':'rcMotivo');if(m)m.focus();},60);
+}
+function rbCorregirOk(i,modo){
+  const b=ropBitacora[i];if(!b)return;
+  const motivo=((document.getElementById('rcMotivo')||{}).value||'').trim();
+  if(motivo.length<4){toast('Escribe el motivo de la corrección');return;}
+  const u=currentUser(),quien=u?u.name:'—';
+  const antes=(RB_LBL[b.tipo]||'Entrega')+' del '+fmtDate(b.fecha)+(b.piezaDesc?' — '+b.piezaDesc+': '+(+b.cantEntregada||0):' — toda la orden');
+  let texto;
+  if(modo==='del'){
+    ropBitacora=ropBitacora.filter((_,ix)=>ix!==i);
+    texto='ELIMINÓ: '+antes+'.';
+  }else{
+    const f=((document.getElementById('rcFecha')||{}).value||b.fecha);
+    const cEl=document.getElementById('rcCant');
+    const cant=cEl?Math.max(0,+cEl.value||0):b.cantEntregada;
+    const cambios=[];
+    if(f!==b.fecha)cambios.push('fecha '+fmtDate(b.fecha)+' → '+fmtDate(f));
+    if(cEl&&cant!==(+b.cantEntregada||0))cambios.push('cantidad '+(+b.cantEntregada||0)+' → '+cant);
+    if(!cambios.length){toast('No cambiaste nada');return;}
+    ropBitacora=ropBitacora.map((x,ix)=>ix===i?{...x,fecha:f,cantEntregada:cEl?cant:x.cantEntregada}:x);
+    texto='MODIFICÓ: '+antes+' ('+cambios.join(', ')+').';
+  }
+  /* si la orden quedó marcada Entregada pero ya le falta algo, vuelve a Procesado */
+  let extra='';
+  const est=document.getElementById('f_estado');
+  if(est&&est.value==='Entregado'){
+    const pz=ropPiezas.filter(p=>(p.desc||'').trim()&&+p.cant>0);
+    const falta=pz.some(p=>ropEntregadoPieza((p.desc||'').trim(),+p.cant||0)<(+p.cant||0));
+    const sinTotal=!pz.length&&!ropBitacora.some(x=>x.tipo==='total'||x.tipo==='parcial');
+    if(falta||sinTotal){est.value='Procesado';extra=' El estado de la orden pasó de Entregado a Procesado.';}
+  }
+  const corr={tipo:'correccion',id:uid(),ts:new Date().toISOString(),fecha:today(),quien,piezaDesc:'',piezaTotal:0,
+    cantEntregada:null,cantidad:'',resuelta:null,texto:texto+' Motivo: '+motivo+'.'+extra};
+  ropBitacora=[corr,...ropBitacora];
+  document.getElementById('rbCorrLayer').classList.remove('show');
+  renderRopBitacora();renderRopPz();
+  toast('Corrección lista — presiona Guardar para que quede registrada y se avise al equipo');
 }
 function rbToggleResuelta(i){
   const b=ropBitacora[i];if(!b)return;
@@ -5493,7 +5595,8 @@ function renderRopBitacora(){
         <span class="muted rb-fecha">${fmtDate(b.fecha)}${b.quien?' · '+esc(b.quien):''}</span>
         <span class="spacer"></span>
         ${esNovedad?`<button type="button" class="btn ghost sm rb-toggle ${abierta?'':'ok'}" onclick="rbToggleResuelta(${i})">${abierta?'Marcar resuelta':'Resuelta ✓'}</button>`:''}
-        <button type="button" class="ic-btn del sm" title="Quitar" onclick="rbDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        ${(b.tipo==='parcial'||b.tipo==='total')?`<button type="button" class="ic-btn sm" title="Modificar esta entrega" onclick="rbCorregir(${i},'edit')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`:''}
+        ${b.tipo==='correccion'?'':`<button type="button" class="ic-btn del sm" title="${(b.tipo==='parcial'||b.tipo==='total')?'Eliminar esta entrega':'Quitar'}" onclick="rbDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`}
       </div>
       ${b.texto?`<div class="rb-texto">${esc(b.texto)}</div>`:''}
     </div>`;
@@ -6733,10 +6836,27 @@ function notifListoSiPuede(texto,ref){
   if(!permitidos.includes('listo'))return;
   pushNotif('listo',texto,ref);
 }
+/* Alarma de correcciones de entregas: cuando alguien elimina o modifica una entrega
+   de una orden, a todos los demás con acceso al ROP les suena la campana con lo que
+   se cambió y por qué. Se avisa una sola vez por corrección (db_alertados_corr). */
+function alertarCorrecciones(row){
+  const u=currentUser();if(!u||!row||!Array.isArray(row.bitacora)||!canView('rop'))return;
+  let vistos;try{vistos=new Set(JSON.parse(localStorage.getItem('db_alertados_corr')||'[]'));}catch(e){vistos=new Set();}
+  let cambio=false;
+  row.bitacora.filter(b=>b&&b.tipo==='correccion'&&b.id&&!vistos.has(b.id)).forEach(b=>{
+    vistos.add(b.id);cambio=true;
+    if(b.quien===u.name)return;
+    if(Date.now()-new Date(b.ts||0).getTime()>72*3600*1000)return;
+    pushNotif('novedad','⚠ ENTREGA CORREGIDA por '+(b.quien||'alguien')+' · '+(row.rop||'')+' — '+(row.cliente||'')+'. '+(b.texto||''),{view:'rop',id:row.id});
+  });
+  if(cambio){try{localStorage.setItem('db_alertados_corr',JSON.stringify([...vistos].slice(-300)));}catch(e){}}
+}
+function alertarCorreccionesRecientes(){(CACHE.rop||[]).forEach(alertarCorrecciones);}
 function notifDesdeCambio(t,payload){
   if(!payload)return;
   const row=payload.new;if(!row)return;
   const u=currentUser();if(!u)return;
+  if(t==='rop')alertarCorrecciones(row);
   if(t==='rop'&&row.estado==='Procesado'&&ROP_LISTO_NOTIFICAR.includes(u.name)){
     const vistosL=new Set(JSON.parse(localStorage.getItem('db_alertados_listo')||'[]'));
     if(!vistosL.has(String(row.id))){
