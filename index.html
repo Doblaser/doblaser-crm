@@ -1498,14 +1498,28 @@ function seedData(){
   LS.set('seed_ver',SEED_VERSION);LS.set('seeded',true);
 }
 const COT_LIST_COLS='id,created_at,numero,validez,motivo,fecha,cliente,contacto,email,nit,asesor,pago,estado,items,tipo,obra,ubicacion,celular,modo,aiuAdm,aiuImp,aiuUti,condiciones,createdBy,createdAt,updatedBy,updatedAt';
+/* La firma del cliente (una imagen PNG en base64) es el 92% del peso de la
+   tabla rop: 1,7 MB de 1,9 MB. Bajarla en cada carga, y otra vez en cada cambio
+   que llegaba en vivo a cada equipo, agotó la cuota mensual de transferencia de
+   Supabase (21/09/2026: el CRM quedó vacío). La lista se trae sin la firma y la
+   firma se pide solo al abrir o compartir una remisión (ropConFirma).
+   OJO: al agregar una columna nueva a rop, agregarla también aquí. */
+const ROP_LIST_COLS='id,fecha,cliente,cotizacion,material,asesor,entrega,estado,obs,detalle,created_at,cotId,createdBy,createdAt,updatedBy,updatedAt,rop,aprobacion,suministro,ingreso,observaciones,corteUrl,doblezUrl,planosUrl,consumo,consumoDueno,fases,costoReal,piezas,procesos,avance,bitacora,archivadaManual,firmaClienteFecha,firmaClienteNombre,firmaClienteCedula,pinturaFecha,subtitulo,color,tiempos';
 async function getAll(t){
   if(USING_SB){
-    const sel=(t==='cotizaciones')?COT_LIST_COLS:'*';
+    const sel=(t==='cotizaciones')?COT_LIST_COLS:(t==='rop'?ROP_LIST_COLS:'*');
     let{data,error}=await sb.from(t).select(sel).order('id',{ascending:false});
     if(error&&sel!=='*'){({data,error}=await sb.from(t).select('*').order('id',{ascending:false}));}
     if(!error&&data)return data.map(normRow);
   }
   return LS.get(t,[]).map(normRow)
+}
+/* trae la firma de una orden solo cuando hace falta, y la deja en la fila */
+async function ropConFirma(r){
+  if(!r||r.firmaCliente||!r.firmaClienteFecha||!USING_SB||!sb||isLocalId(r.id))return r;
+  try{const{data}=await sb.from('rop').select('firmaCliente').eq('id',r.id).maybeSingle();
+    if(data&&data.firmaCliente)r.firmaCliente=data.firmaCliente;}catch(e){}
+  return r;
 }
 async function getAllFull(t){if(USING_SB){const{data,error}=await sb.from(t).select('*').order('id',{ascending:false});if(!error&&data)return data.map(normRow)}return LS.get(t,[]).map(normRow)}
 async function ensureCotImgs(c){
@@ -2679,7 +2693,6 @@ function ropVentaDatos(r){
 async function syncRopVenta(r){
   try{
     if(!r||!r.id||isLocalId(r.id))return;
-    CACHE.rop=await getAll('rop');
     const v=ropVentaDe(r);
     const d=ropVentaDatos(r);
     if(!v){
@@ -3737,7 +3750,7 @@ function emptyRow(c){return `<tr><td colspan="${c}"><div class="empty"><svg view
 function rowActions(t,id){
   const rEl=t==='rop'?CACHE.rop.find(x=>String(x.id)===String(id)):null;
   const rem=t==='rop'?`<button class="ic-btn" title="Hoja de producción (imprimir)" onclick="printRop('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="ic-btn" title="Remisión de entrega" onclick="printRemision('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button>`:'';
-  const firmaBtn=(t==='rop'&&rEl&&rEl.firmaCliente)?`<button class="ic-btn" title="Ver la remisión firmada" onclick="event.stopPropagation();verRemisionFirmada('${rEl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/><path d="M4 14c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/></svg></button>`:'';
+  const firmaBtn=(t==='rop'&&rEl&&(rEl.firmaCliente||rEl.firmaClienteFecha))?`<button class="ic-btn" title="Ver la remisión firmada" onclick="event.stopPropagation();verRemisionFirmada('${rEl.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/><path d="M4 14c2-3 4-3 6 0s4 3 6 0 4-3 4-3"/></svg></button>`:'';
   let archBtn='';
   if(t==='rop'&&rEl){
     if(rEl.estado==='Entregado'&&!ropCerrada(rEl)){
@@ -4208,6 +4221,7 @@ function remisionTexto(r,fecha){
 async function compartirRemision(id,fecha){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));
   if(!r){toast('Orden no encontrada');return;}
+  await ropConFirma(r);
   const firma=r.firmaCliente||null;
   const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
   return _compartirRemisionDoc(r,fecha,firma,recibe);
@@ -4287,9 +4301,10 @@ async function _compartirRemisionDoc(r,fecha,firma,recibe){
 
 /* el ícono de firma abre el documento firmado completo, no la imagen suelta:
    lo que sirve para un reclamo es la remisión con sus piezas, no un garabato */
-function verRemisionFirmada(id){
+async function verRemisionFirmada(id){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));
   if(!r){toast('Orden no encontrada');return;}
+  await ropConFirma(r);
   if(!r.firmaCliente){toast('Esta orden todavía no tiene firma del cliente');return;}
   const res=resumenEntrega(r,null);
   const cuando=(r.firmaClienteFecha||'').slice(0,10);
@@ -5415,6 +5430,7 @@ async function compartirRemisionDeFecha(fecha){
   const r={...base,piezas:ropPiezas,bitacora:ropBitacora,
     rop:(document.getElementById('f_rop')||{}).value||base.rop,
     cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
+  if(base.id){await ropConFirma(base);r.firmaCliente=base.firmaCliente;}
   const firma=r.firmaCliente||null;
   const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
   /* antes esta función repetía todo el armado del PDF y el diálogo de compartir;
@@ -6527,8 +6543,21 @@ function clearCfg(){localStorage.setItem('db_sb_cfg','"local"');toast('Cambiado 
 function subscribeRealtime(){
   if(!USING_SB||!sb)return;
   ['ventas','rop','leads','cotizaciones','inventario','sugerencias'].forEach(t=>{
+    /* El cambio que llega en vivo trae la fila: se aplica en memoria en vez de
+       volver a bajar la tabla entera. Antes cada edición de cualquier persona
+       hacía que cada equipo abierto rebajara todo el ROP (1,9 MB con firmas) —
+       eso fue lo que agotó la cuota de transferencia de Supabase. */
     sb.channel('rt_'+t).on('postgres_changes',{event:'*',schema:'public',table:t},async(payload)=>{
-      CACHE[t]=await getAll(t);updateCounts();
+      const lista=CACHE[t]||(CACHE[t]=[]);
+      const nuevo=payload&&payload.new&&Object.keys(payload.new).length?normRow({...payload.new}):null;
+      const viejoId=payload&&payload.old&&payload.old.id!=null?String(payload.old.id):null;
+      if(payload.eventType==='DELETE'){if(viejoId)CACHE[t]=lista.filter(x=>String(x.id)!==viejoId);}
+      else if(nuevo&&nuevo.id!=null){
+        if(t==='cotizaciones'){delete nuevo.img1;delete nuevo.img2;}
+        const i=lista.findIndex(x=>String(x.id)===String(nuevo.id));
+        if(i>=0)lista[i]={...lista[i],...nuevo};else lista.unshift(nuevo);
+      }else{CACHE[t]=await getAll(t);}
+      updateCounts();
       if(!document.getElementById('overlay').classList.contains('show'))render();
       notifDesdeCambio(t,payload);
       if(t==='rop'||t==='ventas')scanAlertas();
