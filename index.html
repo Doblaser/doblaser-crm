@@ -1657,7 +1657,20 @@ async function marcarFacturada(id,val){
     pedirConfirmacion('¿Quitar la marca de facturada?',(v.cliente||'')+'\n'+(v.descripcion||''),hacer,'Quitar');
   }
 }
+/* Un cliente escrito de varias formas (METALINGENIRIA / Metalingenieria, YAMAHA / YAMAHA.)
+   parte su ficha, sus estadísticas y sus cruces con ventas y cotizaciones. Al guardar,
+   si el nombre solo difiere en mayúsculas, tildes, puntos o espacios de uno que ya existe,
+   se usa la forma que más se ha usado. Un nombre nuevo se deja tal cual. */
+function canonCliente(nombre){
+  const n=(nombre||'').trim();if(!n)return nombre;
+  const k=clienteNorm(n);if(!k)return nombre;
+  const cuenta={};
+  ['cotizaciones','rop','ventas'].forEach(t=>(CACHE[t]||[]).forEach(x=>{if(x.cliente&&clienteNorm(x.cliente)===k)cuenta[x.cliente]=(cuenta[x.cliente]||0)+1;}));
+  const formas=Object.entries(cuenta).sort((a,b)=>b[1]-a[1]);
+  return formas.length?formas[0][0]:n;
+}
 async function saveRow(t,row){
+  if(row&&['cotizaciones','rop','ventas'].includes(t)&&row.cliente){const c=canonCliente(row.cliente);if(c&&c!==row.cliente){toast('El cliente ya existe como «'+c+'»; se usó ese nombre');row.cliente=c;}}
   if(USING_SB){
     const r=sbClean(row);
     const omitidas=[];
@@ -2676,16 +2689,25 @@ function ropSinVenta(r){
   if(/reproceso|garant|interno/i.test(r.aprobacion||'')||/^doblaser$/i.test((r.cliente||'').trim()))return false;
   return !ropVentaDe(r);
 }
+/* mayúsculas, tildes, puntos y espacios no hacen a un cliente distinto */
+const clienteNorm=s=>(s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
 function ropVentaDe(r){
   const porId=(CACHE.ventas||[]).find(v=>v.ropId&&String(v.ropId)===String(r.id));
   if(porId)return porId;
   /* órdenes viejas (antes de que existiera el vínculo ropId) solo se pueden
      encontrar por el número de cotización compartido */
+  /* el número de cotización puede estar repetido (DB-1969 lo tuvieron dos clientes y la ROP
+     de uno mostraba la venta del otro): entre las candidatas manda la del mismo cliente,
+     y si ninguna coincide no se adivina */
+  const mismoCli=lista=>{
+    if(lista.length<=1)return lista[0]||null;
+    return lista.find(v=>clienteNorm(v.cliente)===clienteNorm(r.cliente))||null;
+  };
   if(r.cotId){
     const c=(CACHE.cotizaciones||[]).find(c=>String(c.id)===String(r.cotId));
-    if(c&&c.numero)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===c.numero);
+    if(c&&c.numero){const v=mismoCli((CACHE.ventas||[]).filter(v=>v.cotizacion&&v.cotizacion===c.numero));if(v)return v;}
   }
-  if(r.aprobacion)return (CACHE.ventas||[]).find(v=>v.cotizacion&&v.cotizacion===r.aprobacion);
+  if(r.aprobacion){const v=mismoCli((CACHE.ventas||[]).filter(v=>v.cotizacion&&v.cotizacion===r.aprobacion));if(v)return v;}
   return null;
 }
 /* una orden entregada y facturada ya no tiene nada pendiente en producción: se saca de la
@@ -6112,8 +6134,8 @@ async function saveForm(){
   if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),sinIva:chk('f_sinIva'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),ordenCompra:val('f_ordenCompra'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),soportePago:ventaSoportePago||null};}
   else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let ropNum=val('f_rop');
-    if(ropNum&&CACHE.rop.some(r=>r.rop===ropNum&&r.id!==id)){
-      const nuevo=nextRop();
+    if(ropNum&&(CACHE.rop.some(r=>r.rop===ropNum&&r.id!==id)||await numeroTomado('rop','rop',ropNum,id))){
+      const nuevo=await siguienteNumeroNube('rop','rop','ROP-',2400);
       const fEl=document.getElementById('f_rop');if(fEl)fEl.value=nuevo;
       ropNum=nuevo;
       alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
@@ -6123,8 +6145,8 @@ async function saveForm(){
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
-    if(numero&&CACHE.cotizaciones.some(c=>c.numero===numero&&c.id!==id)){
-      const nuevo=nextCot();
+    if(numero&&(CACHE.cotizaciones.some(c=>c.numero===numero&&c.id!==id)||await numeroTomado('cotizaciones','numero',numero,id))){
+      const nuevo=await siguienteNumeroNube('cotizaciones','numero','DB-',1787);
       const fEl=document.getElementById('f_numero');if(fEl)fEl.value=nuevo;
       numero=nuevo;
       alert('El número '+nuevo+' ya lo usó otra cotización mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
@@ -6263,6 +6285,23 @@ function diasHabiles(desde,n){
   return _iso(d);
 }
 const DIAS_ENTREGA=7;
+/* ¿ya existe ese número en la nube? La lista en memoria solo trae lo que este equipo
+   había bajado: dos personas guardando a la vez (DB-1969, 17/09/2026) pasaban las
+   dos la validación y quedaba el mismo número en dos cotizaciones. */
+async function numeroTomado(tabla,campo,valor,idPropio){
+  if(!USING_SB||!sb||!valor)return false;
+  try{const{data,error}=await sb.from(tabla).select('id').eq(campo,valor);
+    if(error||!data)return false;
+    return data.some(r=>String(r.id)!==String(idPropio));}catch(e){return false;}
+}
+async function siguienteNumeroNube(tabla,campo,prefijo,piso){
+  let max=piso;
+  const locales=(CACHE[tabla]||[]).map(c=>parseInt(String(c[campo]||'').replace(prefijo,''))||0);
+  max=Math.max(max,...locales);
+  if(USING_SB&&sb){try{const{data}=await sb.from(tabla).select(campo).order('id',{ascending:false}).limit(600);
+    (data||[]).forEach(r=>{const n=parseInt(String(r[campo]||'').replace(prefijo,''))||0;if(n>max)max=n;});}catch(e){}}
+  return prefijo+(max+1);
+}
 function nextCot(){const ns=CACHE.cotizaciones.map(c=>parseInt((c.numero||'').replace('DB-',''))||0);return 'DB-'+((Math.max(1787,...ns))+1)}
 function nextRop(){const ns=CACHE.rop.map(c=>parseInt((c.rop||'').replace('ROP-',''))||0);return 'ROP-'+((Math.max(2400,...ns))+1)}
 
