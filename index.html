@@ -7501,6 +7501,7 @@ function mergePerfiles(base){
   const orden=PERFILES_DEF.map(p=>p.name);
   return base.map(normPerfil).sort((a,b)=>{const ia=orden.indexOf(a.name),ib=orden.indexOf(b.name);return (ia<0?99:ia)-(ib<0?99:ib);});
 }
+const PERFIL_LIVIANO_COLS='name,role,pass,created_at,lastSeen,views,notifs';
 async function getPerfiles(){
   let base=null;
   if(USING_SB&&sb){try{const{data,error}=await sb.from('perfiles').select('*');if(!error&&data&&data.length)base=data;}catch(e){}}
@@ -7673,11 +7674,18 @@ async function heartbeat(){
   if(USING_SB&&sb){try{await sb.from('perfiles').update({lastSeen:now}).eq('name',u.name);}catch(e){}}
 }
 async function refreshPresence(){
-  if(USING_SB&&sb){try{const{data,error}=await sb.from('perfiles').select('*');if(!error&&data&&data.length)PERFILES=mergePerfiles(data);}catch(e){}}
+  /* Esto corre cada 30 s en cada pestaña abierta. Con select('*') bajaba avatares y
+     firmas (289 KB) 120 veces por hora por equipo: fue la fuga que agotó la cuota de
+     Supabase. Ahora solo pide lo liviano y conserva avatar/firma ya cargados. */
+  if(USING_SB&&sb){try{const{data,error}=await sb.from('perfiles').select(PERFIL_LIVIANO_COLS);
+    if(!error&&data&&data.length){
+      const previo=Object.fromEntries((PERFILES||[]).map(x=>[x.name,x]));
+      PERFILES=mergePerfiles(data.map(d=>({avatar:(previo[d.name]||{}).avatar,firma:(previo[d.name]||{}).firma,...d})));
+    }}catch(e){}}
   renderPresence();
   if(currentUser()){applyNavPerms();if(!canView(VIEW))setView(firstView());}
 }
-function startPresence(){heartbeat();renderPresence();clearInterval(window._hbInt);clearInterval(window._presInt);window._hbInt=setInterval(heartbeat,45000);window._presInt=setInterval(refreshPresence,30000);}
+function startPresence(){heartbeat();renderPresence();clearInterval(window._hbInt);clearInterval(window._presInt);window._hbInt=setInterval(heartbeat,45000);window._presInt=setInterval(refreshPresence,60000);}
 
 async function startApp(){
   document.getElementById('loginScreen').classList.remove('show');
