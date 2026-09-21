@@ -1476,9 +1476,12 @@ function saveMateriales(){
 
 /* ---- Supabase + respaldo local ---- */
 let sb=null,USING_SB=false;
-const SB_DEFAULT={url:'https://agyddfzmvfaonjqrwozb.supabase.co',key:'sb_publishable_OU3EW4mZ4jx8rXSMP8i39A_DIe7wqhG'};
+const SB_DEFAULT={url:'https://zasjawtkjkfcwxnaknme.supabase.co',key:'sb_publishable_BEnXGYn9LnizjVjADEUayA_ZUJWr3Nv'};
 const _savedCfg=JSON.parse(localStorage.getItem('db_sb_cfg')||'null');
-const SB_CFG=(_savedCfg==='local')?null:(_savedCfg||SB_DEFAULT);
+/* 21/09/2026: el proyecto original (agyddfzmvfaonjqrwozb) quedó bloqueado por
+   cuota y se pasó temporalmente a otro. Un equipo que tuviera guardada la
+   conexión vieja seguiría viendo el CRM vacío, así que esa se ignora. */
+const SB_CFG=(_savedCfg==='local')?null:((_savedCfg&&_savedCfg.url&&!/agyddfzmvfaonjqrwozb/.test(_savedCfg.url))?_savedCfg:SB_DEFAULT);
 function initSupabase(){
   if(SB_CFG&&SB_CFG.url&&SB_CFG.key&&window.supabase){
     try{sb=window.supabase.createClient(SB_CFG.url,SB_CFG.key);USING_SB=true}catch(e){USING_SB=false}
