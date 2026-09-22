@@ -6146,7 +6146,11 @@ async function saveForm(){
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
     if(numero&&(CACHE.cotizaciones.some(c=>c.numero===numero&&c.id!==id)||await numeroTomado('cotizaciones','numero',numero,id))){
-      const nuevo=await siguienteNumeroNube('cotizaciones','numero','DB-',1787);
+      /* las de producto usan MDO-001, no DB-####; había un bug aquí que siempre
+         proponía un DB- aunque la que chocó fuera una MDO- */
+      const esMdo=/^MDO-/.test(numero);
+      const nuevo=esMdo?await siguienteNumeroNube('cotizaciones','numero','MDO-',0).then(n=>'MDO-'+n.replace('MDO-','').padStart(3,'0'))
+                       :await siguienteNumeroNube('cotizaciones','numero','DB-',1787);
       const fEl=document.getElementById('f_numero');if(fEl)fEl.value=nuevo;
       numero=nuevo;
       alert('El número '+nuevo+' ya lo usó otra cotización mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
