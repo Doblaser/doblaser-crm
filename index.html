@@ -7393,9 +7393,25 @@ function firmaConfirmar(){
   const d=firmaDatosQuien();
   if(!FIRMA.sinQuien&&!d.nombre){toast('Falta el nombre de quien recibe');const n=document.getElementById('firmaNombre');if(n)n.focus();return;}
   const cv=document.getElementById('firmaCanvas');
-  let dataUrl;try{dataUrl=cv.toDataURL('image/png');}catch(e){toast('No se pudo guardar la firma');return;}
+  let dataUrl;try{dataUrl=firmaComprimir(cv);}catch(e){toast('No se pudo guardar la firma');return;}
   cerrarFirma();
   if(FIRMA.onListo)FIRMA.onListo(dataUrl,d);
+}
+/* El canvas se dibuja a la resolución del dispositivo (devicePixelRatio) para que el
+   trazo se vea liso al firmar -- en un celular de gama alta eso son 1200x660 px o más
+   para una firma que solo necesita legibilidad, no imprimirse en cartelera. Antes de
+   guardar se reduce a un ancho fijo, que es lo que de verdad pesaba de la tabla rop
+   (1,75 de 4,4 MB de TODA la base, entre 51 firmas). PNG y no JPEG: una firma es
+   trazo negro sobre blanco, y JPEG mete ruido/artefactos en ese tipo de imagen en
+   vez de comprimirla mejor. */
+function firmaComprimir(cv,anchoMax){
+  anchoMax=anchoMax||500;
+  if(cv.width<=anchoMax)return cv.toDataURL('image/png');
+  const esc=anchoMax/cv.width;
+  const o=document.createElement('canvas');o.width=anchoMax;o.height=Math.round(cv.height*esc);
+  const ctx=o.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(cv,0,0,o.width,o.height);
+  return o.toDataURL('image/png');
 }
 /* encuadre manual de fotos (como WhatsApp al enviar una imagen): el usuario
    arrastra para mover y usa el control para acercar/alejar dentro de un
