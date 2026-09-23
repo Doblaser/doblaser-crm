@@ -721,7 +721,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
    graficos a la derecha -- una sola columna si no hay piezas para resumir o
    si la pantalla es angosta (celular) */
 .remi-grid{display:grid;grid-template-columns:1fr;gap:20px}
-.remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr 320px}
+.remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr 480px}
 .remi-resumen{border-left:1px solid var(--line);padding-left:20px}
 @media(max-width:760px){
   .remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr}
@@ -4520,42 +4520,45 @@ function panelResumenEntrega(r){
     const est=estadoEntregaPieza(ent,tot)||'rojo';
     totTot+=tot;totEnt+=ent;
     return `<tr style="background:${colorFila[est]}">
-      <td style="padding:5px 7px;border-bottom:1px solid var(--line);font-size:11.5px">${esc(p.desc)||'\u2014'}</td>
-      <td class="num" style="padding:5px 7px;border-bottom:1px solid var(--line);text-align:center">${tot}</td>
-      <td class="num" style="padding:5px 7px;border-bottom:1px solid var(--line);text-align:center">${ent}</td>
-      <td style="padding:5px 7px;border-bottom:1px solid var(--line);min-width:90px">
-        <div style="display:flex;align-items:center;gap:5px">
-          <div style="flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden"><div style="width:${pct}%;height:100%;background:${colorBarra[est]}"></div></div>
-          <span style="font-size:10.5px;font-weight:700;color:${colorBarra[est]};min-width:29px;text-align:right">${pct}%</span>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--line);font-size:13.5px">${esc(p.desc)||'\u2014'}</td>
+      <td class="num" style="padding:9px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13.5px">${tot}</td>
+      <td class="num" style="padding:9px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13.5px">${ent}</td>
+      <td class="num" style="padding:9px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13.5px">${pend}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--line);min-width:150px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:9px;border-radius:5px;background:var(--line);overflow:hidden"><div style="width:${pct}%;height:100%;background:${colorBarra[est]}"></div></div>
+          <span style="font-size:12.5px;font-weight:700;color:${colorBarra[est]};min-width:38px;text-align:right">${pct}%</span>
         </div>
       </td>
     </tr>`;
   }).join('');
   const pctTot=totTot>0?Math.round(totEnt/totTot*100):0;
   return `<div class="remi-resumen">
-    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Resumen de entregas \u2014 ${pctTot}% completado</div>
-    <div style="display:flex;gap:10px;margin-bottom:12px">
-      <div style="flex:0 0 108px;height:108px;position:relative"><canvas id="remiDona"></canvas>
+    <div style="font-size:17px;font-weight:700;margin-bottom:16px">Resumen de entregas \u2014 ${pctTot}% completado</div>
+    <div style="display:flex;gap:20px;margin-bottom:18px;align-items:center">
+      <div style="flex:0 0 170px;height:170px;position:relative"><canvas id="remiDona"></canvas>
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none">
-          <b style="font-size:17px">${pctTot}%</b><span class="muted" style="font-size:9.5px">entregado</span>
+          <b style="font-size:30px;line-height:1.1">${pctTot}%</b><span class="muted" style="font-size:12px">entregado</span>
         </div>
       </div>
-      <div style="flex:1;min-width:0;height:108px"><canvas id="remiRitmo"></canvas></div>
+      <div style="flex:1;min-width:0;height:170px"><canvas id="remiRitmo"></canvas></div>
     </div>
-    <div style="max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:8px">
-    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+    <div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">
       <thead><tr style="background:var(--bg-2,#f6f6f6)">
-        <th style="text-align:left;padding:5px 7px">Pieza</th>
-        <th style="padding:5px 7px;text-align:center">Total</th>
-        <th style="padding:5px 7px;text-align:center">Entreg.</th>
-        <th style="padding:5px 7px;text-align:left">Avance</th>
+        <th style="text-align:left;padding:9px 12px;font-size:12px">Pieza</th>
+        <th style="padding:9px 12px;text-align:center;font-size:12px">Total</th>
+        <th style="padding:9px 12px;text-align:center;font-size:12px">Entregado</th>
+        <th style="padding:9px 12px;text-align:center;font-size:12px">Pendiente</th>
+        <th style="padding:9px 12px;text-align:left;font-size:12px">Avance</th>
       </tr></thead>
       <tbody>${filas}
         <tr style="font-weight:700">
-          <td style="padding:6px 7px">Total</td>
-          <td class="num" style="padding:6px 7px;text-align:center">${totTot}</td>
-          <td class="num" style="padding:6px 7px;text-align:center">${totEnt}</td>
-          <td style="padding:6px 7px">${pctTot}%</td>
+          <td style="padding:10px 12px">Total</td>
+          <td class="num" style="padding:10px 12px;text-align:center">${totTot}</td>
+          <td class="num" style="padding:10px 12px;text-align:center">${totEnt}</td>
+          <td class="num" style="padding:10px 12px;text-align:center">${Math.max(0,totTot-totEnt)}</td>
+          <td style="padding:10px 12px">${pctTot}%</td>
         </tr>
       </tbody>
     </table>
@@ -4573,8 +4576,8 @@ function dibujarResumenEntregaCharts(r,gs){
      media mal (la dona se comia las dos columnas). Ancho fijo, sin sorpresas. */
   const fila=elD.closest('div').parentElement;
   const wFila=fila.clientWidth||300;
-  elD.width=108;elD.height=108;
-  elR.width=Math.max(100,wFila-108-10);elR.height=108;
+  elD.width=170;elD.height=170;
+  elR.width=Math.max(160,wFila-170-20);elR.height=170;
   const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   const bit=Array.isArray(r.bitacora)?r.bitacora:[];
   const totTot=piezas.reduce((a,p)=>a+(+p.cant||0),0);
@@ -4588,10 +4591,10 @@ function dibujarResumenEntregaCharts(r,gs){
   const porFecha={};(gs||[]).forEach(g=>{const u=g.items.reduce((a,b)=>a+(+b.cantEntregada||0),0);porFecha[g.fecha]=(porFecha[g.fecha]||0)+u;});
   const fechas=Object.keys(porFecha).sort();
   window._remiCharts.push(new Chart(elR,{type:'bar',
-    data:{labels:fechas.map(f=>fmtDate(f).replace(/ de \d{4}$/,'')),datasets:[{label:'Unidades',data:fechas.map(f=>porFecha[f]),backgroundColor:WINE,borderRadius:4,maxBarThickness:26}]},
-    options:{responsive:false,plugins:{legend:{display:false},title:{display:true,text:'Ritmo de entrega',font:{size:10.5,weight:'600'},padding:{bottom:4}},
+    data:{labels:fechas.map(f=>fmtDate(f).replace(/ de \d{4}$/,'')),datasets:[{label:'Unidades',data:fechas.map(f=>porFecha[f]),backgroundColor:WINE,borderRadius:5,maxBarThickness:44}]},
+    options:{responsive:false,plugins:{legend:{display:false},title:{display:true,text:'Ritmo de entrega',font:{size:13,weight:'600'},padding:{bottom:8}},
       tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' unidades'}}},
-      scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}},grid:{color:line}},x:{ticks:{font:{size:9}},grid:{display:false}}}}}));
+      scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:11}},grid:{color:line}},x:{ticks:{font:{size:11}},grid:{display:false}}}}}));
 }
 function _elegirEntrega(r,gs){
   let capa=document.getElementById('remiLayer');
@@ -4601,7 +4604,7 @@ function _elegirEntrega(r,gs){
     capa.addEventListener('click',e=>{if(e.target===capa)cerrarElegirEntrega();});
   }
   const panel=panelResumenEntrega(r);
-  capa.innerHTML=`<div class="confirm-box remi-box" style="max-width:${panel?'900px':'470px'};text-align:left;max-height:88vh;overflow-y:auto">
+  capa.innerHTML=`<div class="confirm-box remi-box" style="max-width:${panel?'1180px':'470px'};width:94vw;text-align:left;max-height:90vh;overflow-y:auto">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
       <div class="muted" id="remiSub" style="font-size:12.5px;margin-bottom:14px"></div>
       <div class="remi-grid">
