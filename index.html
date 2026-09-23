@@ -6281,7 +6281,11 @@ async function syncRopInventory(row){
     for(const m of prev)await deleteRow('inventario',m.id);
     for(const c of (row.consumo||[])){
       if(!c.material||!(+c.cant>0))continue;
-      await saveRow('inventario',{id:uid(),tipo:'salida',clase:c.clase||'lamina',dueno:row.consumoDueno||DUENO_GEN,material:c.material,calibre:c.calibre||'',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cantidad:+c.cant||0,cliente:row.cliente||'',rop:row.rop||'',ropId:row.id,fecha:row.ingreso||today(),auto:true,notas:'Consumo automático · ROP '+(row.rop||'')});
+      /* el subtitulo del proyecto (ej. "OC 260") es lo que de verdad identifica
+         para que se gasto el material cuando el ROP es generico (un cliente
+         grande como ALGAMAR o SOMOS tiene decenas de ordenes activas a la vez) */
+      const proyecto=(row.subtitulo||'').trim();
+      await saveRow('inventario',{id:uid(),tipo:'salida',clase:c.clase||'lamina',dueno:row.consumoDueno||DUENO_GEN,material:c.material,calibre:c.calibre||'',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cantidad:+c.cant||0,cliente:row.cliente||'',rop:row.rop||'',ropId:row.id,fecha:row.ingreso||today(),auto:true,notas:'Consumo automático · ROP '+(row.rop||'')+(proyecto?' · '+proyecto:'')});
     }
     CACHE.inventario=await getAll('inventario');
   }catch(e){}
