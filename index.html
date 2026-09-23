@@ -717,6 +717,16 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .confirm-box{background:var(--card);border-radius:14px;max-width:420px;width:100%;
   padding:24px 22px 18px;box-shadow:0 24px 60px rgba(0,0,0,.32);text-align:center}
 .gsearch-box{padding:16px;max-width:520px;width:100%;text-align:left}
+/* modal de "que entrega va en la remision": lista a la izquierda, resumen con
+   graficos a la derecha -- una sola columna si no hay piezas para resumir o
+   si la pantalla es angosta (celular) */
+.remi-grid{display:grid;grid-template-columns:1fr;gap:20px}
+.remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr 320px}
+.remi-resumen{border-left:1px solid var(--line);padding-left:20px}
+@media(max-width:760px){
+  .remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr}
+  .remi-resumen{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px}
+}
 .gsearch-input{width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2,#fff);font-size:14px;margin-bottom:10px}
 .gsearch-results{max-height:50vh;overflow-y:auto}
 .gsearch-item{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;cursor:pointer}
@@ -4492,11 +4502,12 @@ function _remisionImprimir(r,fecha){
     _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
   });
 }
-/* Resumen profesional de avance de entrega: una fila por pieza, con lo entregado,
-   lo pendiente y el % con barra, mas una fila de totales. Antes solo se veia el
-   listado crudo de entregas (fecha + que se despacho); esto responde de un vistazo
-   "como va esta orden" sin sumar a mano. */
-function tablaResumenEntregas(r){
+/* Resumen profesional de avance, al costado del cuadro de la remision: dos
+   graficos (dona entregado/pendiente, barras del ritmo de entrega por fecha)
+   arriba, y la tabla por pieza abajo, con scroll propio. Los graficos se
+   crean con Chart.js (ya cargado para Estadisticas) DESPUES de insertar el
+   HTML -- un canvas necesita existir en el DOM antes de poder dibujarse. */
+function panelResumenEntrega(r){
   const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   if(!piezas.length)return '';
   const bit=Array.isArray(r.bitacora)?r.bitacora:[];
@@ -4509,42 +4520,78 @@ function tablaResumenEntregas(r){
     const est=estadoEntregaPieza(ent,tot)||'rojo';
     totTot+=tot;totEnt+=ent;
     return `<tr style="background:${colorFila[est]}">
-      <td style="padding:6px 8px;border-bottom:1px solid var(--line)">${esc(p.desc)||'\u2014'}</td>
-      <td class="num" style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:center">${tot}</td>
-      <td class="num" style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:center">${ent}</td>
-      <td class="num" style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:center">${pend}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid var(--line);min-width:110px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="flex:1;height:7px;border-radius:4px;background:var(--line);overflow:hidden"><div style="width:${pct}%;height:100%;background:${colorBarra[est]}"></div></div>
-          <span style="font-size:11px;font-weight:700;color:${colorBarra[est]};min-width:32px;text-align:right">${pct}%</span>
+      <td style="padding:5px 7px;border-bottom:1px solid var(--line);font-size:11.5px">${esc(p.desc)||'\u2014'}</td>
+      <td class="num" style="padding:5px 7px;border-bottom:1px solid var(--line);text-align:center">${tot}</td>
+      <td class="num" style="padding:5px 7px;border-bottom:1px solid var(--line);text-align:center">${ent}</td>
+      <td style="padding:5px 7px;border-bottom:1px solid var(--line);min-width:90px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden"><div style="width:${pct}%;height:100%;background:${colorBarra[est]}"></div></div>
+          <span style="font-size:10.5px;font-weight:700;color:${colorBarra[est]};min-width:29px;text-align:right">${pct}%</span>
         </div>
       </td>
     </tr>`;
   }).join('');
   const pctTot=totTot>0?Math.round(totEnt/totTot*100):0;
-  return `<div style="margin-bottom:16px">
-    <div style="font-size:13px;font-weight:700;margin-bottom:8px">Resumen de entregas \u2014 ${pctTot}% completado</div>
-    <div style="max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
+  return `<div class="remi-resumen">
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Resumen de entregas \u2014 ${pctTot}% completado</div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <div style="flex:0 0 108px;height:108px;position:relative"><canvas id="remiDona"></canvas>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none">
+          <b style="font-size:17px">${pctTot}%</b><span class="muted" style="font-size:9.5px">entregado</span>
+        </div>
+      </div>
+      <div style="flex:1;min-width:0;height:108px"><canvas id="remiRitmo"></canvas></div>
+    </div>
+    <div style="max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
       <thead><tr style="background:var(--bg-2,#f6f6f6)">
-        <th style="text-align:left;padding:6px 8px">Pieza</th>
-        <th style="padding:6px 8px;text-align:center">Total</th>
-        <th style="padding:6px 8px;text-align:center">Entregado</th>
-        <th style="padding:6px 8px;text-align:center">Pendiente</th>
-        <th style="padding:6px 8px;text-align:left">Avance</th>
+        <th style="text-align:left;padding:5px 7px">Pieza</th>
+        <th style="padding:5px 7px;text-align:center">Total</th>
+        <th style="padding:5px 7px;text-align:center">Entreg.</th>
+        <th style="padding:5px 7px;text-align:left">Avance</th>
       </tr></thead>
       <tbody>${filas}
         <tr style="font-weight:700">
-          <td style="padding:7px 8px">Total</td>
-          <td class="num" style="padding:7px 8px;text-align:center">${totTot}</td>
-          <td class="num" style="padding:7px 8px;text-align:center">${totEnt}</td>
-          <td class="num" style="padding:7px 8px;text-align:center">${Math.max(0,totTot-totEnt)}</td>
-          <td style="padding:7px 8px">${pctTot}%</td>
+          <td style="padding:6px 7px">Total</td>
+          <td class="num" style="padding:6px 7px;text-align:center">${totTot}</td>
+          <td class="num" style="padding:6px 7px;text-align:center">${totEnt}</td>
+          <td style="padding:6px 7px">${pctTot}%</td>
         </tr>
       </tbody>
     </table>
     </div>
   </div>`;
+}
+/* barras: unidades despachadas por fecha de entrega, para ver el ritmo real
+   (una orden que se estanc\u00f3 tres semanas se nota de un vistazo) */
+function dibujarResumenEntregaCharts(r,gs){
+  if(typeof Chart==='undefined')return;
+  const elD=document.getElementById('remiDona'),elR=document.getElementById('remiRitmo');
+  if(!elD||!elR)return;
+  /* responsive:true de Chart.js mide el ancho del contenedor por un
+     ResizeObserver que aqui, dentro de un modal recien insertado y en flex,
+     media mal (la dona se comia las dos columnas). Ancho fijo, sin sorpresas. */
+  const fila=elD.closest('div').parentElement;
+  const wFila=fila.clientWidth||300;
+  elD.width=108;elD.height=108;
+  elR.width=Math.max(100,wFila-108-10);elR.height=108;
+  const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
+  const bit=Array.isArray(r.bitacora)?r.bitacora:[];
+  const totTot=piezas.reduce((a,p)=>a+(+p.cant||0),0);
+  const totEnt=piezas.reduce((a,p)=>a+Math.min(+p.cant||0,_entregadoDe(bit,p.desc,+p.cant||0)),0);
+  const WINE='#7b1e2b',line='#ece9e6';
+  window._remiCharts=(window._remiCharts||[]).filter(c=>{try{c.destroy();}catch(e){}return false;});
+  window._remiCharts.push(new Chart(elD,{type:'doughnut',
+    data:{datasets:[{data:[totEnt,Math.max(0,totTot-totEnt)],backgroundColor:[WINE,'#ece5e3'],borderWidth:0}]},
+    options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed+' und'}}},
+      animation:{duration:400}}}));
+  const porFecha={};(gs||[]).forEach(g=>{const u=g.items.reduce((a,b)=>a+(+b.cantEntregada||0),0);porFecha[g.fecha]=(porFecha[g.fecha]||0)+u;});
+  const fechas=Object.keys(porFecha).sort();
+  window._remiCharts.push(new Chart(elR,{type:'bar',
+    data:{labels:fechas.map(f=>fmtDate(f).replace(/ de \d{4}$/,'')),datasets:[{label:'Unidades',data:fechas.map(f=>porFecha[f]),backgroundColor:WINE,borderRadius:4,maxBarThickness:26}]},
+    options:{responsive:false,plugins:{legend:{display:false},title:{display:true,text:'Ritmo de entrega',font:{size:10.5,weight:'600'},padding:{bottom:4}},
+      tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' unidades'}}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}},grid:{color:line}},x:{ticks:{font:{size:9}},grid:{display:false}}}}}));
 }
 function _elegirEntrega(r,gs){
   let capa=document.getElementById('remiLayer');
@@ -4553,13 +4600,19 @@ function _elegirEntrega(r,gs){
     document.body.appendChild(capa);
     capa.addEventListener('click',e=>{if(e.target===capa)cerrarElegirEntrega();});
   }
-  capa.innerHTML=`<div class="confirm-box" style="max-width:620px;text-align:left;max-height:88vh;overflow-y:auto">
+  const panel=panelResumenEntrega(r);
+  capa.innerHTML=`<div class="confirm-box remi-box" style="max-width:${panel?'900px':'470px'};text-align:left;max-height:88vh;overflow-y:auto">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
       <div class="muted" id="remiSub" style="font-size:12.5px;margin-bottom:14px"></div>
-      ${tablaResumenEntregas(r)}
-      <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
-      <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
+      <div class="remi-grid">
+        <div>
+          <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
+          <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
+        </div>
+        ${panel}
+      </div>
     </div>`;
+  if(panel)setTimeout(()=>dibujarResumenEntregaCharts(r,gs),20);
   document.getElementById('remiSub').textContent=(r.rop||'')+' \u00b7 '+(r.cliente||'')+
     ' \u2014 se ha despachado en '+gs.length+' entrega'+(gs.length===1?'':'s')+
     '. Cada remisi\u00f3n sale solo con lo de esa entrega.';
@@ -4575,7 +4628,8 @@ function _elegirEntrega(r,gs){
     opcion(`imprimirEntrega('${idr}','')`,'Toda la orden','Todas las piezas juntas, sin separar por entrega');
   capa.classList.add('show');
 }
-function cerrarElegirEntrega(){const c=document.getElementById('remiLayer');if(c)c.classList.remove('show');}
+function cerrarElegirEntrega(){const c=document.getElementById('remiLayer');if(c)c.classList.remove('show');
+  (window._remiCharts||[]).forEach(ch=>{try{ch.destroy();}catch(e){}});window._remiCharts=[];}
 async function imprimirEntrega(id,entregaId){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
   cerrarElegirEntrega();
