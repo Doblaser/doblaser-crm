@@ -4620,13 +4620,18 @@ function _elegirEntrega(r,gs){
     ' \u2014 se ha despachado en '+gs.length+' entrega'+(gs.length===1?'':'s')+
     '. Cada remisi\u00f3n sale solo con lo de esa entrega.';
   const idr=esc(String(r.id));
-  const opcion=(onclick,titulo,detalle)=>`<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;height:auto;padding:9px 12px" onclick="${onclick}"><span style="font-weight:700">${titulo}</span><span class="muted" style="font-size:11.5px;font-weight:400;white-space:normal">${detalle}</span></button>`;
+  /* cada entrega firma aparte (rop.entregasFirmas, ver "ENTREGAS DE UNA ORDEN"
+     mas abajo) -- esto solo lo hace visible aqui tambien, con el mismo chip
+     Firmada/Sin firmar que ya tiene el historial dentro del formulario del ROP,
+     para que se note sin tener que abrir cada una. */
+  const opcion=(onclick,titulo,detalle,chip)=>`<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;height:auto;padding:9px 12px" onclick="${onclick}"><span style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-weight:700">${titulo}</span>${chip||''}<span class="spacer"></span></span><span class="muted" style="font-size:11.5px;font-weight:400;white-space:normal">${detalle}</span></button>`;
+  const chipFirma=firmada=>`<span class="tag" style="font-size:10px;background:${firmada?'#f0fdf4':'#fef2f2'};border-color:${firmada?'#bbf7d0':'#fecaca'};color:${firmada?'#166534':'#b91c1c'}">${firmada?'\u2713 Firmada':'Sin firmar'}</span>`;
   document.getElementById('remiOpts').innerHTML=
     gs.slice().reverse().map(g=>{
       const det=g.items.map(b=>b.piezaDesc?(b.piezaDesc+': '+(b.cantEntregada||0)):'toda la orden').join(' \u00b7 ');
       const quien=(g.recibeNombre?' \u00b7 recibi\u00f3 '+g.recibeNombre:'');
       return opcion(`imprimirEntrega('${idr}','${esc(g.id)}')`,'Entrega '+g.n+' \u00b7 '+fmtDate(g.fecha),
-        esc((det.length>95?det.slice(0,95)+'\u2026':det)+quien));
+        esc((det.length>95?det.slice(0,95)+'\u2026':det)+quien),chipFirma(!!firmaDeEntrega(r,g,gs)));
     }).join('')+
     opcion(`imprimirEntrega('${idr}','')`,'Toda la orden','Todas las piezas juntas, sin separar por entrega');
   capa.classList.add('show');
