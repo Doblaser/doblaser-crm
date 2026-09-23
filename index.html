@@ -371,9 +371,33 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .fase-chk input{margin:0}
 /* ---- ROP: piezas de la orden ---- */
 .rp-row.vp-row{grid-template-columns:1fr 140px 70px 100px 34px}
-.he-row{display:grid;grid-template-columns:100px 1fr 34px;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12px}
-.he-fecha{font-weight:700;color:#7b1e2b}
-.he-det{color:var(--ink-2);line-height:1.4}
+.he-card{border:1px solid var(--line);border-left:3px solid #d8b4bb;border-radius:9px;padding:9px 11px;margin-bottom:7px;font-size:12px}
+.he-card.firmada{border-left-color:#22c55e}
+.he-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.he-n{font-weight:800;color:#7b1e2b;font-size:13px}
+.he-fecha{font-weight:700;color:var(--ink-2)}
+.he-chip{font-size:10px;font-weight:700;letter-spacing:.03em;border-radius:20px;padding:2px 9px}
+.he-chip.ok{background:#dcfce7;color:#166534}
+.he-chip.no{background:#fef2f2;color:#b91c1c}
+.he-q{color:var(--ink-2);margin-top:5px}
+.he-det{color:var(--ink-2);line-height:1.5;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.he-p i{font-style:normal;color:var(--ink-3)}
+.he-obs{margin-top:5px;background:#f0f7ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:6px;padding:5px 8px}
+.he-tot{margin-top:5px;font-size:11px;color:var(--ink-3)}
+.he-nueva{margin-top:4px}
+/* cuadro de nueva entrega */
+.ne-box{max-width:560px;text-align:left}
+.ne-sub{font-size:12px;margin-bottom:12px}
+.ne-g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ne-list{max-height:270px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-bottom:10px}
+.ne-row{display:grid;grid-template-columns:20px 1fr 78px;gap:8px;align-items:center;padding:5px 4px;border-bottom:1px solid var(--line)}
+.ne-row:last-child{border-bottom:none}
+.ne-row.ne-lista{opacity:.55}
+.ne-d{font-size:12.5px;line-height:1.3}
+.ne-d i{display:block;font-style:normal;font-size:11px;color:var(--ink-3)}
+.ne-row input[type=number]{width:100%;text-align:center}
+.ne-vacio{font-size:12px;color:var(--ink-2);background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:8px 10px;margin-bottom:10px}
+.ne-tot{font-size:12px;color:var(--ink-2);margin:9px 0 2px}
 .rp-precio{position:relative;display:flex;align-items:center}
 .rp-precio .rp-pesos{position:absolute;left:9px;font-size:12.5px;color:var(--ink-3);pointer-events:none;font-weight:600}
 .rp-precio input{padding-left:20px !important;width:100%}
@@ -1129,9 +1153,9 @@ td.c,th.c{text-align:center}
   #content .tbl-wrap>table>tbody>tr>td:has(.pbar){flex:1 1 100%}
   #content .tbl-wrap>table>tbody>tr>td:has(.row-act){flex:1 1 100%;border-top:1px solid var(--line)!important;padding-top:8px!important;margin-top:2px}
   #content .tbl-wrap .row-act{justify-content:flex-start;flex-wrap:wrap;gap:6px}
-  #content .tbl-wrap .row-act .ic-btn,.rb-row .ic-btn,.he-row .ic-btn{min-width:40px;min-height:40px}
-  .he-row{grid-template-columns:1fr 44px}
-  .he-row .he-fecha{grid-column:1/-1;font-weight:700}
+  #content .tbl-wrap .row-act .ic-btn,.rb-row .ic-btn,.he-card .ic-btn{min-width:40px;min-height:40px}
+  .ne-g2{grid-template-columns:1fr}
+  .ne-row{grid-template-columns:22px 1fr 66px}
   .rb-row-h .spacer{flex:1 1 100%;height:0}
   .rbcorr{max-width:none}
 }
@@ -1565,7 +1589,7 @@ const COT_LIST_COLS='id,created_at,numero,validez,motivo,fecha,cliente,contacto,
    Supabase (21/09/2026: el CRM quedó vacío). La lista se trae sin la firma y la
    firma se pide solo al abrir o compartir una remisión (ropConFirma).
    OJO: al agregar una columna nueva a rop, agregarla también aquí. */
-const ROP_LIST_COLS='id,fecha,cliente,cotizacion,material,asesor,entrega,estado,obs,detalle,created_at,cotId,createdBy,createdAt,updatedBy,updatedAt,rop,aprobacion,suministro,ingreso,observaciones,corteUrl,doblezUrl,planosUrl,consumo,consumoDueno,fases,costoReal,piezas,procesos,avance,bitacora,archivadaManual,firmaClienteFecha,firmaClienteNombre,firmaClienteCedula,pinturaFecha,subtitulo,color,tiempos';
+const ROP_LIST_COLS='id,fecha,cliente,cotizacion,material,asesor,entrega,estado,obs,detalle,created_at,cotId,createdBy,createdAt,updatedBy,updatedAt,rop,aprobacion,suministro,ingreso,observaciones,corteUrl,doblezUrl,planosUrl,consumo,consumoDueno,fases,costoReal,piezas,procesos,avance,bitacora,archivadaManual,firmaClienteFecha,firmaClienteNombre,firmaClienteCedula,pinturaFecha,subtitulo,color,tiempos,entregas';
 async function getAll(t){
   if(USING_SB){
     const sel=(t==='cotizaciones')?COT_LIST_COLS:(t==='rop'?ROP_LIST_COLS:'*');
@@ -1577,9 +1601,20 @@ async function getAll(t){
 }
 /* trae la firma de una orden solo cuando hace falta, y la deja en la fila */
 async function ropConFirma(r){
-  if(!r||r.firmaCliente||!r.firmaClienteFecha||!USING_SB||!sb||isLocalId(r.id))return r;
-  try{const{data}=await sb.from('rop').select('firmaCliente').eq('id',r.id).maybeSingle();
-    if(data&&data.firmaCliente)r.firmaCliente=data.firmaCliente;}catch(e){}
+  if(!r||!USING_SB||!sb||isLocalId(r.id))return r;
+  const faltaFirma=!r.firmaCliente&&!!r.firmaClienteFecha;
+  /* las firmas por entrega pesan igual que la de la orden: se traen aparte */
+  /* falta alguna firma de entrega que ya existe en la base (puede haberla
+     puesto otro equipo: el cambio en vivo trae "entregas" pero no las imágenes) */
+  const _ff=(r.entregasFirmas&&typeof r.entregasFirmas==='object')?r.entregasFirmas:{};
+  const faltaEnt=Array.isArray(r.entregas)&&r.entregas.some(e=>e&&e.firmaTs&&!_ff[e.id]);
+  if(!faltaFirma&&!faltaEnt)return r;
+  const cols=[faltaFirma?'firmaCliente':null,faltaEnt?'entregasFirmas':null].filter(Boolean).join(',');
+  try{const{data}=await sb.from('rop').select(cols).eq('id',r.id).maybeSingle();
+    if(data){
+      if(data.firmaCliente)r.firmaCliente=data.firmaCliente;
+      if(faltaEnt)r.entregasFirmas=Object.assign({},data.entregasFirmas||{},_ff);
+    }}catch(e){}
   return r;
 }
 async function getAllFull(t){if(USING_SB){const{data,error}=await sb.from(t).select('*').order('id',{ascending:false});if(!error&&data)return data.map(normRow)}return LS.get(t,[]).map(normRow)}
@@ -3892,10 +3927,13 @@ function openForm(t,id){
   if(t==='rop'){
     ropConsumo=(row&&Array.isArray(row.consumo))?row.consumo.map(c=>({material:c.material||MAT_INV[0],calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0})):[];
     ropPiezas=(row&&Array.isArray(row.piezas))?row.piezas.map(p=>({desc:p.desc||'',mat:p.mat||'',cant:+p.cant||0,precio:+p.precio||0})):[];
-    ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null,id:b.id||'',ts:b.ts||''})):[];
+    ropBitacora=(row&&Array.isArray(row.bitacora))?row.bitacora.map(b=>({tipo:b.tipo||'nota',texto:b.texto||'',cantidad:b.cantidad||'',piezaDesc:b.piezaDesc||'',piezaTotal:+b.piezaTotal||0,cantEntregada:(b.cantEntregada===0||b.cantEntregada)?+b.cantEntregada:null,fecha:b.fecha||today(),quien:b.quien||'',resuelta:b.tipo==='novedad'?!!b.resuelta:null,id:b.id||'',ts:b.ts||'',entregaId:b.entregaId||''})):[];
     ropAvanceVal=Object.assign({},ropAvance(row||{}));
     ropPinturaFecha=(row&&row.pinturaFecha)||'';
     ropTiemposVal=Object.assign({},(row&&row.tiempos&&typeof row.tiempos==='object')?row.tiempos:{});
+    ropEntregas=(row&&Array.isArray(row.entregas))?row.entregas.map(e=>Object.assign({},e)):[];
+    ropEntregasFirmas=(row&&row.entregasFirmas&&typeof row.entregasFirmas==='object')?Object.assign({},row.entregasFirmas):{};
+    if(row&&row.id)ropConFirma(row).then(()=>{if(editing.t==='rop'&&editing.id===row.id&&row.entregasFirmas){ropEntregasFirmas=Object.assign({},row.entregasFirmas,ropEntregasFirmas);renderRopEntregasHist();}});
     renderRopMat();renderRopPz();renderRopBitacora();renderRopAvance();ropCostCompare();
   }
   if(t==='piezascli'){
@@ -4289,7 +4327,7 @@ async function remisionPDF(r,fecha,firma,recibe){
 function remisionTexto(r,fecha){
   const res=resumenEntrega(r,fecha||null);
   const l=['REMISIÓN '+(r.rop||''),(r.cliente||''),''];
-  if(fecha)l.push('Entrega del '+fmtDate(fecha));
+  if(fecha)l.push((typeof fecha==='object'?('Entrega '+fecha.n+' — '):'Entrega del ')+fmtDate(_entFecha(fecha)));
   l.push('Se entrega:');
   res.lineas.forEach(x=>l.push('  · '+x.desc+(x.cant==null?'':'  '+x.cant+(x.tot&&x.tot!==x.cant?' de '+x.tot:''))));
   if(res.pend>0)l.push('','Quedan '+res.pend+' unidades pendientes de esta orden.');
@@ -4314,8 +4352,9 @@ async function compartirRemision(id,fecha){
    no hace falta imprimir, y esperar a que el guardado llegue a CACHE antes
    de leer la firma de ahí metía una condición de carrera innecesaria. */
 async function _compartirRemisionDoc(r,fecha,firma,recibe){
-  const titulo='Remisión '+(r.rop||'')+(r.cliente?' · '+r.cliente:'')+(fecha?' · entrega '+fmtDate(fecha):'');
-  const nombre=(('Remision '+(r.rop||'')+(firma?' firmada':'')+(r.cliente?' - '+r.cliente:'')+(fecha?' - '+fecha:''))
+  const _f=_entFecha(fecha),_n=(fecha&&typeof fecha==='object')?fecha.n:null;
+  const titulo='Remisión '+(r.rop||'')+(r.cliente?' · '+r.cliente:'')+(fecha?' · '+_entRotulo(fecha):'');
+  const nombre=(('Remision '+(r.rop||'')+(_n?' entrega '+_n:'')+(firma?' firmada':'')+(r.cliente?' - '+r.cliente:'')+(_f?' - '+_f:''))
     .replace(/[\\/:*?"<>|]/g,''))+'.pdf';
 
   dialogoCompartir({
@@ -4433,10 +4472,9 @@ function enviarRemFirmada(id){cerrarRemFirmada();compartirRemision(id);}
    Por eso, si la orden ya tiene entregas registradas, primero se elige cu\u00e1l. */
 function printRemision(id){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r){toast('Orden no encontrada');return}
-  const entregas=(Array.isArray(r.bitacora)?r.bitacora:[]).filter(b=>b.tipo==='parcial'||b.tipo==='total');
-  const fechas=[...new Set(entregas.map(b=>b.fecha).filter(Boolean))].sort().reverse();
-  if(!fechas.length){_remisionImprimir(r,null);return}   /* sin entregas: va la orden completa */
-  _elegirEntrega(r,fechas,entregas);
+  const gs=entregasDe(r);
+  if(!gs.length){_remisionImprimir(r,null);return}   /* sin entregas: va la orden completa */
+  _elegirEntrega(r,gs);
 }
 function _remisionImprimir(r,fecha){
   abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||'')+(fecha?' \u00b7 entrega del '+fmtDate(fecha):''),
@@ -4454,7 +4492,7 @@ function _remisionImprimir(r,fecha){
     _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
   });
 }
-function _elegirEntrega(r,fechas,entregas){
+function _elegirEntrega(r,gs){
   let capa=document.getElementById('remiLayer');
   if(!capa){
     capa=document.createElement('div');capa.id='remiLayer';capa.className='confirm-layer';
@@ -4468,24 +4506,36 @@ function _elegirEntrega(r,fechas,entregas){
     capa.addEventListener('click',e=>{if(e.target===capa)cerrarElegirEntrega();});
   }
   document.getElementById('remiSub').textContent=(r.rop||'')+' \u00b7 '+(r.cliente||'')+
-    ' \u2014 se ha despachado en '+fechas.length+' entrega'+(fechas.length===1?'':'s')+
-    '. Cada remisi\u00f3n sale solo con lo de esa fecha.';
+    ' \u2014 se ha despachado en '+gs.length+' entrega'+(gs.length===1?'':'s')+
+    '. Cada remisi\u00f3n sale solo con lo de esa entrega.';
   const idr=esc(String(r.id));
   const opcion=(onclick,titulo,detalle)=>`<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;height:auto;padding:9px 12px" onclick="${onclick}"><span style="font-weight:700">${titulo}</span><span class="muted" style="font-size:11.5px;font-weight:400;white-space:normal">${detalle}</span></button>`;
   document.getElementById('remiOpts').innerHTML=
-    fechas.map(f=>{
-      const its=entregas.filter(b=>b.fecha===f);
-      const det=its.map(b=>b.piezaDesc?(b.piezaDesc+': '+(b.cantEntregada||0)):'toda la orden').join(' \u00b7 ');
-      return opcion(`imprimirEntrega('${idr}','${f}')`,'Entrega del '+fmtDate(f),esc(det.length>95?det.slice(0,95)+'\u2026':det));
+    gs.slice().reverse().map(g=>{
+      const det=g.items.map(b=>b.piezaDesc?(b.piezaDesc+': '+(b.cantEntregada||0)):'toda la orden').join(' \u00b7 ');
+      const quien=(g.recibeNombre?' \u00b7 recibi\u00f3 '+g.recibeNombre:'');
+      return opcion(`imprimirEntrega('${idr}','${esc(g.id)}')`,'Entrega '+g.n+' \u00b7 '+fmtDate(g.fecha),
+        esc((det.length>95?det.slice(0,95)+'\u2026':det)+quien));
     }).join('')+
     opcion(`imprimirEntrega('${idr}','')`,'Toda la orden','Todas las piezas juntas, sin separar por entrega');
   capa.classList.add('show');
 }
 function cerrarElegirEntrega(){const c=document.getElementById('remiLayer');if(c)c.classList.remove('show');}
-function imprimirEntrega(id,fecha){
+async function imprimirEntrega(id,entregaId){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
   cerrarElegirEntrega();
-  _remisionImprimir(r,fecha||null);
+  if(!entregaId){_remisionImprimir(r,null);return;}
+  await ropConFirma(r);
+  const gs=entregasDe(r),g=gs.find(x=>x.id===entregaId);
+  if(!g){toast('Entrega no encontrada');return;}
+  const rec=recibeDeEntrega(r,g,gs),ya=firmaDeEntrega(r,g,gs);
+  if(ya){_compartirRemisionDoc(r,g,ya,rec);return;}
+  abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||'')+' \u00b7 entrega '+g.n+' del '+fmtDate(g.fecha),
+    resumenEntrega(r,g),(firma,quien)=>{
+    const cambios=cambiosFirmaEntrega(r,g,firma,quien);
+    saveRow('rop',Object.assign({},r,cambios));
+    _compartirRemisionDoc(Object.assign({},r,cambios),g,firma,(quien&&(quien.nombre||quien.cedula))?quien:rec);
+  },{nombre:(rec&&rec.nombre)||'',cedula:(rec&&rec.cedula)||''});
 }
 /* cuenta de cobro para ventas sin cotizaci\u00f3n (material del cliente) \u2014
    lo que necesita la contable: procesos que llev\u00f3 la orden (corte, doblez,
@@ -4557,29 +4607,28 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   const _firmaEmpresa=currentUser()?profFirma(currentUser().name):'';
   /* al reimprimir una remisión vieja debe decir cuándo se firmó de verdad,
      no la fecha en que se volvió a imprimir */
-  const _fechaFirma=(r.firmaClienteFecha||'').slice(0,10)||today();
+  const _entObj=(fechaFiltro&&typeof fechaFiltro==='object')?fechaFiltro:null;
+  const _fFiltro=_entFecha(fechaFiltro);
+  const _fechaFirma=((_entObj&&_entObj.firmaTs)||r.firmaClienteFecha||'').slice(0,10)||today();
   /* la fecha como la pone el sello de caucho de la empresa: 2026 AGO. 27 */
   const _selloFecha=(()=>{
-    const f=fechaFiltro||r.entrega||today();
+    const f=_fFiltro||r.entrega||today();
     const p=String(f).slice(0,10).split('-');
     if(p.length!==3)return f;
     const MES=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     return p[0]+'  '+(MES[+p[1]]||'')+'.  '+(+p[2]);
   })();
   const piezasBase=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
-  const bitAll=Array.isArray(r.bitacora)?r.bitacora:[];
-  let piezas=piezasBase,entHoyMap=null,entregaTotalOrden=false;
-  if(fechaFiltro){
-    const bitHoy=bitAll.filter(b=>(b.fecha||'')===fechaFiltro&&(b.tipo==='parcial'||b.tipo==='total'));
-    entregaTotalOrden=bitHoy.some(b=>b.tipo==='total'&&!b.piezaDesc);
-    if(!entregaTotalOrden){
-      const descsHoy=new Set(bitHoy.filter(b=>b.piezaDesc).map(b=>b.piezaDesc.trim()));
-      if(descsHoy.size)piezas=piezasBase.filter(p=>descsHoy.has((p.desc||'').trim()));
-      entHoyMap={};
-      bitHoy.forEach(b=>{if(b.piezaDesc){const k=b.piezaDesc.trim();entHoyMap[k]=(entHoyMap[k]||0)+(+b.cantEntregada||0);}});
-    }
+  const _cor=_corteEntrega(r,fechaFiltro);
+  let piezas=piezasBase,entHoyMap=null;
+  const entregaTotalOrden=_cor.total;
+  if(fechaFiltro&&!entregaTotalOrden){
+    const descsHoy=new Set(_cor.hoy.filter(b=>b.piezaDesc).map(b=>b.piezaDesc.trim()));
+    if(descsHoy.size)piezas=piezasBase.filter(p=>descsHoy.has((p.desc||'').trim()));
+    entHoyMap={};
+    _cor.hoy.forEach(b=>{if(b.piezaDesc){const k=b.piezaDesc.trim();entHoyMap[k]=(entHoyMap[k]||0)+(+b.cantEntregada||0);}});
   }
-  const bitCorte=fechaFiltro?bitAll.filter(b=>(b.fecha||'')<=fechaFiltro):bitAll;
+  const bitCorte=_cor.corte;
   const its=(!piezas.length&&c&&c.items&&c.items.length&&!fechaFiltro)?c.items:null;
   const colorFila={verde:'#f0fdf4',amarillo:'#fffbeb',rojo:'#fef2f2'};
   const conPiezas=piezas.length>0;
@@ -4611,9 +4660,10 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
     </div>`:'';
   const avisoPend=conPiezas&&totalPend>0
     ?`<div class="pend-note">Quedan <b>${totalPend}</b> unidad${totalPend===1?'':'es'} pendientes de entregar en un pr\u00f3ximo despacho.</div>`:'';
-  const tituloDoc=fechaFiltro?'REMISI\u00d3N \u2014 ENTREGA':'REMISI\u00d3N DE ENTREGA';
-  const subtituloFecha=fechaFiltro?`<div class="row"><span>Entrega de esta remisi\u00f3n:</span> <b>${fmtDate(fechaFiltro)}</b></div>`:'';
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(cleanFileName('Remisi\u00f3n '+(r.rop||'')+' - '+(r.cliente||'')+(fechaFiltro?' - '+fechaFiltro:'')))}</title>
+  const tituloDoc=_entObj?('REMISI\u00d3N \u2014 ENTREGA '+_entObj.n):(fechaFiltro?'REMISI\u00d3N \u2014 ENTREGA':'REMISI\u00d3N DE ENTREGA');
+  const subtituloFecha=fechaFiltro?`<div class="row"><span>Entrega de esta remisi\u00f3n:</span> <b>${_entObj?('N\u00ba '+_entObj.n+' \u00b7 '):''}${fmtDate(_fFiltro)}</b></div>`:'';
+  const quienEntrega=(_entObj&&_entObj.entrego)||(currentUser()?currentUser().name:'Entrega');
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(cleanFileName('Remisi\u00f3n '+(r.rop||'')+(_entObj?' entrega '+_entObj.n:'')+' - '+(r.cliente||'')+(_fFiltro?' - '+_fFiltro:'')))}</title>
 <style>
   @page{size:Letter;margin:0}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -4664,7 +4714,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
     <div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><strong>DOBLASER S.A.S.</strong> \u00b7 Nit 901682190-5<br>${esc(EMPRESA.dir)}<br>${esc(EMPRESA.ciudad)} \u00b7 ${esc(EMPRESA.web)}</div></div>
     <div class="doc"><div class="lbl">${tituloDoc}</div><div class="num">${esc(r.rop)}</div>
       ${subtituloFecha}
-      <div class="row"><span>Fecha de entrega:</span> <b>${fmtDate(fechaFiltro||r.entrega||today())}</b></div>
+      <div class="row"><span>Fecha de entrega:</span> <b>${fmtDate(_fFiltro||r.entrega||today())}</b></div>
       ${(c&&c.numero)||r.aprobacion?`<div class="row"><span>Cotizaci\u00f3n / OC:</span> <b>${esc((c&&c.numero)||r.aprobacion)}</b></div>`:''}
       <div class="row"><span>Asesor:</span> <b>${esc(r.asesor)||'—'}</b></div></div>
   </div>
@@ -4678,7 +4728,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   ${(recibe&&recibe.obs)?`<div class="obs-nota"><b>Observaciones:</b> ${esc(recibe.obs)}</div>`:''}
   <div class="note">El cliente declara recibir los \u00edtems relacionados en esta remisi\u00f3n, verificados en cantidad y estado al momento de la entrega. Documento de entrega — no constituye factura.</div>
   <div class="firmas">
-    <div class="firma sello"><div class="sl-marco"><div class="sl-logo"><img src="${LOGO_POS}" alt="DOBLASER"></div><div class="sl-nit">NIT 901.682.190</div><div class="sl-fecha">${_selloFecha}</div><div class="sl-tel">&#9743; 321 673 4990</div><div class="sl-linea"></div><div class="sl-ok">&#10004; ENTREGADO</div>${_firmaEmpresa?`<div class="sl-firma"><img src="${_firmaEmpresa}" alt="Firma"></div>`:'<div class="sl-rayita"></div>'}<div class="sl-quien">${currentUser()?esc(currentUser().name):'Entrega'}</div></div></div>
+    <div class="firma sello"><div class="sl-marco"><div class="sl-logo"><img src="${LOGO_POS}" alt="DOBLASER"></div><div class="sl-nit">NIT 901.682.190</div><div class="sl-fecha">${_selloFecha}</div><div class="sl-tel">&#9743; 321 673 4990</div><div class="sl-linea"></div><div class="sl-ok">&#10004; ENTREGADO</div>${_firmaEmpresa?`<div class="sl-firma"><img src="${_firmaEmpresa}" alt="Firma"></div>`:'<div class="sl-rayita"></div>'}<div class="sl-quien">${esc(quienEntrega)}</div></div></div>
     <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div>${(recibe&&recibe.nombre)?`<div class="l pref">${esc(recibe.nombre)}</div>`:'<div class="l">Nombre</div>'}${(recibe&&recibe.cedula)?`<div class="l pref">C.C. ${esc(recibe.cedula)}</div>`:'<div class="l">C.C.</div>'}${firmaDataUrl?`<div class="firma-img"><img src="${firmaDataUrl}" alt="Firma del cliente"><div class="fts">Firmado el ${fmtDate(_fechaFirma)}</div></div>`:'<div class="l">Firma y fecha</div>'}</div>
   </div>
   <div class="foot">DOBLASER S.A.S. \u00b7 Nit 901682190-5 \u00b7 ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} \u00b7 ${esc(EMPRESA.web)} \u00b7 Generado ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''}</div>
@@ -5100,9 +5150,9 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
       <span>Atajo: registra de una vez lo que falta de <b>todas</b> las piezas, con la fecha de hoy. Para entregar solo una pieza o una cantidad parcial, usa el formulario de arriba.</span>
     </div>
   </div>
-  <div class="field full rop-bit"><label>Historial de entregas — cuántas remisiones lleva esta orden y de qué fecha</label>
+  <div class="field full rop-bit"><label>Entregas de esta orden — consecutivo, fecha, quién entregó y quién recibió</label>
     <div id="ropEntregasHist"></div>
-    <div class="dfiles-hint">Cada fecha con entregas registradas se puede imprimir por separado — útil cuando una orden se despachó en varias remisiones.</div>
+    <div class="dfiles-hint">Cada entrega tiene su número, su remisión y <b>su propia firma</b>: firmar una nueva ya no borra la anterior. Usa <b>+ Nueva entrega</b> para despachar varias piezas de una sola vez.</div>
   </div>
   <div class="field full rop-pz"><label>Piezas de la orden — para órdenes que no vienen de cotización</label>
     <div id="ropPzRows"></div>
@@ -5312,6 +5362,8 @@ function vpFromRop(){
 /* ---- Bitácora: entregas parciales y novedades de la orden ---- */
 const RB_LBL={parcial:'Entrega parcial',total:'Entrega total',novedad:'Novedad',nota:'Nota',correccion:'Corrección de entrega'};
 let ropBitacora=[];
+let ropEntregas=[];        /* metadatos de cada entrega: quien entrego, quien recibio, firma */
+let ropEntregasFirmas={};  /* {idEntrega: dataUrl} — pesado, se trae aparte (ropConFirma) */
 /* cuánto se ha entregado de una pieza, sumando todas las entregas parciales
    que la referencian (se identifican por su descripción, igual que el
    resto de la app hace con material/calibre en vez de ids).
@@ -5548,54 +5600,254 @@ function rbToggleResuelta(i){
   b.resuelta=!b.resuelta;
   renderRopBitacora();
 }
-/* historial de entregas agrupado por fecha — cuántas remisiones lleva la
-   orden y de qué día, para no perder el rastro cuando se despacha varias
-   veces. Se calcula sobre lo que hay en el formulario abierto (ropBitacora),
-   así ya se puede imprimir la remisión del día antes incluso de guardar. */
+/* =========================================================
+   ENTREGAS DE UNA ORDEN
+
+   Una orden se despacha en varios viajes. Antes cada pieza entregada
+   quedaba como una línea suelta en la bitácora y lo único que las unía
+   era la fecha: no se sabía cuántos despachos hubo, qué salió en cada
+   uno ni quién lo recibió. Y la firma era UNA sola por orden
+   (rop.firmaCliente), así que cada firma nueva pisaba la anterior.
+
+   Ahora cada entrega es un grupo con su consecutivo, su fecha, quién
+   entregó, quién recibió y SU PROPIA firma:
+     - bitacora[i].entregaId  -> a qué entrega pertenece esa línea
+     - rop.entregas           -> [{id,fecha,entrego,recibeNombre,recibeCedula,obs,firmaTs,driveUrl}]
+     - rop.entregasFirmas     -> {id: dataUrl}  (pesado: NO va en ROP_LIST_COLS)
+
+   Las líneas viejas no tienen entregaId: se agrupan por (fecha, quien),
+   que es exactamente como se registraron. Así el historial queda ordenado
+   sin tener que tocar los datos que ya existen.
+   La bitácora sigue siendo la fuente de las cantidades: las entregas son
+   una capa de agrupación encima, no un conteo aparte.
+   ========================================================= */
+function _entregaIdDe(b){return (b&&b.entregaId)||('d:'+((b&&b.fecha)||'')+'|'+((b&&b.quien)||''));}
+/* agrupa la bitácora en entregas numeradas, de la más vieja a la más nueva */
+function entregasDe(r){
+  const bit=Array.isArray(r&&r.bitacora)?r.bitacora:[];
+  const meta=Array.isArray(r&&r.entregas)?r.entregas:[];
+  const mapa={},orden=[];
+  bit.forEach(b=>{
+    if(b.tipo!=='parcial'&&b.tipo!=='total')return;
+    const id=_entregaIdDe(b);
+    let g=mapa[id];
+    if(!g){g=mapa[id]={id,fecha:b.fecha||'',ts:'',items:[],quienes:[],_i:orden.length};orden.push(g);}
+    g.items.push(b);
+    if(b.fecha&&(!g.fecha||b.fecha<g.fecha))g.fecha=b.fecha;
+    if(b.ts&&b.ts>g.ts)g.ts=b.ts;
+    if(b.quien&&g.quienes.indexOf(b.quien)<0)g.quienes.push(b.quien);
+  });
+  /* Dentro de un mismo día hay que saber cuál entrega fue primero. Las nuevas
+     traen la hora exacta (ts); las viejas no, y ahí vale la convención de la
+     bitácora: se guarda de lo más nuevo a lo más viejo, así que la que aparece
+     más abajo en el arreglo es la más antigua (por eso el −_i). */
+  orden.sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||''))
+    ||String(a.ts||'').localeCompare(String(b.ts||''))||(b._i-a._i));
+  let acum=[];
+  orden.forEach((g,i)=>{
+    g.n=i+1;
+    acum=acum.concat(g.items);
+    g.corte=acum.slice();                 /* todo lo entregado hasta esta entrega, inclusive */
+    const m=meta.find(x=>x&&x.id===g.id)||{};
+    g.entrego=m.entrego||g.quienes.join(', ');
+    g.recibeNombre=m.recibeNombre||'';
+    g.recibeCedula=m.recibeCedula||'';
+    g.obs=m.obs||'';
+    g.firmaTs=m.firmaTs||'';
+    g.driveUrl=m.driveUrl||'';
+    if(m.fecha)g.fecha=m.fecha;
+  });
+  return orden;
+}
+/* la firma de una entrega puntual; si es la última y solo existe la firma
+   vieja de la orden, se usa esa (las órdenes firmadas antes de este cambio) */
+function firmaDeEntrega(r,g,todas){
+  const f=(r&&r.entregasFirmas&&r.entregasFirmas[g.id])||null;
+  if(f)return f;
+  if(g.firmaTs)return null;
+  const ult=todas&&todas.length?todas[todas.length-1]:null;
+  if(ult&&ult.id===g.id&&r&&r.firmaCliente&&!(Array.isArray(r.entregas)?r.entregas:[]).some(e=>e&&e.firmaTs))return r.firmaCliente;
+  return null;
+}
+function recibeDeEntrega(r,g,todas){
+  if(g.recibeNombre||g.recibeCedula)return{nombre:g.recibeNombre,cedula:g.recibeCedula,obs:g.obs};
+  const ult=todas&&todas.length?todas[todas.length-1]:null;
+  if(ult&&ult.id===g.id&&r&&(r.firmaClienteNombre||r.firmaClienteCedula))
+    return{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||'',obs:''};
+  return null;
+}
+/* guarda la firma y los datos de recibido de UNA entrega, sin pisar las otras.
+   Devuelve los cambios que hay que escribirle a la orden. */
+function cambiosFirmaEntrega(r,g,firma,quien){
+  const entregas=(Array.isArray(r.entregas)?r.entregas:[]).map(e=>Object.assign({},e));
+  const firmas=Object.assign({},(r.entregasFirmas&&typeof r.entregasFirmas==='object')?r.entregasFirmas:{});
+  let e=entregas.find(x=>x&&x.id===g.id);
+  if(!e){e={id:g.id,fecha:g.fecha||today(),entrego:g.entrego||''};entregas.push(e);}
+  if(quien){
+    if(quien.nombre)e.recibeNombre=quien.nombre;
+    if(quien.cedula)e.recibeCedula=quien.cedula;
+    if(quien.obs)e.obs=quien.obs;
+  }
+  const cambios={entregas};
+  if(firma){
+    e.firmaTs=new Date().toISOString();
+    firmas[g.id]=firma;
+    cambios.entregasFirmas=firmas;
+    /* la firma de la orden sigue apuntando a la última entrega firmada, para
+       que la remisión general y el botón de firma de la lista no cambien */
+    const todas=entregasDe(r);
+    const esUltima=!todas.length||todas[todas.length-1].id===g.id;
+    if(esUltima)Object.assign(cambios,{firmaCliente:firma,firmaClienteFecha:e.firmaTs,
+      firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null});
+  }
+  return cambios;
+}
+/* la orden tal como está en el formulario abierto (sin necesidad de guardar) */
+function ropEditActual(){
+  const base=(editing.id&&CACHE.rop.find(x=>String(x.id)===String(editing.id)))||{};
+  return {base,r:Object.assign({},base,{piezas:ropPiezas,bitacora:ropBitacora,
+    entregas:ropEntregas,entregasFirmas:ropEntregasFirmas,
+    rop:(document.getElementById('f_rop')||{}).value||base.rop,
+    cliente:(document.getElementById('f_cliente')||{}).value||base.cliente})};
+}
+function entregaPorId(r,id){return entregasDe(r).find(g=>g.id===id)||null;}
+
+/* ---- historial: una tarjeta por entrega ---- */
 function renderRopEntregasHist(){
   const box=document.getElementById('ropEntregasHist');if(!box)return;
-  const grupos={};
-  ropBitacora.filter(b=>b.tipo==='parcial'||b.tipo==='total').forEach(b=>{
-    const f=b.fecha||'—';(grupos[f]=grupos[f]||[]).push(b);
-  });
-  const fechas=Object.keys(grupos).sort().reverse();
-  if(!fechas.length){box.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin entregas registradas todavía.</div>';return;}
-  box.innerHTML=fechas.map(f=>{
-    const items=grupos[f];
-    const quienes=[...new Set(items.map(b=>b.quien).filter(Boolean))].join(', ');
-    const detalle=items.map(b=>b.piezaDesc?(esc(b.piezaDesc)+': <b>'+(b.cantEntregada||0)+'</b>'):'<b>Toda la orden</b>').join(' · ');
-    return `<div class="he-row">
-      <div class="he-fecha">${fmtDate(f)}</div>
-      <div class="he-det">${detalle}${quienes?` <span class="muted">· ${esc(quienes)}</span>`:''}</div>
-      <button type="button" class="ic-btn" title="Imprimir remisión de esta entrega" onclick="printRemisionDeFecha('${f}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button type="button" class="ic-btn" title="Enviar la remisión de esta entrega (PDF)" onclick="compartirRemisionDeFecha('${f}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+  const {r}=ropEditActual();
+  const gs=entregasDe(r);
+  const boton='<button type="button" class="btn ghost sm he-nueva" onclick="neAbrir()">+ Nueva entrega</button>';
+  if(!gs.length){box.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin entregas registradas todavía.</div>'+boton;return;}
+  box.innerHTML=gs.slice().reverse().map(g=>{
+    const firmada=!!firmaDeEntrega(r,g,gs);
+    const rec=recibeDeEntrega(r,g,gs);
+    const det=g.items.map(b=>b.piezaDesc
+      ?`<span class="he-p">${esc(b.piezaDesc)} <b>${+b.cantEntregada||0}</b>${b.piezaTotal?`<i> de ${b.piezaTotal}</i>`:''}</span>`
+      :'<span class="he-p"><b>Toda la orden</b></span>').join('');
+    const tot=g.items.reduce((a,b)=>a+(+b.cantEntregada||0),0);
+    return `<div class="he-card${firmada?' firmada':''}">
+      <div class="he-h">
+        <span class="he-n">Entrega ${g.n}</span>
+        <span class="he-fecha">${fmtDate(g.fecha)}</span>
+        <span class="he-chip ${firmada?'ok':'no'}">${firmada?'Firmada':'Sin firmar'}</span>
+        <span class="spacer"></span>
+        <button type="button" class="ic-btn" title="Imprimir / firmar la remisión de esta entrega" onclick="printRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button type="button" class="ic-btn" title="Enviar la remisión de esta entrega (PDF)" onclick="compartirRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+      </div>
+      <div class="he-q">Entregó <b>${esc(g.entrego)||'—'}</b> · Recibió <b>${esc(rec&&rec.nombre)||'—'}</b>${(rec&&rec.cedula)?` <span class="muted">C.C. ${esc(rec.cedula)}</span>`:''}</div>
+      <div class="he-det">${det}</div>
+      ${g.obs?`<div class="he-obs">${esc(g.obs)}</div>`:''}
+      <div class="he-tot">${tot?tot+' unidad'+(tot===1?'':'es'):'—'}${g.driveUrl?` · <a href="${esc(g.driveUrl)}" target="_blank" rel="noopener">PDF en el Drive</a>`:''}</div>
     </div>`;
-  }).join('')+`<div class="rp-tot">${fechas.length} fecha${fechas.length===1?'':'s'} con entrega${fechas.length===1?'':'s'}</div>`;
+  }).join('')+`<div class="rp-tot">${gs.length} entrega${gs.length===1?'':'s'} registrada${gs.length===1?'':'s'}</div>`+boton;
 }
-/* enviar la remisión de UNA entrega puntual, desde la bitácora de la orden */
-async function compartirRemisionDeFecha(fecha){
-  const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
-  const r={...base,piezas:ropPiezas,bitacora:ropBitacora,
-    rop:(document.getElementById('f_rop')||{}).value||base.rop,
-    cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
-  if(base.id){await ropConFirma(base);r.firmaCliente=base.firmaCliente;}
-  const firma=r.firmaCliente||null;
-  const recibe=firma?{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''}:null;
-  /* antes esta función repetía todo el armado del PDF y el diálogo de compartir;
-     era la misma lógica en dos sitios y los arreglos solo caían en uno */
-  return _compartirRemisionDoc(r,fecha,firma,recibe);
+
+/* ---- nueva entrega: varias piezas de una vez, con quién recibe ---- */
+function neAbrir(){
+  const conNombre=ropPiezas.filter(p=>(p.desc||'').trim()&&+p.cant>0);
+  let c=document.getElementById('neLayer');
+  if(!c){c=document.createElement('div');c.id='neLayer';c.className='confirm-layer';document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)neCerrar();});}
+  const u=currentUser();
+  const filas=conNombre.map((p,i)=>{
+    const desc=(p.desc||'').trim(),tot=+p.cant||0;
+    const pend=Math.max(0,tot-ropEntregadoPieza(desc,tot));
+    return `<label class="ne-row${pend?'':' ne-lista'}">
+      <input type="checkbox" id="neC${i}" ${pend?'checked':''} onchange="neTot()">
+      <span class="ne-d">${esc(desc)}<i>${pend?('pendiente '+pend+' de '+tot):'ya entregada'}</i></span>
+      <input type="number" min="0" id="neN${i}" value="${pend}" oninput="neTot()">
+    </label>`;
+  }).join('');
+  c.innerHTML=`<div class="confirm-box ne-box">
+    <h3>Nueva entrega</h3>
+    <div class="muted ne-sub">Queda como una sola entrega con su consecutivo, para imprimir y firmar su remisión aparte.</div>
+    <div class="ne-g2">
+      <div><label class="rbc-l">Fecha</label><input type="date" id="neFecha" value="${today()}"></div>
+      <div><label class="rbc-l">Quién entrega</label><input type="text" id="neEntrego" value="${esc(u?u.name:'')}"></div>
+    </div>
+    ${conNombre.length?`<label class="rbc-l">Piezas que salen</label><div class="ne-list">${filas}</div>`
+      :'<div class="ne-vacio">Esta orden no tiene piezas en la lista: se registra como entrega de toda la orden.</div>'}
+    <div class="ne-g2">
+      <div><label class="rbc-l">Quién recibe</label><input type="text" id="neRecibe" placeholder="Nombre y apellido"></div>
+      <div><label class="rbc-l">Cédula</label><input type="text" id="neCedula" inputmode="numeric" placeholder="Opcional"></div>
+    </div>
+    <label class="rbc-l">Observaciones (opcional)</label>
+    <textarea id="neObs" rows="2" placeholder="Ej: se entrega además 40 kg de lámina sobrante"></textarea>
+    <div class="ne-tot" id="neTotTxt"></div>
+    <div class="confirm-btns">
+      <button type="button" class="btn ghost" onclick="neCerrar()">Cancelar</button>
+      <button type="button" class="btn confirm-si" onclick="neGuardar()">Registrar entrega</button>
+    </div></div>`;
+  c.classList.add('show');
+  neTot();
+  setTimeout(()=>{const f=document.getElementById('neRecibe');if(f)f.focus();},60);
 }
-function printRemisionDeFecha(fecha){
-  const base=(editing.id&&CACHE.rop.find(x=>x.id===editing.id))||{};
-  const r={...base,piezas:ropPiezas,bitacora:ropBitacora,rop:(document.getElementById('f_rop')||{}).value||base.rop,cliente:(document.getElementById('f_cliente')||{}).value||base.cliente};
-  abrirFirma('Firma de recibido — '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+fmtDate(fecha),resumenEntrega(r,fecha),(firma,quien)=>{
-    const cambios={};
-    if(firma)Object.assign(cambios,{firmaCliente:firma,firmaClienteFecha:new Date().toISOString(),
-      firmaClienteNombre:(quien&&quien.nombre)||null,firmaClienteCedula:(quien&&quien.cedula)||null});
-    if(quien&&quien.obs)cambios.bitacora=[...(Array.isArray(base.bitacora)?base.bitacora:[]),
-      {tipo:'nota',fecha,texto:quien.obs,autor:currentUser()?currentUser().name:null}];
-    if(base.id&&Object.keys(cambios).length)saveRow('rop',{...base,...cambios});
-    _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
+function neCerrar(){const c=document.getElementById('neLayer');if(c)c.classList.remove('show');}
+function _neLineas(){
+  const conNombre=ropPiezas.filter(p=>(p.desc||'').trim()&&+p.cant>0);
+  const out=[];
+  conNombre.forEach((p,i)=>{
+    const ch=document.getElementById('neC'+i),nEl=document.getElementById('neN'+i);
+    if(!ch||!ch.checked)return;
+    const n=Math.max(0,+((nEl||{}).value)||0);
+    if(n>0)out.push({desc:(p.desc||'').trim(),tot:+p.cant||0,cant:n});
   });
+  return out;
+}
+function neTot(){
+  const el=document.getElementById('neTotTxt');if(!el)return;
+  const ls=_neLineas();
+  const u=ls.reduce((a,l)=>a+l.cant,0);
+  el.innerHTML=ls.length?`<b>${ls.length}</b> pieza${ls.length===1?'':'s'} · <b>${u}</b> unidad${u===1?'':'es'} en esta entrega`:'Marca al menos una pieza.';
+}
+function neGuardar(){
+  const conNombre=ropPiezas.filter(p=>(p.desc||'').trim()&&+p.cant>0);
+  const fecha=((document.getElementById('neFecha')||{}).value||today());
+  const entrego=((document.getElementById('neEntrego')||{}).value||'').trim();
+  const recibe=((document.getElementById('neRecibe')||{}).value||'').trim();
+  const cedula=((document.getElementById('neCedula')||{}).value||'').trim();
+  const obs=((document.getElementById('neObs')||{}).value||'').trim();
+  const lineas=_neLineas();
+  if(conNombre.length&&!lineas.length){toast('Marca al menos una pieza y su cantidad');return;}
+  const id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const nuevas=lineas.length
+    ?lineas.map(l=>({tipo:'parcial',piezaDesc:l.desc,piezaTotal:l.tot,cantEntregada:l.cant,cantidad:'',
+        texto:'',fecha,quien:entrego,resuelta:null,entregaId:id,id:uid(),ts:new Date().toISOString()}))
+    :[{tipo:'total',piezaDesc:'',piezaTotal:0,cantEntregada:null,cantidad:'',texto:obs,fecha,quien:entrego,
+        resuelta:null,entregaId:id,id:uid(),ts:new Date().toISOString()}];
+  ropBitacora=[...nuevas,...ropBitacora];
+  ropEntregas=[...ropEntregas,{id,fecha,entrego,recibeNombre:recibe,recibeCedula:cedula,obs}];
+  neCerrar();
+  renderRopBitacora();renderRopPz();
+  const g=entregaPorId(ropEditActual().r,id);
+  toast('Entrega '+(g?g.n:'')+' registrada — recuerda Guardar la orden');
+}
+
+/* ---- remisión de UNA entrega ---- */
+async function compartirRemisionDeEntrega(entregaId){
+  const {base,r}=ropEditActual();
+  if(base.id){await ropConFirma(base);r.firmaCliente=base.firmaCliente;
+    if(base.entregasFirmas)r.entregasFirmas=Object.assign({},base.entregasFirmas,ropEntregasFirmas);}
+  const gs=entregasDe(r),g=gs.find(x=>x.id===entregaId);
+  if(!g){toast('Entrega no encontrada');return;}
+  return _compartirRemisionDoc(r,g,firmaDeEntrega(r,g,gs),recibeDeEntrega(r,g,gs));
+}
+function printRemisionDeEntrega(entregaId){
+  const {base,r}=ropEditActual();
+  const gs=entregasDe(r),g=gs.find(x=>x.id===entregaId);
+  if(!g){toast('Entrega no encontrada');return;}
+  const rec=recibeDeEntrega(r,g,gs);
+  const yaFirmada=firmaDeEntrega(r,g,gs);
+  if(yaFirmada){_compartirRemisionDoc(r,g,yaFirmada,rec);return;}
+  abrirFirma('Firma de recibido — '+(r.rop||'')+' · '+(r.cliente||'')+' · entrega '+g.n+' del '+fmtDate(g.fecha),
+    resumenEntrega(r,g),(firma,quien)=>{
+    const cambios=cambiosFirmaEntrega(r,g,firma,quien);
+    ropEntregas=cambios.entregas;
+    if(cambios.entregasFirmas)ropEntregasFirmas=cambios.entregasFirmas;
+    if(base.id)saveRow('rop',Object.assign({},base,cambios));
+    renderRopEntregasHist();
+    _compartirRemisionDoc(Object.assign({},r,cambios),g,firma,(quien&&(quien.nombre||quien.cedula))?quien:rec);
+  },{nombre:(rec&&rec.nombre)||'',cedula:(rec&&rec.cedula)||''});
 }
 function renderRopBitacora(){
   const box=document.getElementById('ropBitRows');if(!box)return;
@@ -6141,7 +6393,7 @@ async function saveForm(){
       alert('El número '+ropNum+' ya lo usó otra orden mientras tú trabajabas en esta (probablemente alguien más guardó al mismo tiempo). Se cambió automáticamente al número '+nuevo+'. Revisa que esté bien y dale Guardar otra vez.');
       return;
     }
-    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),tiempos:ropTiemposSave(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
+    row={...row,rop:ropNum,estado:val('f_estado'),cliente:val('f_cliente'),subtitulo:val('f_subtitulo'),color:val('f_color'),cotId:val('f_cotId'),aprobacion:val('f_aprobacion'),suministro:val('f_suministro'),ingreso:val('f_ingreso'),entrega:val('f_entrega'),asesor:val('f_asesor'),costoReal:numv('f_costoReal'),observaciones:val('f_observaciones'),procesos:ropProcSel(),avance:ropAvanceSave(),fases:ropFasesFromAvance(),pinturaFecha:val('f_pinturaFecha'),tiempos:ropTiemposSave(),piezas:ropPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),bitacora:ropBitacora,entregas:ropEntregas,entregasFirmas:ropEntregasFirmas,corteUrl:val('f_corteUrl'),doblezUrl:val('f_doblezUrl'),planosUrl:val('f_planosUrl'),consumoDueno:val('f_consumoDueno')||DUENO_GEN,consumo:ropConsumo.filter(c=>c.material&&+c.cant>0).map(c=>({material:c.material,calibre:c.calibre||'',clase:c.clase||'lamina',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cant:+c.cant||0}))};}
   else if(t==='leads'){if(!val('f_empresa')){toast('Indica la empresa');return}row={...row,empresa:val('f_empresa'),municipio:val('f_municipio'),direccion:val('f_direccion'),contacto:val('f_contacto'),telefono:val('f_telefono'),whatsapp:val('f_whatsapp'),email:val('f_email'),sector:val('f_sector'),calificacion:val('f_calificacion'),estado:val('f_estado'),asesor:val('f_asesor'),notas:val('f_notas')};}
   else if(t==='cotizaciones'){if(!val('f_cliente')){toast('Indica el cliente');return}
     let numero=val('f_numero');
@@ -7279,23 +7531,42 @@ function gsearchIr(tipo,id){
    imprimir la remisión y queda incrustada en el PDF/impreso
    ========================================================= */
 let FIRMA={};
+/* El filtro de una remisión puede ser una entrega (el grupo con su
+   consecutivo) o, para lo viejo y para "toda la orden", una fecha suelta.
+   _corteEntrega deja las dos formas en la misma estructura: qué salió en
+   ESTA remisión (hoy) y cuánto se llevaba entregado hasta ella (corte). */
+function _corteEntrega(r,filtro){
+  const bitAll=Array.isArray(r&&r.bitacora)?r.bitacora:[];
+  if(!filtro)return{bitAll,hoy:null,corte:bitAll,fecha:null,total:false};
+  if(typeof filtro==='object'){
+    const hoy=Array.isArray(filtro.items)?filtro.items:[];
+    return{bitAll,hoy,corte:Array.isArray(filtro.corte)?filtro.corte:bitAll,fecha:filtro.fecha||null,
+      total:hoy.some(b=>b.tipo==='total'&&!b.piezaDesc)};
+  }
+  const hoy=bitAll.filter(b=>(b.fecha||'')===filtro&&(b.tipo==='parcial'||b.tipo==='total'));
+  return{bitAll,hoy,corte:bitAll.filter(b=>(b.fecha||'')<=filtro),fecha:filtro,
+    total:hoy.some(b=>b.tipo==='total'&&!b.piezaDesc)};
+}
+function _entFecha(f){return !f?null:(typeof f==='object'?(f.fecha||null):f);}
+/* cómo se nombra esa remisión en títulos y archivos */
+function _entRotulo(f){
+  if(!f)return '';
+  return typeof f==='object'?('entrega '+f.n+' del '+fmtDate(f.fecha)):('entrega '+fmtDate(f));
+}
 /* qué se está entregando ahora — misma lógica que usa la remisión, para que
    el cliente vea las piezas y las cantidades ANTES de poner la firma */
 function resumenEntrega(r,fechaFiltro){
   const piezasBase=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
-  const bitAll=Array.isArray(r.bitacora)?r.bitacora:[];
-  let piezas=piezasBase,entHoyMap=null,total=false;
-  if(fechaFiltro){
-    const bitHoy=bitAll.filter(b=>(b.fecha||'')===fechaFiltro&&(b.tipo==='parcial'||b.tipo==='total'));
-    total=bitHoy.some(b=>b.tipo==='total'&&!b.piezaDesc);
-    if(!total){
-      const descsHoy=new Set(bitHoy.filter(b=>b.piezaDesc).map(b=>b.piezaDesc.trim()));
-      if(descsHoy.size)piezas=piezasBase.filter(p=>descsHoy.has((p.desc||'').trim()));
-      entHoyMap={};
-      bitHoy.forEach(b=>{if(b.piezaDesc){const k=b.piezaDesc.trim();entHoyMap[k]=(entHoyMap[k]||0)+(+b.cantEntregada||0);}});
-    }
+  const cor=_corteEntrega(r,fechaFiltro);
+  let piezas=piezasBase,entHoyMap=null;
+  const total=cor.total;
+  if(fechaFiltro&&!total){
+    const descsHoy=new Set(cor.hoy.filter(b=>b.piezaDesc).map(b=>b.piezaDesc.trim()));
+    if(descsHoy.size)piezas=piezasBase.filter(p=>descsHoy.has((p.desc||'').trim()));
+    entHoyMap={};
+    cor.hoy.forEach(b=>{if(b.piezaDesc){const k=b.piezaDesc.trim();entHoyMap[k]=(entHoyMap[k]||0)+(+b.cantEntregada||0);}});
   }
-  const bitCorte=fechaFiltro?bitAll.filter(b=>(b.fecha||'')<=fechaFiltro):bitAll;
+  const bitCorte=cor.corte;
   const lineas=piezas.map(p=>{
     const tot=+p.cant||0;
     const entAcum=_entregadoDe(bitCorte,p.desc,tot);
@@ -7344,7 +7615,7 @@ function abrirFirma(titulo,resumen,onListo,opts){
   document.getElementById('firmaTitulo').textContent=titulo;
   document.getElementById('firmaResumen').innerHTML=resumenEntregaHTML(resumen);
   const n=document.getElementById('firmaNombre'),ce=document.getElementById('firmaCedula'),ob=document.getElementById('firmaObs');
-  if(n)n.value='';if(ce)ce.value='';if(ob)ob.value='';
+  if(n)n.value=opts.nombre||'';if(ce)ce.value=opts.cedula||'';if(ob)ob.value='';
   /* al guardar la firma propia del equipo no se piden nombre ni cédula:
      ya se sabe quién es, y no se está imprimiendo nada */
   const quien=document.querySelector('.firma-quien');
