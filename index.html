@@ -4492,19 +4492,74 @@ function _remisionImprimir(r,fecha){
     _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
   });
 }
+/* Resumen profesional de avance de entrega: una fila por pieza, con lo entregado,
+   lo pendiente y el % con barra, mas una fila de totales. Antes solo se veia el
+   listado crudo de entregas (fecha + que se despacho); esto responde de un vistazo
+   "como va esta orden" sin sumar a mano. */
+function tablaResumenEntregas(r){
+  const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
+  if(!piezas.length)return '';
+  const bit=Array.isArray(r.bitacora)?r.bitacora:[];
+  const colorFila={verde:'#f0fdf4',amarillo:'#fffbeb',rojo:'#fef2f2'};
+  const colorBarra={verde:'#16a34a',amarillo:'#d97706',rojo:'#dc2626'};
+  let totTot=0,totEnt=0;
+  const filas=piezas.map(p=>{
+    const tot=+p.cant||0,ent=Math.min(tot,_entregadoDe(bit,p.desc,tot)),pend=Math.max(0,tot-ent);
+    const pct=tot>0?Math.round(ent/tot*100):0;
+    const est=estadoEntregaPieza(ent,tot)||'rojo';
+    totTot+=tot;totEnt+=ent;
+    return `<tr style="background:${colorFila[est]}">
+      <td style="padding:6px 8px;border-bottom:1px solid var(--line)">${esc(p.desc)||'\u2014'}</td>
+      <td class="num" style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:center">${tot}</td>
+      <td class="num" style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:center">${ent}</td>
+      <td class="num" style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:center">${pend}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--line);min-width:110px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:7px;border-radius:4px;background:var(--line);overflow:hidden"><div style="width:${pct}%;height:100%;background:${colorBarra[est]}"></div></div>
+          <span style="font-size:11px;font-weight:700;color:${colorBarra[est]};min-width:32px;text-align:right">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  const pctTot=totTot>0?Math.round(totEnt/totTot*100):0;
+  return `<div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px">Resumen de entregas \u2014 ${pctTot}% completado</div>
+    <div style="max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:var(--bg-2,#f6f6f6)">
+        <th style="text-align:left;padding:6px 8px">Pieza</th>
+        <th style="padding:6px 8px;text-align:center">Total</th>
+        <th style="padding:6px 8px;text-align:center">Entregado</th>
+        <th style="padding:6px 8px;text-align:center">Pendiente</th>
+        <th style="padding:6px 8px;text-align:left">Avance</th>
+      </tr></thead>
+      <tbody>${filas}
+        <tr style="font-weight:700">
+          <td style="padding:7px 8px">Total</td>
+          <td class="num" style="padding:7px 8px;text-align:center">${totTot}</td>
+          <td class="num" style="padding:7px 8px;text-align:center">${totEnt}</td>
+          <td class="num" style="padding:7px 8px;text-align:center">${Math.max(0,totTot-totEnt)}</td>
+          <td style="padding:7px 8px">${pctTot}%</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
 function _elegirEntrega(r,gs){
   let capa=document.getElementById('remiLayer');
   if(!capa){
     capa=document.createElement('div');capa.id='remiLayer';capa.className='confirm-layer';
-    capa.innerHTML=`<div class="confirm-box" style="max-width:470px;text-align:left">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
-      <div class="muted" id="remiSub" style="font-size:12.5px;margin-bottom:14px"></div>
-      <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
-      <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
-    </div>`;
     document.body.appendChild(capa);
     capa.addEventListener('click',e=>{if(e.target===capa)cerrarElegirEntrega();});
   }
+  capa.innerHTML=`<div class="confirm-box" style="max-width:620px;text-align:left;max-height:88vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
+      <div class="muted" id="remiSub" style="font-size:12.5px;margin-bottom:14px"></div>
+      ${tablaResumenEntregas(r)}
+      <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
+      <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
+    </div>`;
   document.getElementById('remiSub').textContent=(r.rop||'')+' \u00b7 '+(r.cliente||'')+
     ' \u2014 se ha despachado en '+gs.length+' entrega'+(gs.length===1?'':'s')+
     '. Cada remisi\u00f3n sale solo con lo de esa entrega.';
