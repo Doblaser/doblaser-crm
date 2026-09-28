@@ -1255,6 +1255,9 @@ const SEED=JSON.parse(atob("eyJ2ZW50YXMiOiBbeyJpZCI6ICJWMSIsICJmZWNoYSI6ICIyMDI2
 
 const ASESORES=['Daniel','Susana','Esteban','Yuliana'];
 const ASESOR_OPC=['Daniel','Susana','Esteban','Yuliana','Sin asignar'];
+/* asesor por defecto = quien tiene la sesion iniciada (antes salia siempre Daniel,
+   porque el select no traia nada elegido y el navegador toma la primera opcion) */
+function asesorActual(){const u=(typeof currentUser==='function')?currentUser():null;return (u&&ASESOR_OPC.includes(u.name))?u.name:'Sin asignar';}
 const ALL_VIEWS=['resumen','ventas','rop','ropHistorial','inventario','cotizaciones','leads','estadisticas','precios','papelera','sugerencias','piezascli'];
 const DEV_VIEW='taller';
 const VIEW_LBL={taller:'Taller',facturacion:'Facturación',resumen:'Resumen',ventas:'Ventas',rop:'ROP',ropHistorial:'Historial de órdenes',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
@@ -2690,7 +2693,7 @@ async function createRopFromCot(id){
      parciales/totales de la ROP (que trabajan sobre "piezas") funcionen
      igual que en las órdenes manuales, sin tener que volver a escribirlas */
   const piezasCot=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0}));
-  const row={id:uid(),rop:nextRop(),estado:'Sin procesar',cliente:c.cliente,aprobacion:c.numero,cotId:c.id,suministro:'Cliente',ingreso:today(),entrega:'',asesor:c.asesor||'Daniel',observaciones:'Generada desde cotización '+c.numero,piezas:piezasCot};
+  const row={id:uid(),rop:nextRop(),estado:'Sin procesar',cliente:c.cliente,aprobacion:c.numero,cotId:c.id,suministro:'Cliente',ingreso:today(),entrega:'',asesor:c.asesor||asesorActual(),observaciones:'Generada desde cotización '+c.numero,piezas:piezasCot};
   const ok=await saveRow('rop',row);if(ok===false)return;
   // Una cotización que pasa a producción es una venta: la registramos automáticamente
   const procs=[];
@@ -2718,7 +2721,7 @@ async function createRopFromCot(id){
        enlace falso — sin ropId la venta todavía se encuentra por el número
        de cotización, con un id inventado no se encuentra por ningún lado */
     const ropIdReal=(row.id&&!isLocalId(row.id))?row.id:null;
-    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||'Daniel',ropId:ropIdReal,piezasFactura});
+    await saveRow('ventas',{id:uid(),fecha:today(),servicios,servicio:servicios[0],cliente:c.cliente,nit:c.nit||'',descripcion:'Cotización '+c.numero+(c.contacto?(' · '+c.contacto):''),valor:sub,cotizacion:c.numero,asesor:c.asesor||asesorActual(),ropId:ropIdReal,piezasFactura});
     extra=' · venta registrada ('+COP(sub*(1+IVA))+' con IVA)';
   }
   if(c.estado!=='Aprobada')await saveRow('cotizaciones',{...c,estado:'Aprobada'});
@@ -2816,7 +2819,7 @@ function ropVentaDatos(r){
   if((r.subtitulo||'').trim())desc.push(r.subtitulo.trim());
   if((r.observaciones||'').trim())desc.push(r.observaciones.trim());
   return{fecha:r.ingreso||today(),servicios,servicio:servicios[0],cliente:r.cliente||'',descripcion:desc.join(' — '),
-    valor,cotizacion:cotR?cotR.numero:'',ordenCompra:r.aprobacion||'',asesor:r.asesor||'Daniel',piezasFactura};
+    valor,cotizacion:cotR?cotR.numero:'',ordenCompra:r.aprobacion||'',asesor:r.asesor||asesorActual(),piezasFactura};
 }
 async function syncRopVenta(r){
   try{
@@ -2851,7 +2854,7 @@ function createVentaFromRop(id){
     if(procs.length)descPartes.push('Procesos: '+procs.join(', '));
     if((r.observaciones||'').trim())descPartes.push((r.observaciones||'').trim());
     set('f_descripcion',descPartes.join(' — '));
-    set('f_asesor',r.asesor||'Daniel');
+    set('f_asesor',r.asesor||asesorActual());
     set('f_ropId',r.id);
     set('f_ordenCompra',r.aprobacion||'');
     if(cotR)set('f_cotizacion',cotR.numero||'');
@@ -4042,7 +4045,7 @@ function formCotProd(r){
   <div class="field"><label>Obra / proyecto</label><input id="f_obra" value="${esc(r.obra)}" placeholder="Ej. Puerta cuarto de basuras"></div>
   <div class="field"><label>Ubicación</label><input id="f_ubicacion" value="${esc(r.ubicacion)}" placeholder="Ej. Medellín - Ant."></div>
   <div class="field"><label>Válida hasta</label><input type="date" id="f_validez" value="${r.validez||addDays(r.fecha||today(),15)}"></div>
-  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
+  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||asesorActual())}</select></div>
   <div class="field"><label>Forma de pago</label><input id="f_pago" list="pagoList" value="${esc(r.pago)||'50% anticipo · 50% al terminar instalación'}"><datalist id="pagoList">${[...PAGO_OPC,'50% anticipo · 50% al terminar instalación'].map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
   <div class="field"><label>Estado</label><select id="f_estado" onchange="cotEstadoChange()">${opts(['Borrador','Enviada','Aprobada','Perdida','Rechazada'],r.estado||'Borrador')}</select></div>
   <div class="field"><label>Modo de totales</label><select id="f_modo" onchange="prodModoChange()"><option value="iva" ${modo!=='aiu'?'selected':''}>Solo IVA 19%</option><option value="aiu" ${modo==='aiu'?'selected':''}>AIU (Adm + Imprev + Utilidad, IVA sobre utilidad)</option></select></div>
@@ -5011,7 +5014,7 @@ async function recantAplicar(){
   cerrarRecant();
   editing={t:'cotizaciones',id:null};COT_MODE='serv';
   const copia={numero:nextCot(),fecha:today(),validez:addDays(today(),15),cliente:c.cliente,contacto:c.contacto,
-    email:c.email,nit:c.nit,asesor:c.asesor||'Daniel',pago:c.pago||'100% contraentrega',estado:'Borrador'};
+    email:c.email,nit:c.nit,asesor:c.asesor||asesorActual(),pago:c.pago||'100% contraentrega',estado:'Borrador'};
   document.getElementById('mTitle').textContent='Nueva cotización (recotizada desde '+esc(c.numero)+')';
   document.getElementById('modal').classList.add('wide');
   document.getElementById('mBody').innerHTML=formCot(copia);
@@ -5163,7 +5166,7 @@ async function repeatCot(id){
     return;
   }
   editing={t:'cotizaciones',id:null};COT_MODE='serv';
-  const copia={numero:nextCot(),fecha:today(),validez:addDays(today(),15),cliente:c.cliente,contacto:c.contacto,email:c.email,nit:c.nit,asesor:c.asesor||'Daniel',pago:c.pago||'100% contraentrega',estado:'Borrador'};
+  const copia={numero:nextCot(),fecha:today(),validez:addDays(today(),15),cliente:c.cliente,contacto:c.contacto,email:c.email,nit:c.nit,asesor:c.asesor||asesorActual(),pago:c.pago||'100% contraentrega',estado:'Borrador'};
   document.getElementById('mTitle').textContent='Nueva cotización (copia de '+esc(c.numero)+')';
   document.getElementById('modal').classList.add('wide');
   document.getElementById('mBody').innerHTML=formCot(copia);
@@ -5188,7 +5191,7 @@ function formVenta(r){r=r||{};return `<div class="fgrid">
     <label class="siniva-btn ${r.sinIva?'on':''}" id="sinIvaWrap"><input type="checkbox" id="f_sinIva" ${r.sinIva?"checked":""} onchange="sinIvaChange()"><span class="siniva-txt"><b>Sin IVA — no se factura</b><span class="muted"> · el cliente le paga directo a gerencia</span></span></label>
   </div>
   <div class="field"><label>Abonado (pagos recibidos)</label><input type="number" id="f_abonado" value="${r.abonado||''}" placeholder="0 = sin abonos"></div>
-  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
+  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||asesorActual())}</select></div>
   <input type="hidden" id="f_ropId" value="${esc(r.ropId)}">
   ${r.ropId?(()=>{
     const rEl=CACHE.rop.find(x=>String(x.id)===String(r.ropId));
@@ -5234,7 +5237,7 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
   <div class="field"><label>Suministro material</label><select id="f_suministro">${opts(['Cliente','Doblaser'],r.suministro||'Cliente')}</select></div>
   <div class="field"><label>Fecha ingreso</label><input type="date" id="f_ingreso" value="${r.ingreso||today()}"></div>
   <div class="field"><label>Fecha entrega / finalización</label><input type="date" id="f_entrega" value="${r.entrega||''}"></div>
-  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||'Daniel')}</select></div>
+  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||asesorActual())}</select></div>
   <div class="field"><label>Costo real de fabricación (interno)</label><input type="number" id="f_costoReal" value="${r.costoReal||''}" placeholder="Materiales + procesos reales" oninput="ropCostCompare()"></div>
   <div class="field full" id="ropCostBox"></div>
   <div class="field full"><label>Procesos de esta orden — marca solo los que aplican</label>
@@ -6340,7 +6343,7 @@ function formLead(r){r=r||{};return `<div class="fgrid">
   <div class="field"><label>Sector / actividad</label><input id="f_sector" value="${esc(r.sector)}"></div>
   <div class="field"><label>Calificación</label><select id="f_calificacion">${opts(CALIF,r.calificacion||'NR')}</select></div>
   <div class="field"><label>Estado</label><select id="f_estado">${opts(LEAD_ESTADOS,r.estado||'Por contactar')}</select></div>
-  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor)}</select></div>
+  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||asesorActual())}</select></div>
   <div class="field full"><label>Notas</label><textarea id="f_notas">${esc(r.notas)}</textarea></div>
 </div>`}
 function formCot(r){r=r||{};return `<div class="fgrid">
@@ -6350,7 +6353,7 @@ function formCot(r){r=r||{};return `<div class="fgrid">
   <div class="field"><label>Contacto</label><input id="f_contacto" value="${esc(r.contacto)}"></div>
   <div class="field"><label>E-mail</label><input id="f_email" value="${esc(r.email)}"></div>
   <div class="field"><label>NIT</label><input id="f_nit" value="${esc(r.nit)}"></div>
-  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||'Daniel')}</select></div>
+  <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||asesorActual())}</select></div>
   <div class="field"><label>Forma de pago</label><select id="f_pago">${opts(PAGO_OPC,r.pago||'100% contraentrega')}</select></div>
   <div class="field"><label>Estado</label><select id="f_estado" onchange="cotEstadoChange()">${opts(['Borrador','Enviada','Aprobada','Perdida','Rechazada'],r.estado||'Borrador')}</select></div>
   <div class="field"><label>Válida hasta</label><input type="date" id="f_validez" value="${r.validez||addDays(r.fecha||today(),15)}"></div>
