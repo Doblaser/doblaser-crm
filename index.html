@@ -1584,7 +1584,7 @@ function initSupabase(){
   }
   paintDbState();
 }
-function paintDbState(){document.getElementById('dbDot').classList.toggle('on',USING_SB);document.getElementById('dbLabel').textContent=USING_SB?'Conectado a Supabase':'Modo local'}
+function paintDbState(){document.getElementById('dbDot').classList.toggle('on',USING_SB);document.getElementById('dbLabel').textContent=USING_SB?'Conectado a Supabase':'Modo local';avisoCarga();}
 const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem('db_'+k))??d}catch(e){return d}},set:(k,v)=>localStorage.setItem('db_'+k,JSON.stringify(v))};
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function isLocalId(id){return !/^[0-9]+$/.test(String(id))}
@@ -1604,15 +1604,37 @@ const COT_LIST_COLS='id,created_at,numero,validez,motivo,fecha,cliente,contacto,
    firma se pide solo al abrir o compartir una remisión (ropConFirma).
    OJO: al agregar una columna nueva a rop, agregarla también aquí. */
 const ROP_LIST_COLS='id,fecha,cliente,cotizacion,material,asesor,entrega,estado,obs,detalle,created_at,cotId,createdBy,createdAt,updatedBy,updatedAt,rop,aprobacion,suministro,ingreso,observaciones,corteUrl,doblezUrl,planosUrl,consumo,consumoDueno,fases,costoReal,piezas,procesos,avance,bitacora,archivadaManual,firmaClienteFecha,firmaClienteNombre,firmaClienteCedula,pinturaFecha,subtitulo,color,tiempos,entregas';
+/* Si la nube no responde, antes se caia en silencio a los datos locales del equipo
+   (casi siempre vacios) y el CRM mostraba todo en 0 sin decir por que. Ahora se
+   anota el fallo y se muestra un aviso con el motivo y un boton para reintentar. */
+let FALLOS_CARGA={};
 async function getAll(t){
   if(USING_SB){
     const sel=(t==='cotizaciones')?COT_LIST_COLS:(t==='rop'?ROP_LIST_COLS:'*');
-    let{data,error}=await sb.from(t).select(sel).order('id',{ascending:false});
-    if(error&&sel!=='*'){({data,error}=await sb.from(t).select('*').order('id',{ascending:false}));}
-    if(!error&&data)return data.map(normRow);
+    let data=null,error=null;
+    try{({data,error}=await sb.from(t).select(sel).order('id',{ascending:false}));
+      if(error&&sel!=='*'){({data,error}=await sb.from(t).select('*').order('id',{ascending:false}));}}
+    catch(e){error={message:(e&&e.message)||'sin conexion'};}
+    if(!error&&data){delete FALLOS_CARGA[t];avisoCarga();return data.map(normRow);}
+    FALLOS_CARGA[t]=(error&&(error.message||error.code))||'sin respuesta';
+    avisoCarga();
   }
   return LS.get(t,[]).map(normRow)
 }
+function avisoCarga(){
+  let b=document.getElementById('avisoCarga');
+  const local=!USING_SB&&_savedCfg==='local';
+  const fallos=Object.keys(FALLOS_CARGA);
+  if(!local&&!fallos.length){if(b)b.remove();return;}
+  if(!b){b=document.createElement('div');b.id='avisoCarga';
+    b.style.cssText='position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:200;max-width:92vw;background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:10px;padding:10px 14px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+    document.body.appendChild(b);}
+  const motivo=local?'Este equipo quedó en <b>modo local</b> y no está leyendo la nube.'
+    :'No se pudieron cargar los datos de la nube ('+esc(fallos.join(', '))+': '+esc(String(FALLOS_CARGA[fallos[0]]).slice(0,80))+').';
+  b.innerHTML=`<span>⚠ ${motivo} <b>Lo que ves (ceros o datos viejos) no es lo real.</b></span>
+    <button type="button" class="btn sm" onclick="${local?'reconectarNube()':'location.reload()'}">${local?'Conectar a la nube':'Reintentar'}</button>`;
+}
+function reconectarNube(){localStorage.removeItem('db_sb_cfg');location.reload();}
 /* trae la firma de una orden solo cuando hace falta, y la deja en la fila */
 async function ropConFirma(r){
   if(!r||!USING_SB||!sb||isLocalId(r.id))return r;
