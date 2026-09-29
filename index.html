@@ -5954,7 +5954,11 @@ function neAbrir(){
       <div><label class="rbc-l">Fecha</label><input type="date" id="neFecha" value="${today()}"></div>
       <div><label class="rbc-l">Quién entrega</label><input type="text" id="neEntrego" value="${esc(u?u.name:'')}"></div>
     </div>
-    ${conNombre.length?`<label class="rbc-l">Piezas que salen</label><div class="ne-list">${filas}</div>`
+    ${conNombre.length?`<label class="rbc-l">Piezas que salen</label>
+      ${conNombre.length>6?`<input type="search" id="neBuscar" placeholder="🔍 Buscar pieza por código o nombre…" oninput="neFiltrar(this.value)" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:15px;margin-bottom:8px">
+      <div style="display:flex;gap:10px;align-items:center;margin:-4px 0 6px;font-size:11.5px"><span class="muted" id="neBuscarInfo"></span><span class="spacer" style="flex:1"></span>
+        <a href="#" onclick="neMarcarTodo(false);return false">Desmarcar todo</a> · <a href="#" onclick="neMarcarTodo(true);return false">Marcar pendientes</a></div>`:''}
+      <div class="ne-list">${filas}</div>`
       :'<div class="ne-vacio">Esta orden no tiene piezas en la lista: se registra como entrega de toda la orden.</div>'}
     <div class="ne-g2">
       <div><label class="rbc-l">Quién recibe</label><input type="text" id="neRecibe" placeholder="Nombre y apellido"></div>
@@ -5970,6 +5974,29 @@ function neAbrir(){
   c.classList.add('show');
   neTot();
   setTimeout(()=>{const f=document.getElementById('neRecibe');if(f)f.focus();},60);
+}
+/* lupa: filtra la lista por codigo o nombre. Solo oculta filas -- lo marcado y las
+   cantidades se conservan aunque la pieza quede oculta. Varias palabras = todas. */
+function neFiltrar(q){
+  const ps=(q||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').split(/\s+/).filter(Boolean);
+  let vis=0,tot=0;
+  document.querySelectorAll('#neLayer .ne-row').forEach(el=>{
+    tot++;
+    const txt=(el.querySelector('.ne-d')||el).textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const ok=ps.every(p=>txt.includes(p));
+    el.style.display=ok?'':'none';if(ok)vis++;
+  });
+  const info=document.getElementById('neBuscarInfo');
+  if(info)info.textContent=ps.length?(vis+' de '+tot+' piezas'+(vis?'':' — ninguna coincide')):'';
+}
+/* la lista abre con todo lo pendiente marcado; para una entrega parcial conviene
+   desmarcar todo y luego buscar y marcar solo lo que sale */
+function neMarcarTodo(si){
+  document.querySelectorAll('#neLayer .ne-row').forEach((el,i)=>{
+    const ch=document.getElementById('neC'+i);if(!ch)return;
+    ch.checked=si&&!el.classList.contains('ne-lista');
+  });
+  neTot();
 }
 function neCerrar(){const c=document.getElementById('neLayer');if(c)c.classList.remove('show');}
 function _neLineas(){
