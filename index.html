@@ -1940,6 +1940,25 @@ async function loadAll(){
   updateCounts();
   loadNotifs();renderNotifBell();scanAlertas();alertarCorreccionesRecientes();await cargarMensajesPendientes();
   await cargarDev();
+  if(/[?&]diag/.test(location.search))mostrarDiag();
+}
+/* Diagnostico para un equipo que ve todo en 0: abrir el CRM con ?diag al final
+   de la direccion muestra que ve ESE navegador (conexion, conteos, errores). */
+window.__errs=[];
+window.addEventListener('error',e=>{window.__errs.push((e.message||'')+' @'+(e.lineno||''));});
+window.addEventListener('unhandledrejection',e=>{window.__errs.push('promesa: '+((e.reason&&e.reason.message)||e.reason));});
+function mostrarDiag(){
+  const u=currentUser();
+  const info={
+    proyecto:(SB_CFG&&SB_CFG.url)||'(ninguno)',conectado:USING_SB,
+    usuario:u&&u.name,vistas:(PERFILES.find(p=>u&&p.name===u.name)||{}).views,
+    ventas:CACHE.ventas.length,rop:CACHE.rop.length,cotizaciones:CACHE.cotizaciones.length,inventario:CACHE.inventario.length,
+    fallos:FALLOS_CARGA,errores:window.__errs.slice(0,8),
+    config_guardada:localStorage.getItem('db_sb_cfg'),navegador:navigator.userAgent};
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;right:10px;bottom:10px;z-index:300;max-width:520px;max-height:70vh;overflow:auto;background:#111;color:#0f0;font:12px monospace;padding:12px;border-radius:8px;white-space:pre-wrap';
+  d.textContent='DIAGNÓSTICO (toma captura de esto)\n'+JSON.stringify(info,null,1);
+  document.body.appendChild(d);
 }
 function setView(v){
   if(!canView(v)){const f=firstView();if(v!==f){toast('No tienes acceso a esa secci\u00f3n');v=f;}else return;}
