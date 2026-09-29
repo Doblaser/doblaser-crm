@@ -1577,7 +1577,11 @@ const _savedCfg=JSON.parse(localStorage.getItem('db_sb_cfg')||'null');
 /* 21/09/2026: el proyecto original (agyddfzmvfaonjqrwozb) quedó bloqueado por
    cuota y se pasó temporalmente a otro. Un equipo que tuviera guardada la
    conexión vieja seguiría viendo el CRM vacío, así que esa se ignora. */
-const SB_CFG=(_savedCfg==='local')?null:((_savedCfg&&_savedCfg.url&&!/agyddfzmvfaonjqrwozb/.test(_savedCfg.url))?_savedCfg:SB_DEFAULT);
+/* 29/09/2026: un equipo con OTRA conexion guardada (un proyecto viejo o de prueba)
+   se ve "Conectado a Supabase" pero lee tablas vacias: todo en 0 sin ningun error.
+   Ya solo se respeta la conexion guardada si es la del proyecto oficial. */
+const SB_CFG=(_savedCfg==='local')?null:SB_DEFAULT;
+if(_savedCfg&&_savedCfg!=='local'&&_savedCfg.url!==SB_DEFAULT.url){try{localStorage.removeItem('db_sb_cfg');}catch(e){}}
 function initSupabase(){
   if(SB_CFG&&SB_CFG.url&&SB_CFG.key&&window.supabase){
     try{sb=window.supabase.createClient(SB_CFG.url,SB_CFG.key);USING_SB=true}catch(e){USING_SB=false}
@@ -1929,6 +1933,8 @@ function updateCounts(){
 }
 async function loadAll(){
   for(const t of ['ventas','rop','leads','cotizaciones','inventario','piezascli'])CACHE[t]=await getAll(t);
+  if(USING_SB&&!CACHE.rop.length&&!CACHE.ventas.length&&!CACHE.cotizaciones.length){
+    FALLOS_CARGA.vacio='la nube respondió pero sin datos ('+((SB_CFG&&SB_CFG.url)||'')+')';avisoCarga();}
   await cargarPapelera();
   await cargarSugerencias();
   updateCounts();
