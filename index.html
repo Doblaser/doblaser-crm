@@ -382,6 +382,8 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .he-q{color:var(--ink-2);margin-top:5px}
 .he-det{color:var(--ink-2);line-height:1.5;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
 .he-p i{font-style:normal;color:var(--ink-3)}
+.he-p u{text-decoration:none;color:var(--ink-3);font-size:11px;margin-left:4px}
+.he-p u:before{content:"\00b7 "}
 .he-obs{margin-top:5px;background:#f0f7ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:6px;padding:5px 8px}
 .he-tot{margin-top:5px;font-size:11px;color:var(--ink-3)}
 .he-nueva{margin-top:4px}
@@ -742,6 +744,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .fe-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--line)}
 .fe-row:last-of-type{border-bottom:none}
 .fe-d{font-size:12.5px;line-height:1.35}
+.fe-d i{display:block;font-style:normal;font-size:11px;color:var(--ink-3)}
 .fe-c{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 .fe-c i{font-weight:400;font-style:normal;color:var(--ink-3);font-size:11.5px}
 .fe-pend{margin-top:7px;font-size:11.5px;color:#b45309}
@@ -2784,7 +2787,7 @@ async function createRopFromCot(id){
   const sub=cotTotal(c).sub;
   let extra='';
   if(!CACHE.ventas.some(v=>v.cotizacion&&v.cotizacion===c.numero)){
-    const piezasFactura=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0,precio:+it.vu||0}));
+    const piezasFactura=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:matDeCotItem(it),cant:+it.cant||0,precio:+it.vu||0}));
     /* row.id ya es el definitivo: saveRow lo relee de Supabase al insertar.
        Si aun así viniera provisional, mejor dejarlo vacío que guardar un
        enlace falso — sin ropId la venta todavía se encuentra por el número
@@ -3212,6 +3215,20 @@ function pct2fac(p){const f=1-(+p||0)/100;return f>0.0001?f:0.0001;}
 function blankCalc(){return{lmin:0,gas:'aire',lcustom:0,golpes:0,vgolpe:0,glargo:0,gmat:'',mig:0,vmig:0,marca:0,vmarca:0,otros:0,
   ttipo:'',tcant:0,tvu:0,mcant:0,mpeso:0,pkg:0,largo:0,ancho:0,cal:0,transp:0,
   mLaser:'',mProcesos:'',mTerceros:'',mMp:''};}
+/* El material y el calibre de una pieza viven en la cotización. Antes se
+   quedaban ahí: la orden de producción copiaba solo la descripción y la
+   cantidad, así que en el taller, en las entregas y en la cuenta de cobro
+   dos piezas con el mismo nombre y distinto calibre eran indistinguibles.
+   Este es el único sitio donde se arma ese rótulo, para que el que sale en la
+   cotización impresa, en la orden y en la remisión sea siempre el mismo.
+   Si el ítem se dividió en sub-piezas (varios calibres en una sola pieza),
+   manda el nombre de las sub-piezas, que es donde está el detalle. */
+function matDeCotItem(it){
+  if(!it)return '';
+  const sp=(it.subpiezas&&it.subpiezas.length)
+    ?it.subpiezas.map(x=>(x.nombre||'').trim()).filter(Boolean).join(' · '):'';
+  return sp||[it.material,it.calibre].map(x=>(x||'').trim()).filter(Boolean).join(' · ');
+}
 function blankItem(){return{proc:'',procs:[],desc:'',material:'',calibre:'',cant:1,vu:0,_open:true,_procManual:false,calc:blankCalc(),subpiezas:[]};}
 function blankSubpieza(){return{nombre:'',cant:1,_open:true,calc:blankCalc()};}
 /* normaliza las sub-piezas de un ítem al cargarlo de la nube o de un borrador */
@@ -4411,7 +4428,7 @@ function remisionTexto(r,fecha){
   const l=['REMISIÓN '+(r.rop||''),(r.cliente||''),''];
   if(fecha)l.push((typeof fecha==='object'?('Entrega '+fecha.n+' — '):'Entrega del ')+fmtDate(_entFecha(fecha)));
   l.push('Se entrega:');
-  res.lineas.forEach(x=>l.push('  · '+x.desc+(x.cant==null?'':'  '+x.cant+(x.tot&&x.tot!==x.cant?' de '+x.tot:''))));
+  res.lineas.forEach(x=>l.push('  · '+x.desc+(x.mat?' ('+x.mat+')':'')+(x.cant==null?'':'  '+x.cant+(x.tot&&x.tot!==x.cant?' de '+x.tot:''))));
   if(res.pend>0)l.push('','Quedan '+res.pend+' unidades pendientes de esta orden.');
   if(r.firmaClienteNombre)l.push('','Recibido por: '+r.firmaClienteNombre+(r.firmaClienteCedula?' · C.C. '+r.firmaClienteCedula:''));
   l.push('','DOBLASER S.A.S. · Nit 901682190-5');
@@ -5428,8 +5445,10 @@ function rpFromCot(){
   if(!c){toast('Primero vincula una cotización');return;}
   const items=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0);
   if(!items.length){toast('Esa cotización no tiene ítems');return;}
-  ropPiezas=items.map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0}));
-  renderRopPz();toast(items.length+' piezas traídas de '+c.numero);
+  ropPiezas=items.map(it=>({desc:it.desc||'',mat:matDeCotItem(it),cant:+it.cant||0,precio:+it.vu||0}));
+  renderRopPz();renderRopBitacora();
+  const conMat=ropPiezas.filter(p=>p.mat).length;
+  toast(items.length+' piezas traídas de '+c.numero+(conMat?' · '+conMat+' con material y calibre':''));
 }
 
 /* ---- Piezas de la factura (venta) — para la contable: qué llevó
@@ -5600,7 +5619,8 @@ function rbToggleCampos(){
     pzEl.innerHTML=`<option value="">${t==='total'?'— toda la orden / sin elegir pieza —':'— sin pieza / nota general —'}</option>`+
       piezasConNombre.map(p=>{
         const tot=+p.cant||0,ent=ropEntregadoPieza(p.desc,tot),pend=Math.max(0,tot-ent);
-        return `<option value="${esc(p.desc)}">${esc(p.desc)} — pendiente ${pend} de ${tot}</option>`;
+        const m=(p.mat||'').trim();
+        return `<option value="${esc(p.desc)}">${esc(p.desc)}${m?' ('+esc(m)+')':''} — pendiente ${pend} de ${tot}</option>`;
       }).join('');
     if([...pzEl.options].some(o=>o.value===actual))pzEl.value=actual;
   }
@@ -5911,9 +5931,12 @@ function renderRopEntregasHist(){
   box.innerHTML=gs.slice().reverse().map(g=>{
     const firmada=!!firmaDeEntrega(r,g,gs);
     const rec=recibeDeEntrega(r,g,gs);
-    const det=g.items.map(b=>b.piezaDesc
-      ?`<span class="he-p">${esc(b.piezaDesc)} <b>${+b.cantEntregada||0}</b>${b.piezaTotal?`<i> de ${b.piezaTotal}</i>`:''}</span>`
-      :'<span class="he-p"><b>Toda la orden</b></span>').join('');
+    const matDe=d=>{const p=ropPiezas.find(x=>(x.desc||'').trim()===(d||'').trim());return (p&&(p.mat||'').trim())||'';};
+    const det=g.items.map(b=>{
+      if(!b.piezaDesc)return '<span class="he-p"><b>Toda la orden</b></span>';
+      const m=matDe(b.piezaDesc);
+      return `<span class="he-p">${esc(b.piezaDesc)}${m?`<u>${esc(m)}</u>`:''} <b>${+b.cantEntregada||0}</b>${b.piezaTotal?`<i> de ${b.piezaTotal}</i>`:''}</span>`;
+    }).join('');
     const tot=g.items.reduce((a,b)=>a+(+b.cantEntregada||0),0);
     return `<div class="he-card${firmada?' firmada':''}">
       <div class="he-h">
@@ -5943,7 +5966,7 @@ function neAbrir(){
     const pend=Math.max(0,tot-ropEntregadoPieza(desc,tot));
     return `<label class="ne-row${pend?'':' ne-lista'}">
       <input type="checkbox" id="neC${i}" ${pend?'checked':''} onchange="neTot()">
-      <span class="ne-d">${esc(desc)}<i>${pend?('pendiente '+pend+' de '+tot):'ya entregada'}</i></span>
+      <span class="ne-d">${esc(desc)}<i>${(p.mat||'').trim()?esc((p.mat||'').trim())+' · ':''}${pend?('pendiente '+pend+' de '+tot):'ya entregada'}</i></span>
       <input type="number" min="0" id="neN${i}" value="${pend}" oninput="neTot()">
     </label>`;
   }).join('');
@@ -6787,10 +6810,7 @@ function nextRop(){const ns=CACHE.rop.map(c=>parseInt((c.rop||'').replace('ROP-'
 function cotPrintHTML(c){
   const t=cotTotal(c);
   const rows=(c.items||[]).map((it,i)=>{
-    let spec=[it.material,it.calibre].filter(Boolean).join(' · ');
-    if(it.subpiezas&&it.subpiezas.length){
-      spec=it.subpiezas.map(sp=>[sp.nombre,''].filter(Boolean).join('')).filter(Boolean).join(' · ')||spec;
-    }
+    const spec=matDeCotItem(it);
     return `<tr><td class="c">${i+1}</td><td>${esc(it.proc)||'—'}</td><td>${esc(it.desc)||'—'}${spec?`<div class="sub">${esc(spec)}</div>`:''}</td><td class="c">${it.cant}</td><td class="r">${COP(it.vu)}</td><td class="r">${COP(it.cant*it.vu)}</td></tr>`;
   }).join('');
   const fill=Math.max(0,8-(c.items||[]).length);
@@ -7791,19 +7811,19 @@ function resumenEntrega(r,fechaFiltro){
     const tot=+p.cant||0;
     const entAcum=_entregadoDe(bitCorte,p.desc,tot);
     const cant=fechaFiltro?(total?entAcum:(entHoyMap[(p.desc||'').trim()]||0)):entAcum;
-    return {desc:(p.desc||'').trim()||'—',cant,tot,pend:Math.max(0,tot-entAcum)};
+    return {desc:(p.desc||'').trim()||'—',mat:(p.mat||'').trim(),cant,tot,pend:Math.max(0,tot-entAcum)};
   }).filter(l=>!fechaFiltro||l.cant>0);
   if(lineas.length)return {lineas,pend:lineas.reduce((a,l)=>a+l.pend,0)};
   /* sin lista de piezas: se cae a los ítems de la cotización, y si tampoco
      hay, a la descripción de la orden — nunca se muestra un cuadro vacío */
   const c=ropCotOf(r);
   if(c&&Array.isArray(c.items)&&c.items.length)
-    return {lineas:c.items.map(it=>({desc:(it.desc||it.proc||'—'),cant:+it.cant||1,tot:+it.cant||1,pend:0})),pend:0};
+    return {lineas:c.items.map(it=>({desc:(it.desc||it.proc||'—'),mat:matDeCotItem(it),cant:+it.cant||1,tot:+it.cant||1,pend:0})),pend:0};
   return {lineas:[{desc:(r.observaciones||'').trim()||('Material / trabajo según orden '+(r.rop||'')),cant:null,tot:null,pend:0}],pend:0};
 }
 function resumenEntregaHTML(res){
   if(!res||!res.lineas.length)return '';
-  const filas=res.lineas.map(l=>`<div class="fe-row"><span class="fe-d">${esc(l.desc)}</span>${l.cant==null?'':`<span class="fe-c">${l.cant}${l.tot&&l.tot!==l.cant?` <i>de ${l.tot}</i>`:''}</span>`}</div>`).join('');
+  const filas=res.lineas.map(l=>`<div class="fe-row"><span class="fe-d">${esc(l.desc)}${l.mat?`<i>${esc(l.mat)}</i>`:''}</span>${l.cant==null?'':`<span class="fe-c">${l.cant}${l.tot&&l.tot!==l.cant?` <i>de ${l.tot}</i>`:''}</span>`}</div>`).join('');
   const pend=res.pend>0?`<div class="fe-pend">Quedan ${res.pend} unidades pendientes por entregar de esta orden</div>`:'';
   return `<div class="firma-entrega"><div class="fe-t">Se está entregando</div>${filas}${pend}</div>`;
 }
