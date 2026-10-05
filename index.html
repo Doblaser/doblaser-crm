@@ -722,12 +722,64 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 /* modal de "que entrega va en la remision": lista a la izquierda, resumen con
    graficos a la derecha -- una sola columna si no hay piezas para resumir o
    si la pantalla es angosta (celular) */
-.remi-grid{display:grid;grid-template-columns:1fr;gap:20px}
-.remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr 480px}
-.remi-resumen{border-left:1px solid var(--line);padding-left:20px}
-@media(max-width:760px){
+.remi-box{max-width:none;width:min(1360px,96vw);max-height:92vh;text-align:left;
+  display:flex;flex-direction:column;padding:0;overflow:hidden}
+.remi-h{padding:18px 22px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+.remi-h .remi-t{font-size:16px;font-weight:800}
+.remi-h .muted{font-size:12.5px;margin-top:3px}
+/* UN solo sitio con barra de desplazamiento: antes el cuadro rodaba por fuera y
+   la tabla por dentro, y el resultado era que la columna "Avance" quedaba
+   cortada y nadie la encontraba */
+.remi-body{overflow-y:auto;padding:16px 22px 18px;flex:1;min-height:0}
+.remi-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:start}
+.remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:minmax(300px,1fr) minmax(0,1.25fr)}
+.remi-resumen{border-left:1px solid var(--line);padding-left:22px;min-width:0}
+.remi-resumen .rs-t{font-size:16px;font-weight:800;margin-bottom:14px}
+.remi-resumen .rs-charts{display:flex;gap:18px;margin-bottom:16px;align-items:center}
+.rs-dona{flex:0 0 160px;height:160px;position:relative}
+.rs-dona .rs-dona-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none}
+.rs-dona b{font-size:28px;line-height:1.1}
+.rs-dona span{font-size:12px}
+.rs-ritmo{flex:1;min-width:0;height:160px}
+/* tabla de avance: ancho fijo por columna para que NUNCA se salga */
+.rs-tabla{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.rs-tabla th{text-align:center;padding:8px 6px;font-size:11px;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--ink-3);background:var(--bg-2,rgba(0,0,0,.03));position:sticky;top:0}
+.rs-tabla th:first-child,.rs-tabla td:first-child{text-align:left;padding-left:11px}
+.rs-tabla td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:center;
+  overflow-wrap:anywhere}
+.rs-tabla tr.v{background:#f0fdf4}.rs-tabla tr.a{background:#fffbeb}.rs-tabla tr.r{background:#fef2f2}
+.rs-tabla tr.rs-total{font-weight:800;background:transparent}
+.rs-tabla tr.rs-total td{border-bottom:0;border-top:2px solid var(--line)}
+.rs-bar{display:flex;align-items:center;gap:7px}
+.rs-bar .rs-track{flex:1;height:8px;border-radius:5px;background:var(--line);overflow:hidden}
+.rs-bar .rs-fill{height:100%}
+.rs-bar .rs-pct{font-size:12px;font-weight:700;min-width:34px;text-align:right}
+.rs-wrap{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+@media(max-width:900px){
   .remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:1fr}
   .remi-resumen{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px}
+}
+/* ---- telefono: el cuadro ocupa toda la pantalla y la tabla pasa a tarjetas
+   (5 columnas en 360 px no se leen, y era lo que se cortaba) ---- */
+@media(max-width:620px){
+  .remi-box{width:100vw;height:100dvh;max-height:none;border-radius:0}
+  .remi-h{padding:14px 16px 10px}
+  .remi-body{padding:14px 16px 20px}
+  .remi-resumen .rs-charts{flex-direction:column;align-items:stretch;gap:10px}
+  .rs-dona{flex:none;height:150px}
+  .rs-ritmo{height:170px}
+  .rs-wrap{border:0;border-radius:0}
+  .rs-tabla,.rs-tabla tbody,.rs-tabla tr,.rs-tabla td{display:block;width:auto}
+  .rs-tabla thead{display:none}
+  .rs-tabla tr{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+  .rs-tabla td{border:0;padding:2px 0;text-align:right;display:flex;justify-content:space-between;gap:12px}
+  .rs-tabla td:first-child{padding-left:0;font-weight:700;display:block;text-align:left;margin-bottom:4px}
+  .rs-tabla td:before{content:attr(data-l);color:var(--ink-3);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  .rs-tabla td:first-child:before{content:none}
+  .rs-tabla td.rs-td-bar{display:block}
+  .rs-tabla td.rs-td-bar:before{display:block;margin-bottom:3px}
+  .rs-tabla tr.rs-total{border-width:2px}
 }
 .gsearch-input{width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2,#fff);font-size:14px;margin-bottom:10px}
 .gsearch-results{max-height:50vh;overflow-y:auto}
@@ -1141,6 +1193,45 @@ td.c,th.c{text-align:center}
 .dfile-open{flex-shrink:0;font-size:11.5px;font-weight:700;color:var(--wine);text-decoration:none;padding:7px 11px;border:1px solid var(--wine-line);border-radius:7px;background:var(--wine-soft)}
 .dfile-open:hover{background:var(--wine);color:#fff}
 .dfiles-hint{font-size:11px;color:var(--ink-3);margin-top:7px}
+
+/* ===== Entregas y remisiones en el teléfono (05/10/2026) =====
+   Es la pantalla que se usa en el taller y al entregar, casi siempre desde el
+   celular o la tablet: los cuadros ocupan la pantalla entera en vez de una
+   ventanita con el contenido cortado, y nada queda fuera del alcance del dedo.
+   Va antes del bloque de 21/09 a propósito: ese deja los botones de fila
+   siempre visibles y las áreas de toque grandes, y aquí no se pisa nada. */
+@media(max-width:620px){
+  /* el cuadro va de borde a borde: la capa no debe dejar margen */
+  #remiLayer,#neLayer,#firmaLayer{padding:0;align-items:stretch}
+  #remiLayer .confirm-box,#neLayer .confirm-box,#firmaLayer .confirm-box{
+    width:100vw;max-width:none;height:100dvh;max-height:none;border-radius:0}
+  /* --- nueva entrega --- */
+  .ne-box{display:flex;flex-direction:column;padding:16px 16px 12px;overflow:hidden;text-align:left}
+  .ne-box h3{flex-shrink:0}
+  .ne-list{max-height:none;flex:1;min-height:120px}
+  .ne-box .confirm-btns{flex-shrink:0}
+  .ne-row{padding:9px 4px}
+  .ne-row input[type=checkbox]{width:20px;height:20px}
+  .ne-row input[type=number]{padding:9px 6px;font-size:15px}
+  .ne-d{font-size:13.5px}
+  /* --- firma del cliente: el lienzo es lo que importa --- */
+  .firma-box{display:flex;flex-direction:column;padding:16px;overflow:hidden}
+  .firma-entrega{max-height:26vh;flex-shrink:1}
+  .firma-quien>div{min-width:0;flex:1 1 100%}
+  .firma-actions{flex-shrink:0}
+  .firma-actions .btn{flex:1 1 46%;min-width:0;padding:12px 10px}
+  .firma-obs textarea{width:100%}
+  /* --- tarjetas de entrega dentro de la orden --- */
+  .he-card{padding:11px 12px}
+  .he-h{gap:6px}
+  .he-h .spacer{display:none}
+  .he-n{font-size:14px}
+  .he-h .ic-btn{order:9}
+  .he-det{font-size:12.5px}
+  .he-p u{display:block;margin-left:0}
+  .he-p u:before{content:none}
+  .he-nueva{width:100%;padding:12px;font-size:14px}
+}
 
 /* ===== Vista en teléfono (21/09/2026) =====
    · las tablas de lista pasan a tarjetas: antes se cortaban a la derecha y los
@@ -2010,8 +2101,19 @@ async function cargarHistorialPrecios(){
     if(!error&&data)HIST_PRECIOS=data;
   }catch(e){}
 }
+/* El buscador compara sin tildes y sin importar mayúsculas: la base tiene el
+   mismo cliente escrito de las dos formas ("Metálicos BS" y "Metalicos BS"), y
+   en el celular casi nadie pone la tilde ni la ñ — escribir "pazmino" no
+   encontraba "CESAR PAZMIÑO" y parecía que el buscador no servía.
+   Además, varias palabras se buscan en cualquier orden: "networks somos"
+   encuentra lo mismo que "somos networks". */
+const normBusca=v=>String(v==null?'':v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const terminos=v=>normBusca(v).split(/\s+/).filter(Boolean);
+/* ¿el texto contiene TODAS las palabras buscadas? (ya normalizadas) */
+const incluyeTodo=(texto,terms)=>{if(!terms.length)return true;const t=normBusca(texto);return terms.every(x=>t.includes(x));};
 const q=()=>(document.getElementById('searchInput').value||'').toLowerCase().trim();
-const match=o=>{const s=q();return !s||JSON.stringify(o).toLowerCase().includes(s)};
+const qTerms=()=>terminos((document.getElementById('searchInput')||{}).value||'');
+const match=o=>{const t=qTerms();return !t.length||incluyeTodo(JSON.stringify(o),t)};
 /* además de los campos propios, busca por la orden de compra (aprobación) y
    por el número de la ROP vinculada — para poder encontrar la venta
    escribiendo el OC o "ROP-2614".
@@ -2030,9 +2132,9 @@ function ventaRopDe(x){
 }
 const ventaMatch=x=>{
   if(match(x))return true;
-  const s=q();if(!s)return true;
+  const t=qTerms();if(!t.length)return true;
   const rEl=ventaRopDe(x);
-  return !!(rEl&&((rEl.aprobacion||'').toLowerCase().includes(s)||(rEl.rop||'').toLowerCase().includes(s)));
+  return !!(rEl&&incluyeTodo((rEl.aprobacion||'')+' '+(rEl.rop||''),t));
 };
 
 function render(){
@@ -2158,10 +2260,10 @@ async function factQuitar(id){
 
 /* ---- 1. por facturar ---- */
 function factPorFacturarHTML(){
-  const s=((document.getElementById('searchInput')||{}).value||'').toLowerCase().trim();
+  const t=qTerms();
   const rows=(CACHE.ventas||[])
     .filter(v=>!v.facturada&&(+v.valor||0)>0)
-    .filter(v=>!s||JSON.stringify(v).toLowerCase().includes(s)||factRef(v).toLowerCase().includes(s))
+    .filter(v=>!t.length||incluyeTodo(JSON.stringify(v),t)||incluyeTodo(factRef(v),t))
     .sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
   const total=rows.reduce((a,v)=>a+factTotal(v),0);
   /* Toda orden del ROP es una venta, también la maquila. Las que llegan sin
@@ -2205,10 +2307,10 @@ function factPorFacturarHTML(){
 
 /* ---- 2. cartera ---- */
 function factCarteraHTML(){
-  const s=((document.getElementById('searchInput')||{}).value||'').toLowerCase().trim();
+  const t=qTerms();
   const rows=(CACHE.ventas||[])
     .filter(v=>(+v.valor||0)>0&&factSaldo(v)>1000)
-    .filter(v=>!s||JSON.stringify(v).toLowerCase().includes(s))
+    .filter(v=>!t.length||incluyeTodo(JSON.stringify(v),t))
     .map(v=>({v,d:factDias(v),saldo:factSaldo(v)}))
     .sort((a,b)=>(b.d==null?-1:b.d)-(a.d==null?-1:a.d));
   const tramos=['0-30','31-60','61-90','+90','sin fecha'];
@@ -2398,10 +2500,9 @@ function devSaludHTML(){
 
 /* ---- bitácora de cambios ---- */
 function devCambiosHTML(){
-  const q=(document.getElementById('searchInput')||{}).value||'';
-  const s=q.toLowerCase().trim();
+  const t=qTerms();
   const rows=DEVLOG.filter(x=>x.tipo==='cambio')
-    .filter(x=>!s||((x.titulo||'')+(x.detalle||'')+(x.codigo||'')).toLowerCase().includes(s))
+    .filter(x=>!t.length||incluyeTodo((x.titulo||'')+' '+(x.detalle||'')+' '+(x.codigo||''),t))
     .sort((a,b)=>((b.fecha||'0000')+'').localeCompare((a.fecha||'0000')+'')||(b.orden||0)-(a.orden||0));
   const porDia={};
   rows.forEach(r=>{const f=r.fecha||'sin fecha';(porDia[f]=porDia[f]||[]).push(r);});
@@ -4600,7 +4701,7 @@ function panelResumenEntrega(r){
   const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   if(!piezas.length)return '';
   const bit=Array.isArray(r.bitacora)?r.bitacora:[];
-  const colorFila={verde:'#f0fdf4',amarillo:'#fffbeb',rojo:'#fef2f2'};
+  const cls={verde:'v',amarillo:'a',rojo:'r'};
   const colorBarra={verde:'#16a34a',amarillo:'#d97706',rojo:'#dc2626'};
   let totTot=0,totEnt=0;
   const filas=piezas.map(p=>{
@@ -4608,46 +4709,35 @@ function panelResumenEntrega(r){
     const pct=tot>0?Math.round(ent/tot*100):0;
     const est=estadoEntregaPieza(ent,tot)||'rojo';
     totTot+=tot;totEnt+=ent;
-    return `<tr style="background:${colorFila[est]}">
-      <td style="padding:9px 12px;border-bottom:1px solid var(--line);font-size:13.5px">${esc(p.desc)||'\u2014'}</td>
-      <td class="num" style="padding:9px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13.5px">${tot}</td>
-      <td class="num" style="padding:9px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13.5px">${ent}</td>
-      <td class="num" style="padding:9px 12px;border-bottom:1px solid var(--line);text-align:center;font-size:13.5px">${pend}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--line);min-width:150px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="flex:1;height:9px;border-radius:5px;background:var(--line);overflow:hidden"><div style="width:${pct}%;height:100%;background:${colorBarra[est]}"></div></div>
-          <span style="font-size:12.5px;font-weight:700;color:${colorBarra[est]};min-width:38px;text-align:right">${pct}%</span>
-        </div>
-      </td>
+    const mat=(p.mat||'').trim();
+    return `<tr class="${cls[est]}">
+      <td>${esc(p.desc)||'\u2014'}${mat?`<div class="muted" style="font-size:11px;font-weight:400">${esc(mat)}</div>`:''}</td>
+      <td data-l="Total">${tot}</td>
+      <td data-l="Entregado">${ent}</td>
+      <td data-l="Pendiente">${pend}</td>
+      <td data-l="Avance" class="rs-td-bar"><div class="rs-bar"><div class="rs-track"><div class="rs-fill" style="width:${pct}%;background:${colorBarra[est]}"></div></div><span class="rs-pct" style="color:${colorBarra[est]}">${pct}%</span></div></td>
     </tr>`;
   }).join('');
   const pctTot=totTot>0?Math.round(totEnt/totTot*100):0;
   return `<div class="remi-resumen">
-    <div style="font-size:17px;font-weight:700;margin-bottom:16px">Resumen de entregas \u2014 ${pctTot}% completado</div>
-    <div style="display:flex;gap:20px;margin-bottom:18px;align-items:center">
-      <div style="flex:0 0 170px;height:170px;position:relative"><canvas id="remiDona"></canvas>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none">
-          <b style="font-size:30px;line-height:1.1">${pctTot}%</b><span class="muted" style="font-size:12px">entregado</span>
-        </div>
+    <div class="rs-t">Resumen de entregas \u2014 ${pctTot}% completado</div>
+    <div class="rs-charts">
+      <div class="rs-dona"><canvas id="remiDona"></canvas>
+        <div class="rs-dona-txt"><b>${pctTot}%</b><span class="muted">entregado</span></div>
       </div>
-      <div style="flex:1;min-width:0;height:170px"><canvas id="remiRitmo"></canvas></div>
+      <div class="rs-ritmo"><canvas id="remiRitmo"></canvas></div>
     </div>
-    <div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px">
-    <table style="width:100%;border-collapse:collapse;font-size:13.5px">
-      <thead><tr style="background:var(--bg-2,#f6f6f6)">
-        <th style="text-align:left;padding:9px 12px;font-size:12px">Pieza</th>
-        <th style="padding:9px 12px;text-align:center;font-size:12px">Total</th>
-        <th style="padding:9px 12px;text-align:center;font-size:12px">Entregado</th>
-        <th style="padding:9px 12px;text-align:center;font-size:12px">Pendiente</th>
-        <th style="padding:9px 12px;text-align:left;font-size:12px">Avance</th>
-      </tr></thead>
+    <div class="rs-wrap">
+    <table class="rs-tabla">
+      <colgroup><col style="width:42%"><col style="width:13%"><col style="width:15%"><col style="width:14%"><col style="width:16%"></colgroup>
+      <thead><tr><th>Pieza</th><th>Total</th><th>Entregado</th><th>Pendiente</th><th>Avance</th></tr></thead>
       <tbody>${filas}
-        <tr style="font-weight:700">
-          <td style="padding:10px 12px">Total</td>
-          <td class="num" style="padding:10px 12px;text-align:center">${totTot}</td>
-          <td class="num" style="padding:10px 12px;text-align:center">${totEnt}</td>
-          <td class="num" style="padding:10px 12px;text-align:center">${Math.max(0,totTot-totEnt)}</td>
-          <td style="padding:10px 12px">${pctTot}%</td>
+        <tr class="rs-total">
+          <td>Total</td>
+          <td data-l="Total">${totTot}</td>
+          <td data-l="Entregado">${totEnt}</td>
+          <td data-l="Pendiente">${Math.max(0,totTot-totEnt)}</td>
+          <td data-l="Avance">${pctTot}%</td>
         </tr>
       </tbody>
     </table>
@@ -4663,10 +4753,17 @@ function dibujarResumenEntregaCharts(r,gs){
   /* responsive:true de Chart.js mide el ancho del contenedor por un
      ResizeObserver que aqui, dentro de un modal recien insertado y en flex,
      media mal (la dona se comia las dos columnas). Ancho fijo, sin sorpresas. */
-  const fila=elD.closest('div').parentElement;
-  const wFila=fila.clientWidth||300;
-  elD.width=170;elD.height=170;
-  elR.width=Math.max(160,wFila-170-20);elR.height=170;
+  /* responsive:true de Chart.js mide por un ResizeObserver que aqui, dentro de
+     un modal recien insertado, media mal. Se miden a mano los contenedores
+     reales (.rs-dona / .rs-ritmo), que es lo que el CSS ya reparti\u00f3: as\u00ed
+     funciona igual apilado en el tel\u00e9fono que en dos columnas en el PC. */
+  const cajaD=elD.parentElement,cajaR=elR.parentElement;
+  const wD=Math.max(120,cajaD.clientWidth||160),hD=Math.max(120,cajaD.clientHeight||160);
+  const lado=Math.min(wD,hD);
+  elD.width=lado;elD.height=lado;elD.style.width=lado+'px';elD.style.height=lado+'px';
+  elD.style.margin='0 auto';elD.style.display='block';
+  elR.width=Math.max(150,cajaR.clientWidth||260);
+  elR.height=Math.max(140,cajaR.clientHeight||160);
   const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   const bit=Array.isArray(r.bitacora)?r.bitacora:[];
   const totTot=piezas.reduce((a,p)=>a+(+p.cant||0),0);
@@ -4693,18 +4790,42 @@ function _elegirEntrega(r,gs){
     capa.addEventListener('click',e=>{if(e.target===capa)cerrarElegirEntrega();});
   }
   const panel=panelResumenEntrega(r);
-  capa.innerHTML=`<div class="confirm-box remi-box" style="max-width:${panel?'1180px':'470px'};width:94vw;text-align:left;max-height:90vh;overflow-y:auto">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
-      <div class="muted" id="remiSub" style="font-size:12.5px;margin-bottom:14px"></div>
-      <div class="remi-grid">
-        <div>
-          <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
-          <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
+  capa.innerHTML=`<div class="confirm-box remi-box"${panel?'':' style="width:min(470px,96vw)"'}>
+      <div class="remi-h">
+        <div class="remi-t">\u00bfQu\u00e9 entrega va en la remisi\u00f3n?</div>
+        <div class="muted" id="remiSub"></div>
+      </div>
+      <div class="remi-body">
+        <div class="remi-grid">
+          <div>
+            <div id="remiOpts" style="display:flex;flex-direction:column;gap:7px"></div>
+            <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:16px"><button type="button" class="btn ghost" onclick="cerrarElegirEntrega()">Cancelar</button></div>
+          </div>
+          ${panel}
         </div>
-        ${panel}
       </div>
     </div>`;
-  if(panel)setTimeout(()=>dibujarResumenEntregaCharts(r,gs),20);
+  /* Los graficos se dibujan cuando el navegador ya repartio el ancho real. Un
+     requestAnimationFrame solo no basta: si la pestana esta en segundo plano no
+     se dispara, y los lienzos quedaban con el tamano por defecto de Chart.js
+     (300x150) en vez del que les toca. Se reintenta hasta que el contenedor
+     mida, y se vuelve a dibujar si la pantalla cambia de tamano o se gira. */
+  if(panel){
+    let listo=false;
+    const pintar=()=>{
+      if(listo)return;
+      const caja=capa.querySelector('.rs-dona');
+      if(!caja||!caja.clientWidth){setTimeout(pintar,80);return;}
+      listo=true;dibujarResumenEntregaCharts(r,gs);
+    };
+    requestAnimationFrame(pintar);setTimeout(pintar,120);
+    clearTimeout(window._remiRedibujo);
+    window._remiResize=()=>{clearTimeout(window._remiRedibujo);
+      window._remiRedibujo=setTimeout(()=>{if(capa.classList.contains('show'))dibujarResumenEntregaCharts(r,gs);},180);};
+    window.removeEventListener('resize',window._remiResizePrev||(()=>{}));
+    window._remiResizePrev=window._remiResize;
+    window.addEventListener('resize',window._remiResize);
+  }
   document.getElementById('remiSub').textContent=(r.rop||'')+' \u00b7 '+(r.cliente||'')+
     ' \u2014 se ha despachado en '+gs.length+' entrega'+(gs.length===1?'':'s')+
     '. Cada remisi\u00f3n sale solo con lo de esa entrega.';
@@ -4726,6 +4847,8 @@ function _elegirEntrega(r,gs){
   capa.classList.add('show');
 }
 function cerrarElegirEntrega(){const c=document.getElementById('remiLayer');if(c)c.classList.remove('show');
+  if(window._remiResize)window.removeEventListener('resize',window._remiResize);
+  clearTimeout(window._remiRedibujo);
   (window._remiCharts||[]).forEach(ch=>{try{ch.destroy();}catch(e){}});window._remiCharts=[];}
 async function imprimirEntrega(id,entregaId){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
@@ -6348,10 +6471,10 @@ function rmPintarFiltros(){
 function rmPintarLista(){
   const c=document.getElementById('pickLayer');if(!c)return;
   const dueno=c.dataset.dueno||DUENO_GEN,mat=c.dataset.mat||'Todos';
-  const q=(document.getElementById('pickQ').value||'').toLowerCase().trim();
+  const q=terminos((document.getElementById('pickQ')||{}).value||'');
   let st=invStock().filter(s=>s.dueno===dueno&&s.cant>0);
   if(mat!=='Todos')st=st.filter(s=>s.material===mat);
-  if(q)st=st.filter(s=>[s.material,s.calibre,s.ubicacion,invDims(s),s.clase].join(' ').toLowerCase().includes(q));
+  if(q.length)st=st.filter(s=>incluyeTodo([s.material,s.calibre,s.ubicacion,invDims(s),s.clase].join(' '),q));
   st.sort((a,b)=>ordenMat(a.material)-ordenMat(b.material)||String(a.calibre).localeCompare(String(b.calibre),'es',{numeric:true}));
   const box=document.getElementById('pickList');
   if(!st.length){box.innerHTML='<div class="pick-vacio">Nada en el inventario de este dueño con esa búsqueda.</div>';return}
@@ -7738,20 +7861,21 @@ function abrirBusquedaGlobal(){
 function cerrarBusquedaGlobal(){const c=document.getElementById('gsearchLayer');if(c)c.classList.remove('show');}
 function gsearchRun(){
   const box=document.getElementById('gsearchResults');if(!box)return;
-  const q=(document.getElementById('gsearchInput').value||'').trim().toLowerCase();
-  if(!q){box.innerHTML='<div class="gsearch-empty">Escribe para buscar en Ventas, ROP, Cotizaciones y Clientes a la vez</div>';return}
+  const crudo=(document.getElementById('gsearchInput').value||'').trim();
+  const q=normBusca(crudo),terms=terminos(crudo);
+  if(!terms.length){box.innerHTML='<div class="gsearch-empty">Escribe para buscar en Ventas, ROP, Cotizaciones y Clientes a la vez</div>';return}
   const out=[];
   Object.keys(GSEARCH_TIPOS).forEach(tipo=>{
     const cfg=GSEARCH_TIPOS[tipo];
     if(!canView(cfg.view))return;
     (CACHE[tipo]||[]).forEach(row=>{
-      if(JSON.stringify(row).toLowerCase().includes(q)){
+      if(incluyeTodo(JSON.stringify(row),terms)){
         const d=cfg.get(row);
         out.push({tipo,id:row.id,titulo:d.t,sub:cfg.lbl+' · '+d.s});
       }
     });
   });
-  if(!out.length){box.innerHTML='<div class="gsearch-empty">Sin resultados para «'+esc(q)+'»</div>';return}
+  if(!out.length){box.innerHTML='<div class="gsearch-empty">Sin resultados para «'+esc(crudo)+'»</div>';return}
   box.innerHTML=out.slice(0,40).map(r=>{
     const cfg=GSEARCH_TIPOS[r.tipo];
     return `<div class="gsearch-item" onclick="gsearchIr('${r.tipo}','${r.id}')">
@@ -7875,7 +7999,10 @@ function firmaInitCanvas(){
   const cv=document.getElementById('firmaCanvas');if(!cv)return;
   const wrap=cv.parentElement;
   const dpr=window.devicePixelRatio||1;
-  const w=wrap.clientWidth||420,h=220;
+  /* en el teléfono y la tablet el lienzo se hace más alto: es donde de verdad
+     se firma, y 220 px fijos dejaban media pantalla vacía debajo */
+  const w=wrap.clientWidth||420;
+  const h=innerWidth<=620?Math.round(Math.min(300,Math.max(200,innerHeight*0.32))):220;
   cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';
   const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
