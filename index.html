@@ -12,6 +12,7 @@
 <meta name="theme-color" content="#7b1e2b">
 <meta name="apple-mobile-web-app-title" content="CRM Doblaser">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="CRM comercial y de producción de Doblaser SAS">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,7 +94,38 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .content{padding:26px 30px 60px;flex:1}
 
 /* KPI */
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+/* =========================================================
+   CIMIENTOS PARA EL TELÉFONO  (05/10/2026)
+
+   El CRM se usa casi todo el día desde el celular en el taller y en la
+   entrega. Lo que sigue es lo que hace que se comporte como una app y no
+   como una página: que nada se salga de la pantalla, que el toque responda
+   de una, y que el navegador no se meta con gestos que aquí estorban.
+   ========================================================= */
+html{
+  /* Safari en iOS agranda solo la letra al girar el teléfono y rompe el
+     ancho de las columnas. Esto lo deja quieto, sin impedir que el usuario
+     haga zoom con los dedos (eso sigue permitido, es accesibilidad). */
+  -webkit-text-size-adjust:100%;
+  /* sin esto, deslizar hacia abajo dentro de un formulario recarga la página
+     (el "halar para refrescar" de Chrome Android) y se pierde lo escrito */
+  overscroll-behavior-y:contain;
+}
+/* El toque se siente inmediato: sin el destello gris de Android, sin la
+   espera del doble toque para hacer zoom, y sin que al mantener pulsado un
+   botón se seleccione su texto como si fuera una página web. */
+button,a,.btn,.ic-btn,.seg button,.pill,.tag,.chip,label,summary{
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.side,.botnav,.topbar,.toolbar,.seg,.btn,.ic-btn{user-select:none;-webkit-user-select:none}
+/* en pantalla táctil no hay "pasar el mouse": la respuesta al tocar es lo
+   único que avisa que el botón sí recibió el toque */
+@media(hover:none){
+  .btn:active,.ic-btn:active,.seg button:active{transform:scale(.97);opacity:.9}
+  #content .tbl-wrap>table>tbody>tr:active{background:var(--panel-2,rgba(0,0,0,.05))}
+}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:26px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
 .kpi-btn{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .06s}
 .kpi-btn:hover:not(:disabled){border-color:var(--brand,#7b1e2b);box-shadow:0 2px 10px rgba(0,0,0,.09)}
@@ -535,7 +567,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .cr-name{font-size:20px;font-weight:800;line-height:1.1}
 .cr-sub{color:var(--muted);font-size:13px;margin-top:3px}
 .cr-contact{font-size:12.5px;text-align:right;line-height:1.6}
-.cr-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:6px}
+.cr-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:6px}
 .cr-kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
 .cr-k-lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
 .cr-k-val{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
@@ -622,7 +654,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .lp-note{font-size:12px;color:var(--ink-3);padding:14px 20px;background:#faf9f8;border-top:1px solid var(--line-2)}
 
 @media(max-width:1100px){.calc-grid{grid-template-columns:1fr}.result{position:static}}
-@media(max-width:1024px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:1024px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:760px){
   .app{grid-template-columns:1fr}
   .side{position:fixed;left:-262px;z-index:60;transition:left .2s;width:252px}
@@ -699,7 +731,8 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 }
 @media(max-width:420px){
   .botnav a{font-size:9.5px}
-  .kpis{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* celular acostado: la pantalla queda muy baja, hay que aprovecharla */
 @media(max-height:520px){
@@ -975,6 +1008,33 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .rb-todo{white-space:nowrap}
 .rb-todo:disabled{opacity:.45;cursor:default}
 @media(max-width:700px){.fc-tabla{font-size:12px}.fc-tabla th,.fc-tabla td{padding:7px 6px}}
+/* En el teléfono, las tablas de Facturación se vuelven tarjetas: siete
+   columnas (cliente, factura, orden, total, abonado, saldo, días) no caben en
+   375 px, y lo que pasaba era que la contadora tenía que deslizar a los lados
+   y el saldo — lo único que de verdad va a mirar — quedaba fuera de la
+   pantalla. La etiqueta de cada dato la pone etiquetarTablas() leyendo el
+   encabezado, así que sirve igual para las cuatro tablas que hay. */
+@media(max-width:760px){
+  .fc-tabla,.fc-tabla tbody,.fc-tabla tr,.fc-tabla td{display:block;width:auto}
+  .fc-tabla thead{display:none}
+  .fc-tabla tr{border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+    margin-bottom:10px;background:var(--card,#fff)}
+  .fc-tabla td{border:0;padding:3px 0;display:flex;justify-content:space-between;
+    align-items:baseline;gap:14px;text-align:right}
+  .fc-tabla td:before{content:attr(data-l);color:var(--ink-3);font-size:11px;
+    text-transform:uppercase;letter-spacing:.04em;text-align:left;flex-shrink:0}
+  /* el primer dato es el título de la tarjeta, y la última celda son botones */
+  .fc-tabla td:first-child{display:block;text-align:left;font-weight:700;
+    font-size:14px;margin-bottom:5px}
+  .fc-tabla td:first-child:before{display:none}
+  .fc-tabla td:empty{display:none}
+  .fc-tabla td:last-child:has(button),.fc-tabla td:last-child:has(.btn){
+    display:flex;justify-content:flex-end;gap:8px;margin-top:8px;
+    padding-top:8px;border-top:1px solid var(--line)}
+  .fc-tabla td:last-child:has(button):before,.fc-tabla td:last-child:has(.btn):before{display:none}
+  .fc-tabla .num{text-align:right}
+  .fc-sub{text-align:left}
+}
 .rc-row.rc-off{opacity:.5}
 .rc-row.rc-off .rc-d{text-decoration:line-through}
 .rc-quitada{text-align:right;font-size:11.5px;color:var(--ink-3);font-style:italic}
@@ -1200,6 +1260,42 @@ td.c,th.c{text-align:center}
    ventanita con el contenido cortado, y nada queda fuera del alcance del dedo.
    Va antes del bloque de 21/09 a propósito: ese deja los botones de fila
    siempre visibles y las áreas de toque grandes, y aquí no se pisa nada. */
+@media(max-width:760px){
+  /* ===== Red de seguridad del ancho =====
+     Lo de arriba arregla las rejillas que ya conocemos; esto cubre las que
+     falten y las que se agreguen después. Le dice a todo lo que vive dentro
+     del contenido o de un cuadro que SÍ puede encogerse: lo que no quepa se
+     parte en varias líneas en vez de empujar la pantalla.
+     Las tablas que de verdad necesitan rodar a lo ancho (el tablero kanban)
+     quedan excluidas: ahí deslizar es a propósito. */
+  #content *:not(.kanban):not(.kanban *),
+  .modal-b *,
+  .confirm-box *{min-width:0}
+  /* los códigos y descripciones largas se parten antes que salirse */
+  #content .code,.he-p,.rs-tabla td,.fe-d,.ne-d,.rb-pieza-tag{overflow-wrap:anywhere}
+  /* el alto real de la pantalla, sin el salto de la barra del navegador */
+  .app{min-height:100svh}
+  /* el botón flotante despeja la barra de abajo y la raya del iPhone */
+  #addBtn{bottom:calc(78px + env(safe-area-inset-bottom))!important}
+  /* al enfocar un campo, que no quede tapado por la barra de abajo */
+  .modal-b{scroll-padding-bottom:96px}
+  /* Las cifras de las tarjetas son el caso difícil: "$317.664.301" es una sola
+     palabra de 12 caracteres que NO se puede partir sin quedar ilegible
+     ("$317.664.3 / 01" no es un número, es un error de lectura esperando).
+     Entre dos columnas apretadas y una sola bien leída, gana la segunda: las
+     tarjetas pasan a una por fila, como el panel de cualquier app de banco. */
+  .kpi{padding:14px 15px}
+  .kpi .k-top{margin-bottom:8px}
+  .kpi .k-lbl{font-size:11.5px}
+  .kpi .k-meta{font-size:11.5px}
+  .kpi .k-val{white-space:nowrap}
+  .cr-kpi .k-val,.fc-tramo b{font-size:clamp(15px,5.4vw,22px)}
+}
+@media(max-width:560px){
+  /* una tarjeta por fila: la cifra completa cabe y se lee de un vistazo */
+  .kpis{grid-template-columns:1fr;gap:10px}
+  .kpi .k-val{font-size:26px}
+}
 @media(max-width:620px){
   /* el cuadro va de borde a borde: la capa no debe dejar margen */
   #remiLayer,#neLayer,#firmaLayer{padding:0;align-items:stretch}
@@ -2137,11 +2233,24 @@ const ventaMatch=x=>{
   return !!(rEl&&incluyeTodo((rEl.aprobacion||'')+' '+(rEl.rop||''),t));
 };
 
+/* Copia el título de cada columna a su celda (data-l). En el computador no
+   se ve; en el teléfono es lo que deja convertir la tabla en tarjetas sin
+   tener que escribir la etiqueta a mano en cada una de las cuatro tablas. */
+function etiquetarTablas(raiz){
+  (raiz||document).querySelectorAll('table.fc-tabla').forEach(t=>{
+    const ths=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+    if(!ths.length)return;
+    t.querySelectorAll('tbody tr').forEach(tr=>{
+      [...tr.children].forEach((td,i)=>{if(ths[i])td.setAttribute('data-l',ths[i]);});
+    });
+  });
+}
 function render(){
   if(window._charts){window._charts.forEach(c=>{try{c.destroy()}catch(e){}});window._charts=[];}
   const c=document.getElementById('content');
   const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,ropHistorial:renderRopHistorial,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli,taller:renderDev,facturacion:renderFacturacion};
   if(VISTAS[VIEW])c.innerHTML=VISTAS[VIEW]();
+  etiquetarTablas(c);
   if(VIEW==='estadisticas')drawStats();
 }
 
@@ -2271,7 +2380,7 @@ function factPorFacturarHTML(){
      de que existían; ahora salen aparte, para ponerles el valor y facturarlas. */
   const sinPrecio=(CACHE.ventas||[])
     .filter(v=>!v.facturada&&!(+v.valor>0))
-    .filter(v=>!s||JSON.stringify(v).toLowerCase().includes(s)||factRef(v).toLowerCase().includes(s))
+    .filter(v=>!t.length||incluyeTodo(JSON.stringify(v),t)||incluyeTodo(factRef(v),t))
     .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   const tablaSinPrecio=sinPrecio.length?`<div class="fc-intro" style="margin-top:22px">
       <b>${sinPrecio.length} ventas sin precio</b> — están registradas pero en $0, casi siempre maquila (material del cliente).
