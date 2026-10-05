@@ -125,6 +125,31 @@ button,a,.btn,.ic-btn,.seg button,.pill,.tag,.chip,label,summary{
   .btn:active,.ic-btn:active,.seg button:active{transform:scale(.97);opacity:.9}
   #content .tbl-wrap>table>tbody>tr:active{background:var(--panel-2,rgba(0,0,0,.05))}
 }
+.inicio-acc{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.er-btn{display:inline-flex;align-items:center;gap:9px;font-weight:700}
+.er-btn svg{width:18px;height:18px}
+/* elegir la orden a la que se le va a registrar la entrega */
+.er-box{max-width:560px;width:100%;text-align:left;display:flex;flex-direction:column;max-height:86vh;padding:18px 18px 14px}
+.er-box h3{margin-bottom:3px}
+.er-sub{font-size:12.5px;margin-bottom:12px}
+.er-q{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;margin-bottom:10px;background:var(--card,#fff);color:inherit}
+.er-lista{overflow-y:auto;flex:1;min-height:120px;border:1px solid var(--line);border-radius:10px}
+.er-item{display:flex;align-items:center;gap:11px;padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font:inherit;color:inherit}
+.er-item:last-child{border-bottom:0}
+.er-item:hover,.er-item:focus-visible{background:var(--panel-2,rgba(0,0,0,.04))}
+.er-color{width:4px;align-self:stretch;border-radius:3px;background:var(--line);flex-shrink:0}
+.er-tx{flex:1;min-width:0;line-height:1.35}
+.er-tx b{font-size:14px}
+.er-tx span{display:block;font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.er-pend{flex-shrink:0;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.er-vacio{padding:18px 12px;text-align:center;color:var(--ink-3);font-size:13px}
+@media(max-width:620px){
+  .er-btn{width:100%;justify-content:center;padding:14px;font-size:15px}
+  .inicio-acc{flex-direction:column;align-items:stretch}
+  #erLayer{padding:0;align-items:stretch}
+  #erLayer .confirm-box{width:100vw;max-width:none;height:100dvh;max-height:none;border-radius:0}
+  .er-item{padding:14px 12px}
+}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:26px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
 .kpi-btn{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .06s}
@@ -2730,7 +2755,14 @@ function renderResumen(){
   const maxA=Math.max(1,...porAsesor.map(x=>x.total));
   const estados=ROP_ESTADOS.map(e=>({e,n:r.filter(x=>x.estado===e).length}));
   return `
-  <div class="toolbar" style="justify-content:flex-end;margin-bottom:10px"><button class="btn ghost sm" onclick="exportBackup()" title="Descarga un JSON completo (restaurable) y 5 hojas CSV para Excel">&#11015; Descargar respaldo (Excel / JSON)</button></div>
+  <div class="inicio-acc">
+    <button class="btn er-btn" onclick="entregaRapida()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Registrar una entrega
+    </button>
+    <span class="spacer"></span>
+    <button class="btn ghost sm" onclick="exportBackup()" title="Descarga un JSON completo (restaurable) y 5 hojas CSV para Excel">&#11015; Descargar respaldo (Excel / JSON)</button>
+  </div>
   <div class="kpis">
     <div class="kpi"><div class="k-top"><div><div class="k-lbl">Ventas del periodo</div><div class="k-val tnum">${COP(totalVentas)}</div></div><div class="k-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div></div><div class="k-meta">${v.length} ventas registradas</div></div>
     <div class="kpi"><div class="k-top"><div><div class="k-lbl">Ticket promedio</div><div class="k-val tnum">${COP(ticket)}</div></div><div class="k-ico green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div></div><div class="k-meta">Valor medio por venta</div></div>
@@ -6196,15 +6228,18 @@ function neAbrir(){
   const filas=conNombre.map((p,i)=>{
     const desc=(p.desc||'').trim(),tot=+p.cant||0;
     const pend=Math.max(0,tot-ropEntregadoPieza(desc,tot));
+    /* NADA viene marcado: se marca a mano solo lo que de verdad sale en este
+       viaje. Antes abría con todo lo pendiente marcado y bastaba un descuido
+       para registrar como entregadas piezas que seguían en el taller. */
     return `<label class="ne-row${pend?'':' ne-lista'}">
-      <input type="checkbox" id="neC${i}" ${pend?'checked':''} onchange="neTot()">
+      <input type="checkbox" id="neC${i}" onchange="neTot()">
       <span class="ne-d">${esc(desc)}<i>${(p.mat||'').trim()?esc((p.mat||'').trim())+' · ':''}${pend?('pendiente '+pend+' de '+tot):'ya entregada'}</i></span>
-      <input type="number" min="0" id="neN${i}" value="${pend}" oninput="neTot()">
+      <input type="number" min="0" id="neN${i}" value="${pend}" onfocus="this.select()" oninput="neTot()">
     </label>`;
   }).join('');
   c.innerHTML=`<div class="confirm-box ne-box">
     <h3>Nueva entrega</h3>
-    <div class="muted ne-sub">Queda como una sola entrega con su consecutivo, para imprimir y firmar su remisión aparte.</div>
+    <div class="muted ne-sub">Marca <b>solo lo que de verdad sale en este viaje</b>. Queda como una sola entrega con su consecutivo, para imprimir y firmar su remisión aparte.</div>
     <div class="ne-g2">
       <div><label class="rbc-l">Fecha</label><input type="date" id="neFecha" value="${today()}"></div>
       <div><label class="rbc-l">Quién entrega</label><input type="text" id="neEntrego" value="${esc(u?u.name:'')}"></div>
@@ -6244,8 +6279,8 @@ function neFiltrar(q){
   const info=document.getElementById('neBuscarInfo');
   if(info)info.textContent=ps.length?(vis+' de '+tot+' piezas'+(vis?'':' — ninguna coincide')):'';
 }
-/* la lista abre con todo lo pendiente marcado; para una entrega parcial conviene
-   desmarcar todo y luego buscar y marcar solo lo que sale */
+/* la lista abre SIN nada marcado (ver neAbrir). "Marcar pendientes" queda como
+   atajo para cuando de verdad sale todo lo que falta de la orden. */
 function neMarcarTodo(si){
   document.querySelectorAll('#neLayer .ne-row').forEach((el,i)=>{
     const ch=document.getElementById('neC'+i);if(!ch)return;
@@ -6253,7 +6288,71 @@ function neMarcarTodo(si){
   });
   neTot();
 }
-function neCerrar(){const c=document.getElementById('neLayer');if(c)c.classList.remove('show');}
+function neCerrar(){const c=document.getElementById('neLayer');if(c)c.classList.remove('show');NE_RAPIDA=false;}
+
+/* =========================================================
+   ENTREGA DESDE EL INICIO
+
+   El cuadro de "Nueva entrega" vive al final del formulario de la orden, y
+   en el tel\u00e9fono eso son muchos deslizadas: hay que entrar al ROP, buscar la
+   orden, abrirla y bajar hasta el fondo. Desde el inicio es un toque.
+
+   No duplica nada: elige la orden, la abre de verdad (openForm) y abre el
+   mismo cuadro de siempre. La diferencia es que al confirmar guarda la orden
+   sola y cierra, porque quien entrega no viene a editar la orden.
+   ========================================================= */
+let NE_RAPIDA=false;
+function erOrdenes(){
+  return (CACHE.rop||[])
+    .filter(r=>!ropCerrada(r))
+    .map(r=>{
+      const res=ropPiezasResumen(r);
+      return {r,pend:res?Math.max(0,res.tot-res.ent):null,tot:res?res.tot:0};
+    })
+    /* las que ya no tienen nada pendiente se dejan al final, no se esconden:
+       a veces hay que registrar una entrega de algo que no est\u00e1 en la lista */
+    .sort((a,b)=>(b.pend>0?1:0)-(a.pend>0?1:0)
+      ||String(b.r.fecha||'').localeCompare(String(a.r.fecha||'')));
+}
+function entregaRapida(){
+  let c=document.getElementById('erLayer');
+  if(!c){c=document.createElement('div');c.id='erLayer';c.className='confirm-layer';document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)erCerrar();});}
+  c.innerHTML=`<div class="confirm-box er-box">
+    <h3>Registrar una entrega</h3>
+    <div class="muted er-sub">Elige la orden que vas a despachar. Despu\u00e9s marcas las piezas que salen.</div>
+    <input type="search" class="er-q" id="erQ" placeholder="Buscar por ROP, cliente o proyecto\u2026" oninput="erPintar()">
+    <div class="er-lista" id="erLista"></div>
+    <div class="confirm-btns" style="grid-template-columns:1fr;margin-top:12px">
+      <button type="button" class="btn ghost" onclick="erCerrar()">Cancelar</button>
+    </div></div>`;
+  c.classList.add('show');
+  erPintar();
+  setTimeout(()=>{const q=document.getElementById('erQ');if(q)q.focus();},60);
+}
+function erCerrar(){const c=document.getElementById('erLayer');if(c)c.classList.remove('show');}
+function erPintar(){
+  const box=document.getElementById('erLista');if(!box)return;
+  const t=terminos((document.getElementById('erQ')||{}).value||'');
+  const rows=erOrdenes().filter(({r})=>!t.length||incluyeTodo([r.rop,r.cliente,r.subtitulo,r.aprobacion].join(' '),t));
+  if(!rows.length){box.innerHTML='<div class="er-vacio">Ninguna orden abierta coincide con esa b\u00fasqueda.</div>';return;}
+  box.innerHTML=rows.slice(0,60).map(({r,pend,tot})=>`
+    <button type="button" class="er-item" onclick="erElegir('${esc(String(r.id))}')">
+      <span class="er-color" style="${r.color?`background:${esc(r.color)}`:''}"></span>
+      <span class="er-tx"><b>${esc(r.rop)||'\u2014'}</b> \u00b7 ${esc(r.cliente)||'\u2014'}
+        <span>${r.subtitulo?esc(r.subtitulo)+' \u00b7 ':''}${esc(r.estado)||''}${r.entrega?' \u00b7 entrega '+fmtDate(r.entrega):''}</span></span>
+      ${pend>0?`<span class="er-pend">faltan ${pend}</span>`:(tot?'<span class="er-pend" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534">completa</span>':'')}
+    </button>`).join('');
+}
+async function erElegir(id){
+  erCerrar();
+  openForm('rop',String(id));
+  /* el formulario se arma de una, pero las piezas y la bit\u00e1cora se pintan en
+     el mismo turno: se espera un cuadro antes de abrir el cuadro de entrega */
+  await new Promise(r=>setTimeout(r,120));
+  NE_RAPIDA=true;
+  neAbrir();
+}
 function _neLineas(){
   const conNombre=ropPiezas.filter(p=>(p.desc||'').trim()&&+p.cant>0);
   const out=[];
@@ -6279,7 +6378,17 @@ function neGuardar(){
   const cedula=((document.getElementById('neCedula')||{}).value||'').trim();
   const obs=((document.getElementById('neObs')||{}).value||'').trim();
   const lineas=_neLineas();
-  if(conNombre.length&&!lineas.length){toast('Marca al menos una pieza y su cantidad');return;}
+  /* marcada pero en 0: antes se caía sin decir nada y el despacho quedaba
+     registrado de menos. Mejor avisar cuál es. */
+  const enCero=conNombre.map((p,i)=>({p,i}))
+    .filter(({i})=>{const ch=document.getElementById('neC'+i);
+      return ch&&ch.checked&&!(+((document.getElementById('neN'+i)||{}).value)>0);});
+  if(enCero.length){
+    toast('Falta la cantidad de: '+enCero.map(({p})=>(p.desc||'').trim()).slice(0,2).join(', ')+(enCero.length>2?' y '+(enCero.length-2)+' más':''));
+    const f=document.getElementById('neN'+enCero[0].i);if(f){f.focus();f.select();}
+    return;
+  }
+  if(conNombre.length&&!lineas.length){toast('Marca las piezas que salen en esta entrega');return;}
   const id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const nuevas=lineas.length
     ?lineas.map(l=>({tipo:'parcial',piezaDesc:l.desc,piezaTotal:l.tot,cantEntregada:l.cant,cantidad:'',
@@ -6288,9 +6397,18 @@ function neGuardar(){
         resuelta:null,entregaId:id,id:uid(),ts:new Date().toISOString()}];
   ropBitacora=[...nuevas,...ropBitacora];
   ropEntregas=[...ropEntregas,{id,fecha,entrego,recibeNombre:recibe,recibeCedula:cedula,obs}];
+  const rapida=NE_RAPIDA;          /* neCerrar() apaga la bandera: hay que leerla antes */
   neCerrar();
   renderRopBitacora();renderRopPz();
   const g=entregaPorId(ropEditActual().r,id);
+  if(rapida){
+    /* vino del botón del inicio: quien despacha no entró a editar la orden,
+       así que se guarda sola y se cierra */
+    const n=g?g.n:'';
+    Promise.resolve(saveForm()).then(()=>toast('Entrega '+n+' registrada y guardada'))
+      .catch(()=>toast('Entrega '+n+' registrada — revisa la orden, no se pudo guardar sola'));
+    return;
+  }
   toast('Entrega '+(g?g.n:'')+' registrada — recuerda Guardar la orden');
 }
 
