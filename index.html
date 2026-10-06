@@ -3006,7 +3006,11 @@ async function createRopFromCot(id){
   /* las piezas de la cotización se copian a la orden para que las entregas
      parciales/totales de la ROP (que trabajan sobre "piezas") funcionen
      igual que en las órdenes manuales, sin tener que volver a escribirlas */
-  const piezasCot=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:'',cant:+it.cant||0}));
+  /* con su material y calibre (matDeCotItem): es el único dato que le dice al
+     taller en qué lámina va cada pieza, y sin él la hoja de producción salía con
+     la columna MATERIAL en blanco. El precio viaja igual, para que la venta
+     pueda armar su desglose desde la orden. */
+  const piezasCot=(c.items||[]).filter(it=>(it.desc||'').trim()||+it.cant>0).map(it=>({desc:it.desc||'',mat:matDeCotItem(it),cant:+it.cant||0,precio:+it.vu||0}));
   const row={id:uid(),rop:nextRop(),estado:'Sin procesar',cliente:c.cliente,aprobacion:c.numero,cotId:c.id,suministro:'Cliente',ingreso:today(),entrega:'',asesor:c.asesor||asesorActual(),observaciones:'Generada desde cotización '+c.numero,piezas:piezasCot};
   const ok=await saveRow('rop',row);if(ok===false)return;
   // Una cotización que pasa a producción es una venta: la registramos automáticamente
