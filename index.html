@@ -3733,9 +3733,13 @@ function invKey(m){const d=m.dueno||DUENO_GEN,clase=m.clase||'lamina',mat=(m.mat
   /* tubería: el mismo material y calibre en 1" y en 2x1" son cosas distintas */
   if(clase==='tubo')return [d,clase,mat,cal,(m.perfil||'').trim(),(m.medida||'').trim(),+m.largo||0,ubicOf(m)].join('|');
   /* el burro entra en la clave: la misma lámina puede estar en dos burros
-     distintos y hay que poder ir a buscarla, como en el formato en Excel */
-  if(d===DUENO_GEN)return [d,clase,mat,cal,+m.largo||0,+m.ancho||0,ubicOf(m)].join('|');
-  return [d,clase,mat,cal,ubicOf(m)].join('|');}
+     distintos y hay que poder ir a buscarla, como en el formato en Excel.
+     La MEDIDA también, para todos los dueños. Antes el material de un cliente
+     se agrupaba solo por material y calibre, dando por hecho que cada cliente
+     trabaja una sola medida; el 06/10/2026 E&D metió Cal 22 en 2800×1220
+     junto a la de 2440×1220 y las dos quedaron sumadas en una sola fila
+     (145 + 230 = 375), como si fueran la misma lámina. */
+  return [d,clase,mat,cal,+m.largo||0,+m.ancho||0,ubicOf(m)].join('|');}
 /* ¿este movimiento trae medidas de verdad? */
 function movTieneDim(m){
   if((m.clase||'lamina')==='tubo')return !!((m.perfil||'').trim()||(m.medida||'').trim()||+m.largo>0);
@@ -3801,6 +3805,9 @@ function invStockTable(clase,dueno){
   rows.sort((a,b)=>ordenMat(a.material)-ordenMat(b.material)
     ||a.material.localeCompare(b.material)
     ||String(a.calibre).localeCompare(String(b.calibre),'es',{numeric:true})
+    /* un mismo calibre puede venir en varias medidas (E&D tiene Cal 22 en
+       2440×1220 y en 2800×1220): la más grande primero, siempre igual */
+    ||(+b.largo||0)-(+a.largo||0)||(+b.ancho||0)-(+a.ancho||0)
     ||String(a.ubicacion).localeCompare(String(b.ubicacion),'es',{numeric:true}));
   const grupos={};
   rows.forEach(s=>{(grupos[s.material||'Sin material']=grupos[s.material||'Sin material']||[]).push(s);});
@@ -3832,7 +3839,8 @@ function invClientStockTable(dueno){
   }
   rows.sort((a,b)=>ordenMat(a.material)-ordenMat(b.material)
     ||a.material.localeCompare(b.material)
-    ||String(a.calibre).localeCompare(String(b.calibre),'es',{numeric:true}));
+    ||String(a.calibre).localeCompare(String(b.calibre),'es',{numeric:true})
+    ||(+b.largo||0)-(+a.largo||0)||(+b.ancho||0)-(+a.ancho||0));
   const grupos={};
   rows.forEach(s=>{(grupos[s.material||'Sin material']=grupos[s.material||'Sin material']||[]).push(s);});
   const cuerpo=Object.keys(grupos).map(mat=>{
