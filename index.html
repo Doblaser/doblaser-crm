@@ -3732,11 +3732,50 @@ function invKey(m){const d=m.dueno||DUENO_GEN,clase=m.clase||'lamina',mat=(m.mat
      distintos y hay que poder ir a buscarla, como en el formato en Excel */
   if(d===DUENO_GEN)return [d,clase,mat,cal,+m.largo||0,+m.ancho||0,ubicOf(m)].join('|');
   return [d,clase,mat,cal,ubicOf(m)].join('|');}
+/* ¿este movimiento trae medidas de verdad? */
+function movTieneDim(m){
+  if((m.clase||'lamina')==='tubo')return !!((m.perfil||'').trim()||(m.medida||'').trim()||+m.largo>0);
+  return (+m.largo>0)||(+m.ancho>0);
+}
+/* Medidas que ya se conocen de ese material: sirven para que una salida que
+   se registró sin medidas no borre de la pantalla la medida de la lámina, y
+   para que el consumo automático de una orden nazca con la medida correcta.
+   Solo responde cuando NO hay duda (una sola medida conocida). */
+function medidasConocidas(dueno,material,calibre,clase){
+  const cl=clase||'lamina';
+  const cand=(CACHE.inventario||[]).filter(m=>
+    (m.dueno||DUENO_GEN)===(dueno||DUENO_GEN)&&
+    (m.clase||'lamina')===cl&&
+    (m.material||'').trim()===(material||'').trim()&&
+    (m.calibre||'').trim()===(calibre||'').trim()&&
+    movTieneDim(m));
+  if(!cand.length)return null;
+  const clave=m=>cl==='tubo'?[m.perfil||'',m.medida||'',+m.largo||0].join('|'):[+m.largo||0,+m.ancho||0].join('|');
+  const distintas=[...new Set(cand.map(clave))];
+  if(distintas.length!==1)return null;      /* hay varias medidas: no adivinar */
+  const m=cand.find(x=>x.tipo==='entrada')||cand[0];
+  /* el burro también: para el material de Doblaser la ubicación es parte de la
+     clave del stock, así que una salida "sin ubicar" tampoco se restaba de la
+     lámina de verdad — quedaba como una fila aparte en negativo */
+  const ubics=[...new Set(cand.filter(x=>x.tipo==='entrada').map(x=>ubicOf(x)))];
+  return {largo:+m.largo||0,ancho:+m.ancho||0,perfil:m.perfil||'',medida:m.medida||'',
+    ubicacion:ubics.length===1?ubics[0]:''};
+}
 function invStock(){
   const map={};
+  /* Las medidas de la fila de stock se toman del movimiento que de verdad las
+     tenga, con la entrada mandando sobre la salida. Antes se quedaba con las
+     del PRIMER movimiento que apareciera, y como la lista llega de la más nueva
+     a la más vieja, una salida automática registrada sin medidas dejaba toda la
+     fila mostrando "—" aunque la lámina hubiera entrado con sus 2440×1220. */
+  const peso=m=>movTieneDim(m)?(m.tipo==='entrada'?2:1):0;
   (CACHE.inventario||[]).forEach(m=>{
     const k=invKey(m);
-    if(!map[k])map[k]={dueno:m.dueno||DUENO_GEN,clase:m.clase||'lamina',material:m.material||'',calibre:m.calibre||'',largo:+m.largo||0,ancho:+m.ancho||0,perfil:m.perfil||'',medida:m.medida||'',ubicacion:ubicOf(m),cant:0,ult:null};
+    if(!map[k])map[k]={dueno:m.dueno||DUENO_GEN,clase:m.clase||'lamina',material:m.material||'',calibre:m.calibre||'',largo:+m.largo||0,ancho:+m.ancho||0,perfil:m.perfil||'',medida:m.medida||'',ubicacion:ubicOf(m),cant:0,ult:null,_dim:peso(m)};
+    else{
+      const p=peso(m);
+      if(p>map[k]._dim){map[k].largo=+m.largo||0;map[k].ancho=+m.ancho||0;map[k].perfil=m.perfil||'';map[k].medida=m.medida||'';map[k]._dim=p;}
+    }
     map[k].cant += ((m.tipo==='salida'||m.tipo==='novedad')?-1:1)*(+m.cantidad||0);
     if(!map[k].ult||(m.fecha||'')>=(map[k].ult.fecha||''))map[k].ult=m;
   });
@@ -6762,7 +6801,18 @@ async function syncRopInventory(row){
          para que se gasto el material cuando el ROP es generico (un cliente
          grande como ALGAMAR o SOMOS tiene decenas de ordenes activas a la vez) */
       const proyecto=(row.subtitulo||'').trim();
-      await saveRow('inventario',{id:uid(),tipo:'salida',clase:c.clase||'lamina',dueno:row.consumoDueno||DUENO_GEN,material:c.material,calibre:c.calibre||'',largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||'',ubicacion:c.ubicacion||'',cantidad:+c.cant||0,cliente:row.cliente||'',rop:row.rop||'',ropId:row.id,fecha:row.ingreso||today(),auto:true,notas:'Consumo automático · ROP '+(row.rop||'')+(proyecto?' · '+proyecto:'')});
+      /* Si la línea de consumo se escribió a mano (material y calibre, sin
+         medidas), el movimiento heredaba un 0×0 y ensuciaba el stock. Se toman
+         las medidas que ya se conocen de esa misma lámina. */
+      const dueno=row.consumoDueno||DUENO_GEN;
+      let dim={largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||''};
+      let ubic=c.ubicacion||'';
+      const conocido=medidasConocidas(dueno,c.material,c.calibre||'',c.clase||'lamina');
+      if(conocido){
+        if(!movTieneDim({clase:c.clase||'lamina',...dim}))dim=conocido;
+        if(!ubic&&conocido.ubicacion&&conocido.ubicacion!==SIN_UBIC)ubic=conocido.ubicacion;
+      }
+      await saveRow('inventario',{id:uid(),tipo:'salida',clase:c.clase||'lamina',dueno,material:c.material,calibre:c.calibre||'',largo:dim.largo,ancho:dim.ancho,perfil:dim.perfil,medida:dim.medida,ubicacion:ubic,cantidad:+c.cant||0,cliente:row.cliente||'',rop:row.rop||'',ropId:row.id,fecha:row.ingreso||today(),auto:true,notas:'Consumo automático · ROP '+(row.rop||'')+(proyecto?' · '+proyecto:'')});
     }
     CACHE.inventario=await getAll('inventario');
   }catch(e){}
@@ -7005,7 +7055,23 @@ async function saveForm(){
       row={...row,tipo:'producto',numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),celular:val('f_celular'),email:val('f_email'),nit:val('f_nit'),obra:val('f_obra'),ubicacion:val('f_ubicacion'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),modo:((document.getElementById('f_modo')||{}).value)||'iva',aiuAdm:numv('f_aiuAdm'),aiuImp:numv('f_aiuImp'),aiuUti:numv('f_aiuUti'),condiciones:val('f_condiciones'),img1:prodImgs[0]||'',img2:prodImgs[1]||'',items:prodItems.filter(i=>(i.desc||'').trim()||+i.vu>0).map(i=>({desc:i.desc||'',carac:i.carac||'',unidad:i.unidad||'Und',cant:+i.cant||1,vu:+i.vu||0,calc:{lines:(i.calc.lines||[]).filter(l=>(l.c||'').trim()||+l.vu>0).map(l=>({c:l.c||'',cant:+l.cant||0,vu:+l.vu||0})),piezas:(i.calc.piezas||[]).filter(p=>(p.nombre||'').trim()||lineParts({calc:p.calc}).costo>0).map(p=>({nombre:p.nombre||'',cant:+p.cant||1,calc:p.calc})),margen:i.calc.margen}}))};
     }else{
     row={...row,numero,fecha:val('f_fecha'),validez:val('f_validez'),cliente:val('f_cliente'),contacto:val('f_contacto'),email:val('f_email'),nit:val('f_nit'),asesor:val('f_asesor'),pago:val('f_pago'),estado:val('f_estado'),motivo:val('f_motivo'),observaciones:val('f_observaciones'),entrega:val('f_entrega'),items:cotItems.filter(i=>i.desc||i.vu).map(i=>({proc:(i.procs&&i.procs.length?i.procs.join(' + '):i.proc||''),procs:i.procs||[],desc:i.desc||'',material:i.material||'',calibre:i.calibre||'',cant:+i.cant||0,vu:+i.vu||0,calc:i.calc||blankCalc(),subpiezas:(i.subpiezas||[]).filter(sp=>(sp.nombre||'').trim()||lineParts({calc:sp.calc}).costo>0).map(sp=>({nombre:sp.nombre||'',cant:+sp.cant||1,calc:sp.calc}))}))};}}
-  else if(t==='inventario'){if(!val('f_material')){toast('Indica el material');return}row={...row,tipo:val('f_tipo'),dueno:val('f_dueno')||DUENO_GEN,clase:val('f_clase'),material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:val('f_clase')==='tubo'?0:numv('f_ancho'),perfil:val('f_clase')==='tubo'?val('f_perfil'):'',medida:val('f_clase')==='tubo'?val('f_medida'):'',cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
+  else if(t==='inventario'){
+    if(!val('f_material')){toast('Indica el material');return}
+    /* Una entrada sin medidas deja el stock mostrando "—" para siempre y
+       arrastra a las salidas automáticas de las órdenes, que heredan de ahí.
+       El material entra con sus medidas o no entra. */
+    const _clase=val('f_clase'),_tipo=val('f_tipo');
+    if(_tipo==='entrada'){
+      if(_clase==='tubo'){
+        if(!val('f_perfil')||!val('f_medida')){toast('Indica el perfil y la medida de la tubería');return}
+        if(!(numv('f_largo')>0)){toast('Indica el largo del tubo en mm');return}
+      }else if(!(numv('f_largo')>0)||!(numv('f_ancho')>0)){
+        toast('Indica el largo y el ancho de la lámina en mm');
+        const f=document.getElementById(numv('f_largo')>0?'f_ancho':'f_largo');if(f)f.focus();
+        return;
+      }
+    }
+    row={...row,tipo:_tipo,dueno:val('f_dueno')||DUENO_GEN,clase:_clase,material:val('f_material'),calibre:val('f_calibre'),largo:numv('f_largo'),ancho:val('f_clase')==='tubo'?0:numv('f_ancho'),perfil:val('f_clase')==='tubo'?val('f_perfil'):'',medida:val('f_clase')==='tubo'?val('f_medida'):'',cantidad:numv('f_cantidad'),cliente:val('f_cliente'),rop:val('f_rop'),proveedor:val('f_proveedor'),costo:numv('f_costo'),ubicacion:val('f_ubicacion'),fecha:val('f_fecha'),notas:val('f_notas')};}
   else if(t==='piezascli'){if(!val('f_pzcCliente')){toast('Indica el cliente');return}if(!val('f_pzcPieza')){toast('Indica la pieza');return}row={...row,cliente:val('f_pzcCliente'),pieza:val('f_pzcPieza'),material:val('f_pzcMaterial'),notas:val('f_pzcNotas'),compras:pzcCompras.filter(c=>c.fecha||+c.cantidad>0||+c.costo>0).map(c=>({fecha:c.fecha||'',cantidad:+c.cantidad||0,costo:+c.costo||0,notas:(c.notas||'').trim()}))};}
   const _now=new Date().toISOString(),_u=currentUser(),_un=_u?_u.name:'—',_ex=id?CACHE[t].find(x=>x.id===id):null;
   row.createdBy=(_ex&&_ex.createdBy)?_ex.createdBy:_un;row.createdAt=(_ex&&_ex.createdAt)?_ex.createdAt:_now;
