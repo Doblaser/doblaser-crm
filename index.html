@@ -125,6 +125,18 @@ button,a,.btn,.ic-btn,.seg button,.pill,.tag,.chip,label,summary{
   .btn:active,.ic-btn:active,.seg button:active{transform:scale(.97);opacity:.9}
   #content .tbl-wrap>table>tbody>tr:active{background:var(--panel-2,rgba(0,0,0,.05))}
 }
+/* aviso de "tu búsqueda también aparece en otro lado" */
+.busca-aviso{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+  border-radius:10px;padding:9px 13px;margin-bottom:12px;font-size:12.5px}
+.busca-aviso svg{width:15px;height:15px;flex-shrink:0}
+.busca-aviso .spacer{flex:1}
+.busca-aviso .btn{flex-shrink:0}
+@media(max-width:620px){
+  .busca-aviso{font-size:12px;padding:10px 12px}
+  .busca-aviso .spacer{display:none}
+  .busca-aviso .btn{width:100%}
+}
 .inicio-acc{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .er-btn{display:inline-flex;align-items:center;gap:9px;font-weight:700}
 .er-btn svg{width:18px;height:18px}
@@ -2235,6 +2247,24 @@ const incluyeTodo=(texto,terms)=>{if(!terms.length)return true;const t=normBusca
 const q=()=>(document.getElementById('searchInput').value||'').toLowerCase().trim();
 const qTerms=()=>terminos((document.getElementById('searchInput')||{}).value||'');
 const match=o=>{const t=qTerms();return !t.length||incluyeTodo(JSON.stringify(o),t)};
+/* Una vista casi siempre tiene filtros propios además del buscador: el estado,
+   el KPI, el dueño del material, el burro. Cuando una búsqueda cae fuera de
+   ellos no sale nada, y sin explicación **parece que el buscador no sirve**.
+   Daniel, 07/10/2026: escribir "ALGAMAR" en el ROP daba cero — y ALGAMAR tiene
+   40 órdenes, todas ya cerradas, que viven en Historial de órdenes.
+   Esto avisa dónde están y lleva de un clic. Solo aparece si hay búsqueda. */
+function avisoEscondidos(partes){
+  if(!qTerms().length)return '';
+  const xs=(partes||[]).filter(p=>p&&p.n>0);
+  if(!xs.length)return '';
+  const q=(document.getElementById('searchInput')||{}).value||'';
+  return `<div class="busca-aviso">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span><b>${esc(q)}</b> también aparece ${xs.map(x=>x.txt).join(' y ')}.</span>
+    <span class="spacer"></span>
+    ${xs.filter(x=>x.btn).map(x=>`<button type="button" class="btn ghost sm" onclick="${x.btn.fn}">${x.btn.lbl}</button>`).join('')}
+  </div>`;
+}
 /* además de los campos propios, busca por la orden de compra (aprobación) y
    por el número de la ROP vinculada — para poder encontrar la venta
    escribiendo el OC o "ROP-2614".
@@ -2925,21 +2955,30 @@ function renderRop(){
     ${kpi('late','Atrasadas',atrasadas,'Pasaron la fecha de entrega',I.alerta,atrasadas?'inv-neg':'','Ninguna orden atrasada')}
     ${kpi('soon','Por vencer',porVencer,'Entrega en ≤'+ROP_DUE_SOON+' días',I.cal,porVencer?'due-soon-txt':'','Ninguna orden por vencer')}
   </div>`;
-  const vrows=CACHE.rop.filter(match).filter(x=>!ropCerrada(x)).filter(ropPasaKpi)
+  const coinciden=CACHE.rop.filter(match);
+  const vrows=coinciden.filter(x=>!ropCerrada(x)).filter(ropPasaKpi)
     .filter(x=>ropFilter==='Todas'||x.estado===ropFilter)
     .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
+  const aviso=avisoEscondidos([
+    {n:coinciden.filter(ropCerrada).length,
+     txt:`en <b>${coinciden.filter(ropCerrada).length}</b> órden(es) ya cerradas`,
+     btn:{lbl:'Ver en Historial',fn:"setView('ropHistorial')"}},
+    {n:coinciden.filter(x=>!ropCerrada(x)).length-coinciden.filter(x=>!ropCerrada(x)).filter(ropPasaKpi).filter(x=>ropFilter==='Todas'||x.estado===ropFilter).length,
+     txt:'en órdenes que este filtro de arriba está escondiendo',
+     btn:{lbl:'Quitar filtros',fn:"ropKpi='';ropFilter='Todas';render()"}}
+  ]);
   const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button><button class="${ropMode==='tiempos'?'on':''}" onclick="ropMode='tiempos';render()">⏱ Tiempos</button></div></div>`;
   const NOM={prod:'en producción',late:'atrasadas',soon:'por vencer'};
   const hint=ropKpi&&NOM[ropKpi]
     ?`<div class="board-hint filtrando">Mostrando solo las órdenes <b>${NOM[ropKpi]}</b>. <button type="button" class="lnk" onclick="ropSetKpi('${ropKpi}')">Ver todas</button></div>`
     :`<div class="board-hint">${activas.length} órdenes activas. Las ya entregadas y facturadas están en <b>Historial de órdenes</b>.</div>`;
   if(ropMode==='tablero'){
-    return kpis+toolbar+hint+renderRopBoard(vrows);
+    return kpis+toolbar+aviso+hint+renderRopBoard(vrows);
   }
   if(ropMode==='tiempos'){
     return kpis+toolbar+renderRopTiemposResumen();
   }
-  return kpis+toolbar+hint+ropTableHTML(vrows,activas.length);
+  return kpis+toolbar+aviso+hint+ropTableHTML(vrows,activas.length);
 }
 function ropTableHTML(rows,total){
   return panel('Órdenes de producción (ROP)',`${rows.length} de ${total} · más recientes primero`,`<table><thead><tr><th>ROP</th><th>Cliente</th><th class="hide-sm">Cotización</th><th class="num">Valor</th><th>Avance</th><th class="hide-sm">Ingreso</th><th>Entrega</th><th>Estado</th><th class="hide-sm">Archivos</th><th></th></tr></thead><tbody>
@@ -2952,7 +2991,16 @@ function renderRopHistorial(){
     .slice().sort((a,b)=>((b.ingreso||'0000-00-00').localeCompare(a.ingreso||'0000-00-00'))||((b.rop||'').localeCompare(a.rop||'')));
   const toolbar=`<div class="toolbar"><div class="seg" id="ropSegH">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilterH?'on':''}" onclick="ropFilterH='${e}';render()">${e}</button>`).join('')}</div></div>`;
   const hint=`<div class="board-hint">Órdenes ya entregadas y facturadas — se sacaron del ROP activo para no acumular filas. El cobro pendiente, si lo hay, se sigue viendo en Ventas.</div>`;
-  return toolbar+hint+ropTableHTML(rows,CACHE.rop.length);
+  const coinciden=CACHE.rop.filter(match);
+  const aviso=avisoEscondidos([
+    {n:coinciden.filter(x=>!ropCerrada(x)).length,
+     txt:`en <b>${coinciden.filter(x=>!ropCerrada(x)).length}</b> órden(es) todavía activas`,
+     btn:{lbl:'Ver en el ROP',fn:"setView('rop')"}},
+    {n:ropFilterH==='Todas'?0:coinciden.filter(ropCerrada).length-rows.length,
+     txt:'en otros estados',
+     btn:{lbl:'Ver todos los estados',fn:"ropFilterH='Todas';render()"}}
+  ]);
+  return toolbar+aviso+hint+ropTableHTML(rows,CACHE.rop.length);
 }
 function renderRopBoard(rows){
   return `<div class="kanban">${ROP_ESTADOS.map(col=>{
@@ -3283,8 +3331,12 @@ function clientReportHTML(d){
   </body></html>`;
 }
 function renderLeads(){
-  const rows=CACHE.leads.filter(match).filter(x=>leadFilter==='Todos'||x.calificacion===leadFilter);
-  return `<div class="toolbar"><div class="seg">${['Todos',...CALIF].map(e=>`<button class="${e===leadFilter?'on':''}" onclick="leadFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="cli-pick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input list="cliList" id="cliPick" placeholder="Abrir ficha 360° de un cliente…" onchange="if(this.value){openClientReport(this.value);this.value='';}"><datalist id="cliList">${allClientNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div></div>`+
+  const coinciden=CACHE.leads.filter(match);
+  const rows=coinciden.filter(x=>leadFilter==='Todos'||x.calificacion===leadFilter);
+  const avisoLead=avisoEscondidos([{n:coinciden.length-rows.length,
+    txt:`en <b>${coinciden.length-rows.length}</b> cliente(s) de otra calificación`,
+    btn:{lbl:'Ver todos',fn:"leadFilter='Todos';render()"}}]);
+  return avisoLead+`<div class="toolbar"><div class="seg">${['Todos',...CALIF].map(e=>`<button class="${e===leadFilter?'on':''}" onclick="leadFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="cli-pick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input list="cliList" id="cliPick" placeholder="Abrir ficha 360° de un cliente…" onchange="if(this.value){openClientReport(this.value);this.value='';}"><datalist id="cliList">${allClientNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div></div>`+
   panel('Prospectos y clientes',`${rows.length} de ${CACHE.leads.length}`,`<table><thead><tr><th>Empresa</th><th>Municipio</th><th>Contacto</th><th>Sector</th><th>Calif.</th><th>Estado</th><th>Asesor</th><th></th></tr></thead><tbody>
   ${rows.map(x=>`<tr><td>${cliLink(x.empresa)}<div class="muted" style="font-size:11.5px">${esc(x.direccion)}</div></td><td>${esc(x.municipio)}</td><td>${esc(x.telefono)}${x.whatsapp&&x.whatsapp.toLowerCase()==='si'?' · <span style="color:#16a34a">WA</span>':''}<div class="muted" style="font-size:11.5px">${esc(x.contacto)}</div></td><td><span class="muted" style="font-size:12.5px">${esc(x.sector)}</span></td><td><span class="pill ${calClass(x.calificacion)}"><span class="d"></span>${x.calificacion}</span></td><td><span class="pill ${leadPill(x.estado)}"><span class="d"></span>${x.estado}</span></td><td>${av(x.asesor)}</td><td>${rowActions('leads',x.id)}</td></tr>`).join('')||emptyRow(8)}
   </tbody></table>`);
@@ -3292,8 +3344,12 @@ function renderLeads(){
 let leadFilter='Todos';
 
 function renderCot(){
-  let rows=CACHE.cotizaciones.filter(match);
+  const coinciden=CACHE.cotizaciones.filter(match);
+  let rows=coinciden;
   if(cotFilter!=='Todas')rows=rows.filter(x=>(x.estado||'Borrador')===cotFilter);
+  const avisoCot=avisoEscondidos([{n:coinciden.length-rows.length,
+    txt:`en <b>${coinciden.length-rows.length}</b> cotización(es) de otro estado`,
+    btn:{lbl:'Ver todas',fn:"cotFilter='Todas';render()"}}]);
   const estPill={Borrador:'st-sin',Enviada:'st-prog',Aprobada:'st-proc',Perdida:'st-lost',Rechazada:'st-lost'};
   const venc=x=>x.validez&&x.validez<today()&&!['Aprobada','Perdida','Rechazada'].includes(x.estado);
   const seg=`<div class="toolbar"><div class="seg">${['Todas','Borrador','Enviada','Aprobada','Perdida'].map(e=>`<button class="${e===cotFilter?'on':''}" onclick="cotFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><button class="btn ghost sm" onclick="openFormProd()">+ Cotización de producto</button></div>`;
@@ -3303,7 +3359,7 @@ function renderCot(){
     +(cv.pct!==null?` · cierre ${cv.pct}% (${cv.ganadas} de ${cv.cerradas})`:'')
     +(sinCerrar?` · ${sinCerrar} sin desenlace`:'')
     +(cv.pct===null&&cv.ganadas?` · falta marcar las perdidas para saber la tasa de cierre`:'');
-  return seg+panel('Cotizaciones',subCot,`<table><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">Total</th><th>Estado</th><th>Asesor</th><th></th></tr></thead><tbody>
+  return seg+avisoCot+panel('Cotizaciones',subCot,`<table><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">Total</th><th>Estado</th><th>Asesor</th><th></th></tr></thead><tbody>
   ${rows.map(x=>{const t=cotTotal(x);return `<tr><td><span class="code">${esc(x.numero)}</span>${x.tipo==='producto'?' <span class="venc-tag" style="background:#ede9fe;border-color:#ddd6fe;color:#6d28d9">producto</span>':''}${venc(x)?' <span class="venc-tag" title="Vencida">vencida</span>':''}</td><td class="muted">${fmtDate(x.fecha)}</td><td>${cliLink(x.cliente)}${(x.estado==='Perdida'||x.estado==='Rechazada')&&x.motivo?`<div class="muted" style="font-size:11px">Motivo: ${esc(x.motivo)}</div>`:''}</td><td class="num tnum">${COP(t.sub)}</td><td class="num tnum muted">${COP(t.iva)}</td><td class="num tnum"><strong>${COP(t.total)}</strong></td><td><span class="pill ${estPill[x.estado]||'st-sin'}"><span class="d"></span>${x.estado}</span></td><td>${av(x.asesor)}</td><td><div class="row-act">${['Borrador','Enviada'].includes(x.estado||'Borrador')?`<button class="ic-btn cot-perder" title="No se ganó — marcar perdida" onclick="event.stopPropagation();marcarPerdida('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></button>`:''}<button class="ic-btn compartir" title="Compartir cotización" onclick="compartirCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><button class="ic-btn" title="Imprimir / PDF" onclick="printCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button class="ic-btn" title="Repetir esta cotización — igual, o cambiando cantidades y piezas" onclick="repeatCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button><button class="ic-btn" title="Enviar a producción (ROP)" onclick="createRopFromCot('${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><path d="M5 20V8l5-4v16"/><path d="M19 20V10l-9-6"/></svg></button><button class="ic-btn" title="Editar" onclick="openForm('cotizaciones','${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button><button class="ic-btn del" title="Eliminar" onclick="confirmDel('cotizaciones','${x.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div></td></tr>`}).join('')||emptyRow(9)}
   </tbody></table>`);
 }
@@ -3796,9 +3852,15 @@ function invDims(s){
   return (s.largo||s.ancho)?`${s.largo||'—'} × ${s.ancho||'—'} mm`:'—';}
 /* Igual que el formato en Excel: una sección por tipo de material,
    con el calibre, la medida, la cantidad y en qué burro está. */
+/* texto por el que se puede buscar una fila de stock */
+function invStockTexto(s){
+  return [s.material,s.calibre,invDims(s),s.ubicacion,s.dueno,s.perfil,s.medida].filter(Boolean).join(' ');
+}
 function invStockTable(clase,dueno){
   let rows=invStock().filter(s=>s.clase===clase);
   if(dueno&&dueno!=='Todos')rows=rows.filter(s=>s.dueno===dueno);
+  const _t=qTerms();
+  if(_t.length)rows=rows.filter(s=>incluyeTodo(invStockTexto(s),_t));
   if(invBurro!=='Todos')rows=rows.filter(s=>s.ubicacion===invBurro);
   if(invMat!=='Todos')rows=rows.filter(s=>s.material===invMat);
   if(!rows.length)return `<div class="lp-note">Sin ${clase==='lamina'?'láminas':(clase==='tubo'?'tubería':'retales')}${invMat!=='Todos'?' de '+esc(invMat.replace(/\s*\(.*\)/,'')):''}${invBurro!=='Todos'?' en '+esc(invBurro):''}.</div>`;
@@ -3832,7 +3894,11 @@ function invClientStockTable(dueno){
   let rows=invStock().filter(s=>s.dueno===dueno);
   if(invBurro!=='Todos')rows=rows.filter(s=>s.ubicacion===invBurro);
   if(invMat!=='Todos')rows=rows.filter(s=>s.material===invMat);
+  const _t=qTerms();
+  if(_t.length)rows=rows.filter(s=>incluyeTodo(invStockTexto(s),_t));
   if(!rows.length){
+    if(_t.length)
+      return `<div class="lp-note">Nada del stock de <strong>${esc(dueno)}</strong> coincide con la b\u00fasqueda.</div>`;
     if(invBurro!=='Todos'||invMat!=='Todos')
       return `<div class="lp-note">Sin material de <strong>${esc(dueno)}</strong> con ese filtro.</div>`;
     return `<div class="lp-note">Aún no hay material registrado de <strong>${esc(dueno)}</strong>. Usa <strong>Nuevo movimiento</strong> → tipo Entrada y elige a ${esc(dueno)} como dueño cuando llegue su lámina.</div>`;
@@ -3884,8 +3950,17 @@ function burroChips(){
 }
 function renderInventario(){
   const isClient=invDueno!=='Todos'&&invDueno!==DUENO_GEN;
-  let mov=(CACHE.inventario||[]).filter(match);
+  const movCoinciden=(CACHE.inventario||[]).filter(match);
+  let mov=movCoinciden;
   if(invDueno!=='Todos')mov=mov.filter(m=>(m.dueno||DUENO_GEN)===invDueno);
+  const aviso=avisoEscondidos([
+    {n:movCoinciden.length-mov.length,
+     txt:`en <b>${movCoinciden.length-mov.length}</b> movimiento(s) de otro dueño`,
+     btn:{lbl:'Ver todos los dueños',fn:"invDueno='Todos';invBurro='Todos';invMat='Todos';render()"}},
+    {n:(invBurro!=='Todos'||invMat!=='Todos')?1:0,
+     txt:'en material que el filtro de burro o de material está escondiendo',
+     btn:{lbl:'Quitar esos filtros',fn:"invBurro='Todos';invMat='Todos';render()"}}
+  ]);
   const stock=invStock().filter(s=>invDueno==='Todos'||s.dueno===invDueno);
   const lam=stock.filter(s=>s.clase==='lamina').reduce((a,s)=>a+Math.max(0,s.cant),0);
   const ret=stock.filter(s=>s.clase==='retal').reduce((a,s)=>a+Math.max(0,s.cant),0);
@@ -3924,7 +3999,7 @@ function renderInventario(){
       </div>
       <div class="panel"><div class="panel-h"><h3>Stock de tubería</h3></div><div class="tbl-wrap">${invStockTable('tubo',invDueno)}</div></div>`;
   const novPanel=novList.length?`<div class="panel"><div class="panel-h"><h3>Novedades — material defectuoso o perdido</h3></div><div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Material</th><th class="c">Cant.</th>${invDueno==='Todos'?'<th>Dueño</th>':''}<th>Observación</th></tr></thead><tbody>${novList.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(m=>`<tr><td class="muted">${fmtDate(m.fecha)}</td><td><strong>${esc(m.material)}</strong> <span class="muted">${esc(m.calibre)||''}</span></td><td class="c tnum inv-neg">−${+m.cantidad||0}</td>${invDueno==='Todos'?`<td>${esc(m.dueno&&m.dueno!==DUENO_GEN?m.dueno:'General')}</td>`:''}<td>${esc(m.notas)||'<span class="muted">Sin detalle</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:'';
-  return invChips()+kpis+stockPanels+novPanel+
+  return invChips()+aviso+kpis+stockPanels+novPanel+
     panel('Movimientos de material',`${mov.length} registros${invDueno!=='Todos'?' · '+esc(invDueno):''} · lo más reciente primero`,
       `<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th class="c">Cant.</th><th>Cliente / proyecto</th><th class="num">Costo</th><th></th></tr></thead><tbody>${movRows}</tbody></table>`);
 }
@@ -4174,7 +4249,11 @@ async function cargarSugerencias(){
 }
 function renderSugerencias(){
   const u=currentUser();
-  const rows=(CACHE.sugerencias||[]).filter(match).filter(s=>sugFiltro==='Todas'||s.estado===sugFiltro);
+  const coincidenSug=(CACHE.sugerencias||[]).filter(match);
+  const rows=coincidenSug.filter(s=>sugFiltro==='Todas'||s.estado===sugFiltro);
+  const avisoSug=avisoEscondidos([{n:coincidenSug.length-rows.length,
+    txt:`en <b>${coincidenSug.length-rows.length}</b> sugerencia(s) de otro estado`,
+    btn:{lbl:'Ver todas',fn:"sugFiltro='Todas';render()"}}]);
   const nuevas=(CACHE.sugerencias||[]).filter(s=>s.estado==='Nueva').length;
   const composer=`<div class="panel"><div class="panel-h"><h3>Dejar una sugerencia</h3></div>
     <div style="padding:16px 20px">
