@@ -363,9 +363,12 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .rop-mat-head{display:flex;align-items:center;gap:10px;margin:4px 0 10px}
 .rop-mat-head .rmh-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
 .rop-mat-head select{flex:1;max-width:280px}
-.rm-row{display:grid;grid-template-columns:1fr 130px 100px 36px;gap:8px;margin-bottom:7px;align-items:center}
+.rm-row{display:grid;grid-template-columns:1fr 120px minmax(0,190px) 86px 36px;gap:8px;margin-bottom:7px;align-items:center}
+.rm-med{font-size:12.5px}
+/* cuando hay varias láminas posibles y no se ha elegido ninguna */
+.rm-med.pide{border-color:#dc2626;background:#fef2f2}
 .rm-row select,.rm-row input{padding:7px 9px;font-size:13px}
-@media(max-width:560px){.rm-row{grid-template-columns:1fr 1fr;grid-auto-rows:auto}}
+@media(max-width:560px){.rm-row{grid-template-columns:1fr 1fr;grid-auto-rows:auto}.rm-med{grid-column:1/-1}}
 /* ---- Torre de control ROP ---- */
 .k-ico.red{background:#fee2e2;color:#dc2626}
 .due-soon-txt{color:#b45309}
@@ -758,6 +761,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
   .rp-row.vp-row{grid-template-columns:1fr 1fr 38px}
   .rm-row{grid-template-columns:1fr 78px 38px;grid-auto-rows:auto;gap:7px}
   .rm-row select{grid-column:1/-1}
+  .rm-med{grid-column:1/-1}
   .av-row{grid-template-columns:88px 1fr 44px;gap:8px}
   .av-row input[type=range]{height:36px}
   .ci-grid{grid-template-columns:1fr}
@@ -3805,9 +3809,9 @@ function movTieneDim(m){
    se registró sin medidas no borre de la pantalla la medida de la lámina, y
    para que el consumo automático de una orden nazca con la medida correcta.
    Solo responde cuando NO hay duda (una sola medida conocida). */
-function medidasConocidas(dueno,material,calibre,clase){
+function medidasConocidas(dueno,material,calibre,clase,hasta){
   const cl=clase||'lamina';
-  const cand=(CACHE.inventario||[]).filter(m=>
+  let cand=(CACHE.inventario||[]).filter(m=>
     (m.dueno||DUENO_GEN)===(dueno||DUENO_GEN)&&
     (m.clase||'lamina')===cl&&
     (m.material||'').trim()===(material||'').trim()&&
@@ -3815,6 +3819,14 @@ function medidasConocidas(dueno,material,calibre,clase){
     movTieneDim(m));
   if(!cand.length)return null;
   const clave=m=>cl==='tubo'?[m.perfil||'',m.medida||'',+m.largo||0].join('|'):[+m.largo||0,+m.ancho||0].join('|');
+  /* Si hoy hay varias medidas, puede que el día del consumo solo existiera
+     una: una lámina nueva que llegó después no pudo haberse gastado antes.
+     Mirando solo lo que ya había entrado para esa fecha, la duda se resuelve
+     sola en la mayoría de los casos. */
+  if(hasta&&[...new Set(cand.map(clave))].length>1){
+    const antes=cand.filter(m=>!m.fecha||String(m.fecha)<=String(hasta));
+    if(antes.length&&[...new Set(antes.map(clave))].length===1)cand=antes;
+  }
   const distintas=[...new Set(cand.map(clave))];
   if(distintas.length!==1)return null;      /* hay varias medidas: no adivinar */
   const m=cand.find(x=>x.tipo==='entrada')||cand[0];
@@ -6714,18 +6726,84 @@ function ropFasesFromAvance(){
 }
 let ropConsumo=[];
 let pzcCompras=[];
+/* =========================================================
+   QU\u00c9 L\u00c1MINA, no solo qu\u00e9 calibre
+
+   El mismo calibre puede existir en varias medidas (E&D tiene Cal 22 en
+   2440\u00d71220 y en 2800\u00d71220). La fila de consumo escrita a mano solo ten\u00eda
+   material, calibre y cantidad: no hab\u00eda forma de decir de cu\u00e1l de las dos
+   se descuenta, y el CRM terminaba eligiendo la primera que encontrara.
+   Ahora la fila trae un selector con las medidas que de verdad hay en stock.
+   ========================================================= */
+function rmDuenoActual(){return (document.getElementById('f_consumoDueno')||{}).value||DUENO_GEN;}
+/* las l\u00e1minas concretas que hay de ese material y calibre, para ese due\u00f1o */
+function rmMedidasDe(r){
+  if(!r||!r.material)return [];
+  const dueno=rmDuenoActual();
+  /* se listan TODAS las medidas conocidas de ese material y calibre, no solo
+     las que tienen saldo: una lámina que quedó en negativo (se consumió más de
+     lo que entró) sigue siendo la lámina de la que sale el trabajo, y
+     esconderla obligaría a elegir una que no es. Las que sí tienen saldo van
+     primero. */
+  return invStock().filter(x=>x.dueno===dueno&&x.material===r.material
+      &&(x.calibre||'')===(r.calibre||'')&&movTieneDim(x))
+    .sort((a,b)=>(b.cant>0?0:1)-(a.cant>0?0:1)||(+b.largo||0)-(+a.largo||0)||(+b.ancho||0)-(+a.ancho||0));
+}
+/* "Sin ubicar" y vacío son lo mismo: la fila de stock lo muestra con texto y la
+   línea de consumo lo guarda en blanco. Si no se igualan aquí, el selector cree
+   que la medida elegida "ya no existe" y la muestra como tal. */
+const rmUbic=u=>(u===SIN_UBIC?'':(u||''));
+const rmClaveMedida=x=>[(x&&x.clase)||'lamina',+((x&&x.largo))||0,+((x&&x.ancho))||0,
+  (x&&x.perfil)||'',(x&&x.medida)||'',rmUbic(x&&x.ubicacion)].join('|');
+const rmTieneMedida=r=>!!(r&&(+r.largo>0||+r.ancho>0||(r.perfil||'').trim()||(r.medida||'').trim()));
+/* copia la lámina elegida a la línea de consumo. "Sin ubicar" es solo cómo se
+   MUESTRA una ubicación vacía: si se guardara tal cual, el movimiento no
+   coincidiría con los que tienen la ubicación en blanco y el stock se partiría
+   en dos grupos. */
+function rmAdoptar(r,o){
+  Object.assign(r,{clase:o.clase,largo:o.largo,ancho:o.ancho,perfil:o.perfil||'',
+    medida:o.medida||'',ubicacion:rmUbic(o.ubicacion)});
+}
 function renderRopMat(){
   const c=document.getElementById('ropMatRows');if(!c)return;
-  if(!ropConsumo.length){c.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin material agregado. Pulsa “+ Material usado” para descontar láminas del inventario al guardar.</div>';return;}
+  if(!ropConsumo.length){c.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin material agregado. Pulsa \u201c+ Material usado\u201d para descontar l\u00e1minas del inventario al guardar.</div>';return;}
   const matOpts=sel=>{const lista=MAT_INV.slice();if(sel&&!lista.includes(sel))lista.push(sel);return lista.map(m=>`<option ${sel===m?'selected':''}>${esc(m)}</option>`).join('');};
   c.innerHTML=ropConsumo.map((r,i)=>{
+    const opc=rmMedidasDe(r);
+    /* si solo hay una l\u00e1mina posible, se adopta sola: no tiene sentido hacer
+       elegir cuando no hay nada que decidir */
+    if(opc.length===1&&!rmTieneMedida(r))rmAdoptar(r,opc[0]);
+    const actual=rmClaveMedida(r);
+    const hayQueElegir=opc.length>1&&!rmTieneMedida(r);
+    const medSel=`<select class="rm-med${hayQueElegir?' pide':''}" title="De qu\u00e9 l\u00e1mina se descuenta" onchange="rmMedida(${i},this.value)">`
+      +(opc.length
+        ? (rmTieneMedida(r)&&!opc.some(o=>rmClaveMedida(o)===actual)
+            ? `<option value="" selected>${esc(invDims(r))} (ya no hay)</option>`
+            : `<option value=""${rmTieneMedida(r)?'':' selected'}>${opc.length>1?'\u2014 elige la medida \u2014':'\u2014 sin especificar \u2014'}</option>`)
+          +opc.map(o=>`<option value="${esc(rmClaveMedida(o))}" ${rmClaveMedida(o)===actual?'selected':''}>${esc(invDims(o))}${o.ubicacion&&o.ubicacion!==SIN_UBIC?' \u00b7 '+esc(o.ubicacion):''} \u00b7 ${o.cant>0?o.cant:'sin saldo ('+o.cant+')'}</option>`).join('')
+        : `<option value="" selected>sin stock registrado</option>`)
+      +`</select>`;
     return `<div class="rm-row"><select onchange="rmEdit(${i},'material',this.value)">${matOpts(r.material)}</select>`
       +`<input list="calListRop" value="${esc(r.calibre)}" placeholder="Calibre" onchange="rmEdit(${i},'calibre',this.value)">`
+      +medSel
       +`<input type="number" min="0" value="${r.cant||''}" placeholder="Cant." oninput="rmCant(${i},this.value)">`
       +`<button type="button" class="ic-btn del" title="Quitar" onclick="rmDel(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
       +`<div class="rm-det" id="rmDet_${i}">${rmDetHTML(i)}</div>`
       +`</div>`;
   }).join('')+`<datalist id="calListRop">${CAL_INV.map(c=>`<option value="${c}">`).join('')}</datalist>`;
+}
+/* al elegir la medida se copia la l\u00e1mina entera (incluido el burro del que sale) */
+function rmMedida(i,clave){
+  const r=ropConsumo[i];if(!r)return;
+  const o=rmMedidasDe(r).find(x=>rmClaveMedida(x)===clave);
+  if(o)rmAdoptar(r,o);
+  else Object.assign(r,{largo:0,ancho:0,perfil:'',medida:'',ubicacion:''});
+  renderRopMat();
+}
+/* \u00bfqueda alguna fila sin decir de cu\u00e1l l\u00e1mina sale, habiendo varias? */
+function rmAmbiguas(){
+  return ropConsumo.map((r,i)=>({r,i}))
+    .filter(({r})=>r.material&&+r.cant>0&&!rmTieneMedida(r)&&rmMedidasDe(r).length>1);
 }
 /* cuánto hay de esa referencia exacta según los movimientos registrados */
 function rmDisponible(r){
@@ -6761,6 +6839,9 @@ function rmQueda(i){
 }
 function rmDetHTML(i){
   const r=ropConsumo[i];if(!r)return '';
+  const opc=rmMedidasDe(r);
+  if(opc.length>1&&!rmTieneMedida(r))
+    return `<span class="rm-falta">Hay ${opc.length} medidas distintas de este calibre (${opc.map(o=>invDims(o)).join(', ')}) — elige de cuál se descuenta.</span>`;
   const detalle=[r.clase==='tubo'?'tubería '+invDims(r):((r.largo||r.ancho)?`${r.largo||'—'}×${r.ancho||'—'} mm`:''),r.ubicacion||'',r.clase==='retal'?'retal':''].filter(Boolean).join(' · ');
   const q=rmQueda(i);
   const stock=q?` <span class="${q.queda<0?'rm-falta':'rm-hay'}">hay ${q.hay} · quedarían <b>${q.queda}</b>${q.queda<0?' — faltan '+(-q.queda):''}</span>`
@@ -6848,8 +6929,7 @@ function rmElegir(i){
   /* si ya está en la lista, se le suma uno en vez de duplicar la fila */
   const ya=ropConsumo.findIndex(r=>rmMismaRef(r,s));
   if(ya>=0){ropConsumo[ya].cant=(+ropConsumo[ya].cant||0)+1;}
-  else{ropConsumo.push({material:s.material,calibre:s.calibre,clase:s.clase,
-    largo:s.largo,ancho:s.ancho,perfil:s.perfil||'',medida:s.medida||'',ubicacion:s.ubicacion,cant:1});}
+  else{const nueva={material:s.material,calibre:s.calibre,cant:1};rmAdoptar(nueva,s);ropConsumo.push(nueva);}
   renderRopMat();cerrarPicker();
   toast('Agregado: '+s.material+' '+(s.calibre||''));
 }
@@ -6864,7 +6944,15 @@ function rmDel(i){
    se ve junto a cada fila se calcula al pintar, así que si no se repinta
    queda desactualizado (por ejemplo, subes la cantidad por encima de lo
    que hay y el aviso en rojo no aparece hasta tocar otra cosa). */
-function rmEdit(i,k,v){if(!ropConsumo[i])return;ropConsumo[i][k]=(k==='cant')?(+v||0):v;renderRopMat();}
+function rmEdit(i,k,v){
+  if(!ropConsumo[i])return;
+  ropConsumo[i][k]=(k==='cant')?(+v||0):v;
+  /* la medida elegida era de OTRO material o calibre: dejarla pegada hace que
+     se descuente de una l\u00e1mina que no es */
+  if(k==='material'||k==='calibre')
+    Object.assign(ropConsumo[i],{largo:0,ancho:0,perfil:'',medida:'',ubicacion:'',clase:undefined});
+  renderRopMat();
+}
 async function syncRopInventory(row){
   try{
     /* Se limpia por ropId Y por número de orden. Hace falta lo segundo porque
@@ -6898,7 +6986,7 @@ async function syncRopInventory(row){
       const dueno=row.consumoDueno||DUENO_GEN;
       let dim={largo:+c.largo||0,ancho:+c.ancho||0,perfil:c.perfil||'',medida:c.medida||''};
       let ubic=c.ubicacion||'';
-      const conocido=medidasConocidas(dueno,c.material,c.calibre||'',c.clase||'lamina');
+      const conocido=medidasConocidas(dueno,c.material,c.calibre||'',c.clase||'lamina',row.ingreso||today());
       if(conocido){
         if(!movTieneDim({clase:c.clase||'lamina',...dim}))dim=conocido;
         if(!ubic&&conocido.ubicacion&&conocido.ubicacion!==SIN_UBIC)ubic=conocido.ubicacion;
@@ -7119,6 +7207,16 @@ async function saveForm(){
   const{t,id}=editing;let row={id:id||uid()};
   if(t==='ventas'){if(!val('f_cliente')){toast('Indica el cliente');return}const servicios=[...document.querySelectorAll('#servChips input:checked')].map(i=>i.value);row={...row,fecha:val('f_fecha'),servicios,servicio:servicios[0]||'',cliente:val('f_cliente'),nit:val('f_nit'),descripcion:val('f_descripcion'),valor:numv('f_valor'),sinIva:chk('f_sinIva'),abonado:numv('f_abonado'),cotizacion:val('f_cotizacion'),ordenCompra:val('f_ordenCompra'),asesor:val('f_asesor'),ropId:val('f_ropId')||'',piezasFactura:ventaPiezas.filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({desc:(p.desc||'').trim(),mat:(p.mat||'').trim(),cant:+p.cant||0,precio:+p.precio||0})),soportePago:ventaSoportePago||null};}
   else if(t==='rop'){if(!val('f_cliente')){toast('Indica el cliente');return}
+    /* Guardar sin decir de cuál lámina sale el consumo, habiendo varias del
+       mismo calibre, es justo lo que ensuciaba el inventario (§9cf): el
+       movimiento nacía sin medidas y formaba un grupo fantasma aparte. */
+    const _amb=rmAmbiguas();
+    if(_amb.length){
+      toast('Falta decir de cuál lámina sale: '+_amb.map(({r})=>r.material.replace(/\s*\(.*\)/,'')+' '+(r.calibre||'')).slice(0,2).join(', ')+(_amb.length>2?' y '+(_amb.length-2)+' más':''));
+      const sel=document.querySelectorAll('#ropMatRows .rm-med')[_amb[0].i];
+      if(sel){sel.scrollIntoView({block:'center',behavior:'smooth'});sel.focus();}
+      return;
+    }
     let ropNum=val('f_rop');
     if(ropNum&&(CACHE.rop.some(r=>r.rop===ropNum&&r.id!==id)||await numeroTomado('rop','rop',ropNum,id))){
       const nuevo=await siguienteNumeroNube('rop','rop','ROP-',2400);
