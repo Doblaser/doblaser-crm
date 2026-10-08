@@ -4392,16 +4392,17 @@ function draftBannerHTML(){let d;try{d=JSON.parse(localStorage.getItem(COT_DRAFT
 function recoverCotDraft(){let d;try{d=JSON.parse(localStorage.getItem(COT_DRAFT_KEY)||'null');}catch(e){d=null;}if(!d){return;}const h=d.header||{};Object.entries({f_numero:h.numero,f_fecha:h.fecha,f_cliente:h.cliente,f_contacto:h.contacto,f_email:h.email,f_nit:h.nit,f_asesor:h.asesor,f_pago:h.pago,f_estado:h.estado}).forEach(([id,v])=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;});cotItems=(d.items&&d.items.length?d.items:[blankItem()]).map(it=>({proc:it.proc||'',procs:it.procs||[],desc:it.desc||'',material:it.material||'',calibre:it.calibre||'',cant:it.cant||1,vu:it.vu||0,_open:!!it._open,_procManual:!!it._procManual,calc:Object.assign(blankCalc(),it.calc||{}),subpiezas:hidratarSubpiezas(it)}));renderCotItems();const b=document.getElementById('draftBanner');if(b)b.remove();toast('Cotización recuperada');}
 function discardCotDraft(){clearCotDraft();const b=document.getElementById('draftBanner');if(b)b.remove();}
 function cotEstadoChange(){const e=document.getElementById('f_estado'),w=document.getElementById('motivoWrap');if(!e||!w)return;const lost=(e.value==='Perdida'||e.value==='Rechazada');w.style.display=lost?'':'none';}
-function openForm(t,id){
-  t=t||VIEW;editing={t,id:id||null};
-  const row=id?CACHE[t].find(x=>x.id===id):null;
+function openForm(t,id,plantilla){
+  t=t||VIEW;editing={t,id:plantilla?null:(id||null)};
+  const row=plantilla||(id?CACHE[t].find(x=>x.id===id):null);
   const f={ventas:formVenta,rop:formRop,leads:formLead,cotizaciones:formCot,inventario:formInventario,piezascli:formPiezaCli}[t];
   const titles={ventas:'venta',rop:'ROP',leads:'cliente',cotizaciones:'cotización',inventario:'movimiento de inventario',piezascli:'pieza'};
   const articulo={ventas:'Nueva ',rop:'Nueva ',leads:'Nuevo ',cotizaciones:'Nueva ',inventario:'Nuevo ',piezascli:'Nueva '};
   document.getElementById('mTitle').textContent=(id?'Editar ':(articulo[t]||'Nuevo '))+titles[t];
   document.getElementById('modal').classList.toggle('wide',t==='cotizaciones');
-  document.getElementById('mBody').innerHTML=(row?auditBanner(row):'')+f(row);
-  document.getElementById('mFoot').innerHTML=`<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveForm()">Guardar</button>`;
+  if(plantilla)document.getElementById('mTitle').textContent='Nueva ROP (copia de '+(plantilla._copiaDe||'')+')';
+  document.getElementById('mBody').innerHTML=(row&&!plantilla?auditBanner(row):'')+f(row);
+  document.getElementById('mFoot').innerHTML=(t==='rop'&&row&&!plantilla?`<button class="btn ghost" style="margin-right:auto" onclick="duplicarRop()" title="Crea una orden nueva con otro número, con las mismas piezas y descuentos de material">⧉ Duplicar orden</button>`:'')+`<button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="saveForm()">Guardar</button>`;
   if(t==='cotizaciones'){
     if(row&&row.tipo==='producto'){openFormProd(id);return;}
     COT_MODE='serv';
@@ -5720,6 +5721,7 @@ function ropColor(c){
 function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option value="${c.id}" ${String(r.cotId)===String(c.id)?'selected':''}>${esc(c.numero)} · ${esc(c.cliente)}</option>`).join('');return `<div class="fgrid">
   <div class="field"><label>N° ROP</label><input id="f_rop" value="${esc(r.rop)||nextRop()}"></div>
   <div class="field"><label>Estado</label><select id="f_estado">${opts(ROP_ESTADOS,r.estado||'Sin procesar')}</select></div>
+  ${r.id?`<div class="field" id="ropDupBox"><label>&nbsp;</label><button type="button" class="btn ghost" style="align-self:flex-start" onclick="duplicarRop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;margin-right:6px;vertical-align:-2px"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>Duplicar orden</button></div>`:''}
   <div class="field full"><label>Cliente</label><input id="f_cliente" value="${esc(r.cliente)}" oninput="ropDuenoAuto()"></div>
   <div class="field full"><label>Subtítulo del proyecto (opcional)</label><input id="f_subtitulo" value="${esc(r.subtitulo)}" placeholder="Ej. Puertas Torre 3 · Mesas IRENE" maxlength="60"></div>
   <div class="field full"><label>Color para identificarla</label><input type="hidden" id="f_color" value="${esc(r.color||'')}">
@@ -6638,6 +6640,28 @@ function renderRopAvance(){
   renderRopTiempos();
 }
 let ropAvanceVal={};
+/* Duplicar orden: el formulario abierto pasa a ser una ROP nueva con otro número.
+   Se conserva lo que el usuario tiene en pantalla (cliente, piezas, descuentos de
+   material, procesos, enlaces...) y todo sigue editable; lo que es historia de la
+   orden original (avance, tiempos, bitácora, entregas y firmas) arranca en blanco.
+   Nada se guarda hasta que le den Guardar. */
+function duplicarRop(){
+  if(editing.t!=='rop'||!editing.id)return;
+  const orig=(document.getElementById('f_rop')||{}).value||'';
+  editing={t:'rop',id:null};
+  const n=document.getElementById('f_rop');if(n)n.value=nextRop();
+  const e=document.getElementById('f_estado');if(e)e.value=ROP_ESTADOS.includes('Sin procesar')?'Sin procesar':ROP_ESTADOS[0];
+  const ing=document.getElementById('f_ingreso');if(ing)ing.value=today();
+  const cr=document.getElementById('f_costoReal');if(cr)cr.value='';
+  ropAvanceVal={};ropTiemposVal={};ropPinturaFecha='';ropBitacora=[];ropEntregas=[];ropEntregasFirmas={};
+  document.getElementById('mTitle').textContent='Nueva ROP (copia de '+orig+')';
+  const ab=document.querySelector('#mBody .audit-banner');if(ab)ab.remove();
+  const db=document.getElementById('ropDupBox');if(db)db.remove();
+  renderRopMat();renderRopPz();renderRopBitacora();renderRopAvance();ropCostCompare();
+  if(typeof renderRopEntregasHist==='function')renderRopEntregasHist();
+  const mb=document.getElementById('mBody');if(mb)mb.scrollTop=0;
+  toast('Copia de '+orig+' lista como '+(n?n.value:'nueva orden')+'. Revisa y dale Guardar.');
+}
 /* ---- Tiempos de producción: minutos por proceso, escritos a mano ----
    El director operativo necesita saber cuánto se demora cada orden en láser,
    doblez, soldadura y pintura. Solo se piden los procesos que la orden lleva. */
@@ -7326,6 +7350,30 @@ function confirmDel(t,id){
     (_descRegistro(t,id)||'')+red+extra,()=>doDel());
 }
 async function doDel(){const dt=delTarget.t;if(dt==='rop'){const prev=(CACHE.inventario||[]).filter(m=>m.auto&&String(m.ropId)===String(delTarget.id));for(const m of prev)await deleteRow('inventario',m.id);}await deleteRow(dt,delTarget.id);closeModal();CACHE[dt]=await getAll(dt);if(dt==='rop')CACHE.inventario=await getAll('inventario');await cargarPapelera();render();updateCounts();toast(PAPELERA_OK?'Eliminado · está en la Papelera':'Registro eliminado')}
+/* Duplicar una orden: abre el formulario de una ROP NUEVA (otro número, sin guardar
+   todavía) con todo lo de la que está abierta -- piezas, descuentos de material,
+   procesos, cliente -- para editar lo que cambie. No copia entregas, firmas, avance
+   ni tiempos: es otra orden que empieza de cero. El material se descuenta del
+   inventario solo cuando se guarda la copia. */
+async function duplicarRop(){
+  const {base}=ropEditActual();
+  const g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
+  const num=await siguienteNumeroNube('rop','rop','ROP-',2400);
+  const copia={...base,
+    cliente:g('f_cliente')??base.cliente,subtitulo:g('f_subtitulo')??base.subtitulo,color:g('f_color')??base.color,
+    cotId:g('f_cotId')??base.cotId,aprobacion:g('f_aprobacion')??base.aprobacion,suministro:g('f_suministro')??base.suministro,
+    asesor:g('f_asesor')??base.asesor,observaciones:g('f_observaciones')??base.observaciones,consumoDueno:g('f_consumoDueno')??base.consumoDueno,
+    procesos:ropProcSel(),
+    piezas:ropPiezas.map(p=>({...p})),consumo:ropConsumo.map(c=>({...c})),
+    id:undefined,rop:num,estado:'Sin procesar',ingreso:today(),entrega:'',
+    bitacora:[],entregas:[],entregasFirmas:{},avance:{},fases:[],tiempos:{},pinturaFecha:'',
+    firmaCliente:null,firmaClienteFecha:null,firmaClienteNombre:null,firmaClienteCedula:null,
+    archivadaManual:false,costoReal:'',createdBy:null,createdAt:null,updatedBy:null,updatedAt:null,
+    _copiaDe:base.rop||''};
+  closeModal();
+  openForm('rop',null,copia);
+  toast('Copia lista como '+num+' — revisa y dale Guardar');
+}
 function closeModal(){clearTimeout(DRAFT_TIMER);if(editing.t==='cotizaciones'&&!editing.id){try{saveCotDraft();}catch(e){}}document.getElementById('overlay').classList.remove('show');editing={t:null,id:null};}
 /* Clic afuera del modal: antes solo proteg\u00eda las cotizaciones y cualquier
    otro formulario (ROP, ventas, clientes, inventario...) se cerraba de una
