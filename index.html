@@ -1091,6 +1091,15 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pg-bh{white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:10.5px}
 .pg-rz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;touch-action:none}
 .pg-rz::after{content:'';position:absolute;right:3px;top:35%;bottom:35%;border-right:2px solid rgba(0,0,0,.18)}
+.pg-fuera{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(185,28,28,.06) 0 7px,rgba(185,28,28,.13) 7px 14px);z-index:3;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.pg-fuera em{font-style:normal;font-size:11px;color:#991b1b;font-weight:600;background:rgba(255,255,255,.8);padding:1px 6px;border-radius:4px}
+.pg-hor td.pg-hc{min-width:118px;font-size:11.5px}
+.pg-hor td.pg-hc input{width:100%;padding:3px 5px;border:1px solid var(--line);border-radius:5px;font-size:12px;margin-bottom:3px;background:#fff}
+.pg-hor td.pg-hc.cambio{background:#fffbeb}
+.pg-hor td.pg-hc.libre{background:#f5f3f0}
+.pg-hor .pg-hl{color:var(--ink-3);font-weight:600;padding:6px 0}
+.pg-hor .lnk{background:none;border:0;padding:0;font:inherit;font-size:11px;color:var(--wine);text-decoration:underline;cursor:pointer}
+.pg-sem td .lnk{background:none;border:0;padding:0;font:inherit;color:var(--wine);text-decoration:underline;cursor:pointer}
 .pg-ayuda{font-size:12px;color:var(--ink-3);margin:10px 2px 0;line-height:1.55}
 .pg-avisos{margin-top:12px;border:1px solid #fca5a5;background:#fef2f2;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#991b1b}
 .pg-avisos li{margin-left:18px;margin-top:3px}
@@ -3234,7 +3243,7 @@ const PG_CFG_DEF={inicio:420,fin:1200,paso:15,
   maquinas:[{id:'laser',nombre:'Láser',proc:'Corte',operario:''},
             {id:'dobladora',nombre:'Dobladora',proc:'Doblez',operario:''},
             {id:'soldadura',nombre:'Soldadura',proc:'Soldadura',operario:''}],
-  segGolpe:20,mmHora:3000};
+  segGolpe:20,mmHora:3000,personal:[],horarios:{}};
 const PG_DIAS_ATRAS=120;
 let PG={cfg:null,dias:{},ok:false,cargando:false,error:'',fecha:'',tab:'dia',sel:null,busca:'',todas:false,drag:null,estado:'',_rz:0};
 
@@ -3259,6 +3268,8 @@ function pgNormCfg(v){
   ['inicio','fin','paso','segGolpe','mmHora'].forEach(k=>{if(+v[k]>0)c[k]=+v[k];});
   if(Array.isArray(v.descansos))c.descansos=v.descansos.filter(d=>d&&+d.fin>+d.ini).map(d=>({ini:+d.ini,fin:+d.fin,lbl:d.lbl||'Descanso'}));
   if(Array.isArray(v.maquinas)&&v.maquinas.length)c.maquinas=v.maquinas.filter(m=>m&&m.id).map(m=>({id:String(m.id),nombre:m.nombre||'Máquina',proc:PG_PROCS.includes(m.proc)?m.proc:'Corte',operario:m.operario||''}));
+  if(Array.isArray(v.personal))c.personal=v.personal.filter(e=>e&&e.id&&(e.nombre||'').trim()).map(e=>({id:String(e.id),nombre:e.nombre.trim(),ini:+e.ini||420,fin:+e.fin||1020,dias:Array.isArray(e.dias)?e.dias.map(Number):[1,2,3,4,5,6]}));
+  if(v.horarios&&typeof v.horarios==='object')c.horarios=v.horarios;
   if(!(c.fin>c.inicio))c.fin=c.inicio+60;
   return c;
 }
@@ -3288,11 +3299,36 @@ function pgFin(ini,min){
 }
 function pgTrabajo(a,b){let m=Math.max(0,b-a);pgDescansos().forEach(d=>{m-=Math.max(0,Math.min(b,d.fin)-Math.max(a,d.ini));});return Math.max(0,m);}
 function pgSaltaDescanso(t){const d=pgDescansos().find(x=>t>=x.ini&&t<x.fin);return d?d.fin:t;}
-function pgCapacidad(){const c=pgCfg();return pgTrabajo(c.inicio,c.fin);}
+/* ---- horario de cada empleado: uno base (días y horas de siempre) y, por
+   semana, los cambios de cada día. La fila de una máquina solo tiene tiempo
+   útil dentro del turno de su operario ese día. ---- */
+function pgLunes(f){return pgSumar(f,-((pgDiaSem(f)+6)%7));}
+function pgEmpleado(nombre){const n=(nombre||'').trim().toLowerCase();if(!n)return null;return (pgCfg().personal||[]).find(e=>e.nombre.trim().toLowerCase()===n)||null;}
+/* undefined = no se sabe (no está en el personal); null = no trabaja ese día */
+function pgTurnoEmp(e,f){
+  if(!e)return undefined;
+  const h=((pgCfg().horarios||{})[pgLunes(f)]||{})[e.id]||{},o=h[pgDiaSem(f)];
+  if(o)return o.libre?null:{ini:+o.ini,fin:+o.fin};
+  return (e.dias||[]).includes(pgDiaSem(f))?{ini:e.ini,fin:e.fin}:null;
+}
+function pgVentana(f,maq){
+  const c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);
+  const op=m?pgOperario(pgDia(f),m):'',e=pgEmpleado(op),t=pgTurnoEmp(e,f);
+  if(t===undefined)return {ini:c.inicio,fin:c.fin,op,sin:true};
+  if(t===null)return {ini:c.inicio,fin:c.inicio,op,libre:true};
+  const ini=Math.max(c.inicio,t.ini),fin=Math.min(c.fin,t.fin);
+  return {ini,fin:Math.max(ini,fin),op};
+}
+function pgCapacidad(f,maq){const c=pgCfg();if(f&&maq){const v=pgVentana(f,maq);return pgTrabajo(v.ini,v.fin);}return pgTrabajo(c.inicio,c.fin);}
+function pgCapDia(f){return pgCfg().maquinas.reduce((a,m)=>a+pgCapacidad(f,m.id),0);}
 /* primer hueco libre en una máquina desde la hora T (salta descansos y trabajos ya puestos) */
 function pgHueco(f,maq,T,excl){
-  const c=pgCfg();
-  const bl=pgDia(f).bloques.filter(b=>b.maq===maq&&b.id!==excl).sort((a,b)=>a.ini-b.ini);
+  const c={...pgCfg(),...pgVentana(f,maq)};c.inicio=c.ini;
+  /* también cuenta como ocupado lo que su mismo operario tiene en otra máquina:
+     una persona no puede estar en dos máquinas a la vez */
+  const d=pgDia(f),op=(c.op||'').trim().toLowerCase();
+  const mismas=op?pgCfg().maquinas.filter(m=>pgOperario(d,m).trim().toLowerCase()===op).map(m=>m.id):[maq];
+  const bl=d.bloques.filter(b=>(b.maq===maq||mismas.includes(b.maq))&&b.id!==excl).sort((a,b)=>a.ini-b.ini);
   T=Math.max(c.inicio,Math.min(c.fin,T));
   let cambio=true,g=0;
   while(cambio&&g++<80){cambio=false;const t0=pgSaltaDescanso(T);if(t0!==T){T=t0;cambio=true;}
@@ -3302,7 +3338,7 @@ function pgHueco(f,maq,T,excl){
   return {ini:T,lim,disp:pgTrabajo(T,lim)};
 }
 function pgPrimerHueco(f,maq,min){
-  const c=pgCfg();let T=c.inicio,mejor=null;
+  const c={...pgCfg(),...pgVentana(f,maq)};let T=c.ini,mejor=null;
   for(let g=0;g<60&&T<c.fin;g++){
     const h=pgHueco(f,maq,T);
     if(h.disp>=min)return h;
@@ -3464,7 +3500,7 @@ function pgRender(){
       ?`<div class="fc-vacio">No se pudo cargar la programación: ${esc(PG.error)}<br><br><button class="btn ghost sm" onclick="PG.error='';pgCargar()">Reintentar</button></div>`
       :'<div class="fc-vacio">Cargando la programación…</div>';
   }
-  const tabs=[['dia','Programa del día'],['reporte','Reporte del día'],['semana','Semana'],['ajustes','Máquinas y horario']];
+  const tabs=[['dia','Programa del día'],['reporte','Reporte del día'],['semana','Semana'],['personal','Horarios del personal'],['ajustes','Máquinas y horario']];
   const bar=`<div class="pg-tabs">${tabs.map(([k,l])=>`<button type="button" class="pg-tab ${PG.tab===k?'on':''}" onclick="PG.tab='${k}';render()">${l}</button>`).join('')}
     <div class="spacer"></div><span id="pgEstado" class="pg-estado">${esc(PG.estado)}</span>
     <button type="button" class="btn ghost sm" onclick="PG.ok=false;pgCargar()" title="Traer lo que hayan cambiado otros equipos">↻ Actualizar</button></div>`;
@@ -3472,6 +3508,7 @@ function pgRender(){
   if(PG.tab==='reporte')cuerpo=pgReporteHTML();
   else if(PG.tab==='semana')cuerpo=pgSemanaHTML();
   else if(PG.tab==='ajustes')cuerpo=pgAjustesHTML();
+  else if(PG.tab==='personal')cuerpo=pgPersonalHTML();
   else cuerpo=pgDiaHTML();
   return bar+cuerpo;
 }
@@ -3490,25 +3527,35 @@ function pgDiaHTML(){
   const f=PG.fecha,d=pgDia(f),c=pgCfg(),uso=pgUso(),ed=pgPuede();
   const span=c.fin-c.inicio,X=m=>((m-c.inicio)/span*100).toFixed(3)+'%';
   const horas=[];for(let h=Math.ceil(c.inicio/60);h*60<=c.fin;h++)horas.push(h);
-  const cap=pgCapacidad();
   const head=`<div class="pg-row pg-head"><div class="pg-rh">Máquina · operario</div><div class="pg-track">${horas.map(h=>`<span class="pg-tick" style="left:${X(h*60)}">${h}:00</span>`).join('')}</div></div>`;
   const avisos=[];
   const ops=[...new Set(c.maquinas.map(m=>m.operario).concat(...Object.values(PG.dias).map(x=>Object.values(x.operarios||{}))).filter(Boolean))];
   const filas=c.maquinas.map(m=>{
     const bl=d.bloques.filter(b=>b.maq===m.id).sort((a,b)=>a.ini-b.ini);
-    const ocup=bl.reduce((a,b)=>a+b.min,0),pct=cap?Math.round(ocup/cap*100):0;
+    const cap=pgCapacidad(f,m.id),vt=pgVentana(f,m.id);
+    const ocup=bl.reduce((a,b)=>a+b.min,0),pct=cap?Math.round(ocup/cap*100):(ocup?100:0);
     const op=pgOperario(d,m);
+    const turnoTxt=vt.sin?(op?'no está en el personal':''):(vt.libre?'no trabaja hoy':'turno '+pgHora(vt.ini)+'–'+pgHora(vt.fin));
+    const fueraTxt=vt.libre?esc(op)+' no trabaja este día':'fuera del turno de '+esc(op);
+    const sombras=vt.sin?'':(vt.libre?`<span class="pg-fuera" style="left:0;width:100%"><em>${fueraTxt}</em></span>`
+      :(vt.ini>c.inicio?`<span class="pg-fuera" style="left:0;width:${X(vt.ini)}"><em>${vt.ini-c.inicio>=90?fueraTxt:''}</em></span>`:'')+(vt.fin<c.fin?`<span class="pg-fuera" style="left:${X(vt.fin)};right:0"><em>${c.fin-vt.fin>=90?fueraTxt:''}</em></span>`:''));
+    bl.forEach(b=>{const fb=pgFin(b.ini,b.min);if(!vt.sin&&(vt.libre||b.ini<vt.ini||fb>vt.fin))avisos.push((b.rop||b.act)+' en '+m.nombre+': '+(vt.libre?op+' no trabaja ese día':'queda fuera del turno de '+op+' ('+pgHora(vt.ini)+'–'+pgHora(vt.fin)+')'));});
     const bloques=bl.map(b=>{const x=pgBloqueHTML(b,f,uso,ed);x.avisos.forEach(a=>avisos.push(a));return x.html;}).join('');
     return `<div class="pg-row">
       <div class="pg-rh"><div class="pg-mn">${esc(m.nombre)}${bl.length?`<button type="button" title="Imprimir la hoja de esta máquina" onclick="pgImprimirHojas('${m.id}',false)">🖨</button>`:''}</div><div class="pg-mp">${esc(m.proc)}</div>
         ${ed?`<input class="pg-op" list="pgOps" value="${esc(op)}" placeholder="Operario" onchange="pgSetOperario('${m.id}',this.value)">`:`<div class="pg-mp"><b>${esc(op)||'sin operario'}</b></div>`}
         <div class="pg-load" title="${fmtMin(ocup)} de ${fmtMin(cap)}"><i class="${ocup>cap?'over':''}" style="width:${Math.min(100,pct)}%"></i></div>
-        <div class="pg-loadn">${pgHc(ocup)} de ${pgHc(cap)} · ${pct}%</div></div>
+        <div class="pg-loadn">${pgHc(ocup)} de ${pgHc(cap)} · ${pct}%</div>${turnoTxt?`<div class="pg-loadn" style="${vt.libre||(vt.sin&&op)?'color:#b45309;font-weight:600':''}">${esc(turnoTxt)}</div>`:''}</div>
       <div class="pg-track ${ed?'ed':''} ${ed&&PG.sel?'tapsel':''}" ${ed?`ondragover="pgOver(event)" ondragleave="pgLeave(event)" ondrop="pgDrop(event,'${m.id}')" onclick="pgClickTrack(event,'${m.id}')"`:''}>
         ${horas.map(h=>`<span class="pg-line" style="left:${X(h*60)}"></span>`).join('')}
         ${pgDescansos().map(x=>`<span class="pg-break" style="left:${X(x.ini)};width:${((x.fin-x.ini)/span*100).toFixed(3)}%"><em>${esc(x.lbl)}</em></span>`).join('')}
-        ${bloques}<span class="pg-guia"></span></div></div>`;
+        ${sombras}${bloques}<span class="pg-guia"></span></div></div>`;
   }).join('');
+  {const porOp={};c.maquinas.forEach(m=>{const op=pgOperario(d,m).trim().toLowerCase();if(!op)return;(porOp[op]=porOp[op]||[]).push(m);});
+   Object.values(porOp).filter(ms=>ms.length>1).forEach(ms=>{
+     const bs=d.bloques.filter(b=>ms.some(m=>m.id===b.maq));
+     for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++){const a=bs[i],b=bs[j];if(a.maq===b.maq)continue;
+       if(a.ini<pgFin(b.ini,b.min)&&b.ini<pgFin(a.ini,a.min)){avisos.push(pgOperario(d,ms[0])+' está en '+ms.map(m=>m.nombre).join(' y ')+' a la misma hora ('+pgHora(Math.max(a.ini,b.ini))+')');i=bs.length;break;}}});}
   const extra=ed?`<button type="button" class="btn sm" onclick="pgAuto()" title="Llena el tiempo libre de cada máquina con las órdenes que más pronto se entregan">⚡ Programar automático</button>
       <button type="button" class="btn ghost sm" onclick="pgImprimirPrograma()">🖨 Programa</button>
       <button type="button" class="btn ghost sm" onclick="pgImprimirHojas('',false)">🖨 Hojas de operarios</button>
@@ -3521,7 +3568,7 @@ function pgDiaHTML(){
     <div class="pg-main">
       ${ed?`<input class="pg-nota" value="${esc(d.nota)}" placeholder="Indicaciones del día para todos los operarios (salen impresas en las hojas)" onchange="pgSetNota(this.value)">`:(d.nota?`<div class="pg-nota">${esc(d.nota)}</div>`:'')}
       <div class="pg-grid"><div class="pg-gin" style="--rowh:${Math.max(96,Math.min(190,Math.floor((innerHeight-470)/Math.max(1,c.maquinas.length))))}px">${head}${filas}</div></div>
-      <datalist id="pgOps">${ops.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
+      <datalist id="pgOps">${[...new Set((c.personal||[]).map(e=>e.nombre).concat(ops))].map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
       ${avisos.length?`<div class="pg-avisos"><b>⚠ Revisar en este día</b><ul>${[...new Set(avisos)].map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}
       <div class="pg-res">${pgResumenDiaHTML(f,d,uso)}</div>
       <div class="pg-ayuda">${ayuda}</div>
@@ -3530,11 +3577,11 @@ function pgDiaHTML(){
 }
 /* debajo del horario: qué órdenes se trabajan ese día y cómo quedan */
 function pgResumenDiaHTML(f,d,uso){
-  const c=pgCfg(),cap=pgCapacidad();
+  const c=pgCfg();
   const por={};
   d.bloques.filter(b=>b.tipo==='rop').forEach(b=>{const x=por[b.ropId]||(por[b.ropId]={rop:b.rop,h:{},rep:0,n:0});x.h[b.proc]=(x.h[b.proc]||0)+b.min;x.n++;if(d.reportes[b.id]&&d.reportes[b.id].estado)x.rep++;});
   const ids=Object.keys(por);
-  const ocup=d.bloques.reduce((a,b)=>a+b.min,0),capT=cap*c.maquinas.length;
+  const ocup=d.bloques.reduce((a,b)=>a+b.min,0),capT=pgCapDia(f);
   const procs=PG_PROCS.filter(p=>c.maquinas.some(m=>m.proc===p)||ids.some(i=>por[i].h[p]));
   const kp=(t,v,s)=>`<div style="flex:1;min-width:150px;padding:12px 16px;border-right:1px solid var(--line-2)"><div class="fc-sub" style="text-transform:uppercase;letter-spacing:.05em;font-size:10.5px">${t}</div><div style="font-size:22px;font-weight:700;font-family:'Archivo'">${v}</div><div class="fc-sub">${s}</div></div>`;
   const libres=c.maquinas.filter(m=>!d.bloques.some(b=>b.maq===m.id)).map(m=>m.nombre);
@@ -3700,7 +3747,8 @@ function pgResizeIni(e,id){
   const f=PG.fecha,b=pgDia(f).bloques.find(x=>x.id===id);if(!b)return;
   const c=pgCfg(),p=c.paso||15,span=c.fin-c.inicio;
   const nx=pgDia(f).bloques.filter(x=>x.maq===b.maq&&x.id!==id&&x.ini>b.ini).sort((a,z)=>a.ini-z.ini)[0];
-  const max=pgTrabajo(b.ini,Math.min(c.fin,nx?nx.ini:c.fin));
+  const vf=pgVentana(f,b.maq).fin;
+  const max=pgTrabajo(b.ini,Math.min(vf,nx?nx.ini:vf));
   const mv=ev=>{
     const T=pgTiempoDeX(ev,tr);
     let min=Math.round(pgTrabajo(b.ini,Math.max(b.ini,T))/p)*p;min=Math.max(p,Math.min(max,min));
@@ -3732,8 +3780,9 @@ function pgAuto(){
     for(let g=0;g<40;g++){
       const uso=pgUso();
       const bl=d.bloques.filter(b=>b.maq===m.id);
-      const cur=bl.length?Math.max(...bl.map(b=>pgFin(b.ini,b.min))):c.inicio;
-      if(cur>=c.fin)break;
+      const vm=pgVentana(f,m.id);
+      const cur=Math.max(vm.ini,bl.length?Math.max(...bl.map(b=>pgFin(b.ini,b.min))):vm.ini);
+      if(cur>=vm.fin)break;
       let puesto=false;
       for(const r of rops){
         if(descartadas.has(r.id))continue;
@@ -3963,14 +4012,15 @@ function pgSemanaHTML(){
   const c=pgCfg(),cap=pgCapacidad(),hoy=pgHoy(),uso=pgUso();
   const head=`<tr><th>Máquina</th>${dias.map(x=>`<th class="${x===hoy?'hoy':''}">${pgCorta(x)}</th>`).join('')}<th class="num">Semana</th></tr>`;
   const filas=c.maquinas.map(m=>{
-    let tot=0;
+    let tot=0,capS=0;
     const celdas=dias.map(x=>{
+      const cap=pgCapacidad(x,m.id);capS+=cap;
       const bl=pgDia(x).bloques.filter(b=>b.maq===m.id),oc=bl.reduce((a,b)=>a+b.min,0);tot+=oc;
       const pct=cap?Math.round(oc/cap*100):0,rs=[...new Set(bl.map(b=>b.tipo==='rop'?b.rop:b.act))];
       return `<td class="pg-sc" onclick="PG.fecha='${x}';PG.tab='dia';render()" title="Abrir este día"><div class="pg-load"><i class="${oc>cap?'over':''}" style="width:${Math.min(100,pct)}%"></i></div>
-        <div class="pg-loadn">${oc?pgHc(oc)+' · '+pct+'%':'libre'}</div><div class="pg-sr">${rs.slice(0,5).map(esc).join(' · ')}${rs.length>5?' +'+(rs.length-5):''}</div></td>`;
+        <div class="pg-loadn">${cap?(oc?pgHc(oc)+' · '+pct+'%':'libre · '+pgHc(cap)):'<span style="color:#b45309">sin operario ese día</span>'}</div><div class="pg-sr">${rs.slice(0,5).map(esc).join(' · ')}${rs.length>5?' +'+(rs.length-5):''}</div></td>`;
     }).join('');
-    return `<tr><td><b>${esc(m.nombre)}</b><div class="fc-sub">${esc(m.proc)} · ${esc(m.operario||'sin operario')}</div></td>${celdas}<td class="num tnum">${pgHc(tot)}<div class="fc-sub">de ${pgHc(cap*6)}</div></td></tr>`;
+    return `<tr><td><b>${esc(m.nombre)}</b><div class="fc-sub">${esc(m.proc)} · ${esc(m.operario||'sin operario')}</div></td>${celdas}<td class="num tnum">${pgHc(tot)}<div class="fc-sub">de ${pgHc(capS)}</div></td></tr>`;
   }).join('');
   const carga={};PG_PROCS.forEach(p=>carga[p]={pend:0,ord:0,sin:0});
   const riesgo=[];
@@ -4026,6 +4076,73 @@ function pgAjustesHTML(){
       <div style="flex:1"><label>mm de soldadura por hora</label><input ${dis} type="number" min="1" value="${c.mmHora}" onchange="pgCfgSet('mmHora',+this.value)"></div></div></div>`)}
   </div>`;
 }
+const PG_DSEM=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+function pgPersonalHTML(){
+  const c=pgCfg(),ed=pgPuede(),dis=ed?'':'disabled',lunes=pgLunes(PG.fecha),hoy=pgHoy();
+  const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
+  const sem=(c.horarios||{})[lunes]||{};
+  const enMaq=e=>c.maquinas.filter(m=>(m.operario||'').trim().toLowerCase()===e.nombre.toLowerCase()).map(m=>m.nombre).join(', ');
+  const filas=(c.personal||[]).map((e,i)=>{
+    let tot=0;
+    const celdas=fechas.map(f=>{const dw=pgDiaSem(f),t=pgTurnoEmp(e,f),cambio=!!(sem[e.id]&&sem[e.id][dw]);
+      if(t)tot+=pgTrabajo(t.ini,t.fin);
+      return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
+        ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">`:'<div class="pg-hl">No trabaja</div>'}
+        ${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>${cambio?` · <button type="button" class="lnk" onclick="pgHorBase('${e.id}',${dw})" title="Volver al horario base">base</button>`:''}`:''}</td>`;}).join('');
+    return `<tr><td><b>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum"><b>${pgHc(tot)}</b></td></tr>`;
+  }).join('');
+  return `<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
+      <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,-7);render()">◀ Anterior</button>
+      <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,7);render()">Siguiente ▶</button>
+      ${fechas.includes(hoy)?'':`<button type="button" class="btn ghost sm" onclick="PG.fecha=pgHoy();render()">Esta semana</button>`}
+      <div class="spacer"></div>
+      ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
+      <button type="button" class="btn ghost sm" onclick="pgHorLimpiar()">Volver todo al horario base</button>
+      <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
+    <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
+    ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fechas.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
+      :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
+}
+function pgHorSem(id,crear){const c=pgCfg(),l=pgLunes(PG.fecha);c.horarios=c.horarios||{};if(crear){c.horarios[l]=c.horarios[l]||{};c.horarios[l][id]=c.horarios[l][id]||{};}return ((c.horarios[l]||{})[id])||{};}
+function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
+  const f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f)||{ini:e.ini,fin:e.fin};
+  const n={ini:t.ini,fin:t.fin,[k]:pgMin(v)};if(!(n.fin>n.ini)){toast('La salida tiene que ser después de la entrada');render();return;}
+  pgHorSem(id,true)[dw]=n;pgGuardarCfg();render();}
+function pgHorLibre(id,dw,libre){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
+  pgHorSem(id,true)[dw]=libre?{libre:1}:{ini:e.ini,fin:e.fin};pgGuardarCfg();render();}
+function pgHorBase(id,dw){const h=pgHorSem(id,true);delete h[dw];pgGuardarCfg();render();}
+function pgHorCopiar(){if(!pgPuede())return;const c=pgCfg(),l=pgLunes(PG.fecha),ant=(c.horarios||{})[pgSumar(l,-7)];
+  if(!ant||!Object.keys(ant).length){toast('La semana anterior no tenía cambios: quedó con el horario base');return;}
+  c.horarios[l]=JSON.parse(JSON.stringify(ant));pgGuardarCfg();render();toast('Copiados los horarios de la semana anterior');}
+function pgHorLimpiar(){if(!pgPuede())return;const c=pgCfg(),l=pgLunes(PG.fecha);if(c.horarios)delete c.horarios[l];pgGuardarCfg();render();}
+function pgEmpAgregar(){if(!pgPuede())return;PG._emp=-1;pgEmpDlg();}
+function pgEmpBase(i){if(!pgPuede())return;PG._emp=i;pgEmpDlg();}
+function pgEmpDlg(){
+  const c=pgCfg(),e=PG._emp>=0?c.personal[PG._emp]:{nombre:'',ini:420,fin:1020,dias:[1,2,3,4,5,6]};
+  const box=pgCaja();
+  box.innerHTML=`<div class="confirm-box fact-box"><div class="fc-t">${PG._emp>=0?'Horario base de '+esc(e.nombre):'Nuevo empleado'}</div>
+    <div class="fc-cli">El horario de siempre. Los cambios de una semana se hacen en la tabla.</div>
+    <div class="fc-campos"><div style="flex:2"><label>Nombre (igual al que va como operario)</label><input id="pgEmN" value="${esc(e.nombre)}" placeholder="Ej: Carlos"></div></div>
+    <div class="fc-campos"><div><label>Entra</label><input id="pgEmI" type="time" step="900" value="${pgHora2(e.ini)}"></div><div><label>Sale</label><input id="pgEmF" type="time" step="900" value="${pgHora2(e.fin)}"></div></div>
+    <label style="font-size:11px;color:var(--ink-3)">Días que trabaja</label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 6px">${[1,2,3,4,5,6,0].map(d=>`<label class="pg-chk"><input type="checkbox" class="pgEmD" value="${d}" ${e.dias.includes(d)?'checked':''}> ${PG_DSEM[d]}</label>`).join('')}</div>
+    <div class="fc-sub">El almuerzo y los descansos de "Máquinas y horario" se descuentan solos.</div>
+    <div class="fc-acc"><button type="button" class="btn ghost" onclick="pgCerrar()">Cancelar</button><button type="button" class="btn" onclick="pgEmpGuardar()">Guardar</button></div></div>`;
+  box.classList.add('show');setTimeout(()=>{const n=document.getElementById('pgEmN');if(n)n.focus();},30);
+}
+function pgEmpGuardar(){
+  const c=pgCfg();c.personal=c.personal||[];
+  const nombre=document.getElementById('pgEmN').value.trim(),ini=pgMin(document.getElementById('pgEmI').value),fin=pgMin(document.getElementById('pgEmF').value);
+  const dias=[...document.querySelectorAll('.pgEmD:checked')].map(x=>+x.value);
+  if(!nombre){toast('Escribe el nombre');return;}
+  if(!(fin>ini)){toast('La salida tiene que ser después de la entrada');return;}
+  if(c.personal.some((x,i)=>i!==PG._emp&&x.nombre.toLowerCase()===nombre.toLowerCase())){toast('Ya hay un empleado con ese nombre');return;}
+  if(PG._emp>=0)Object.assign(c.personal[PG._emp],{nombre,ini,fin,dias});
+  else c.personal.push({id:'e'+Date.now().toString(36),nombre,ini,fin,dias});
+  pgCerrar();pgGuardarCfg();render();
+}
+function pgEmpQuitar(i){const c=pgCfg(),e=c.personal[i];if(!e)return;
+  pedirConfirmacion('¿Quitar a '+e.nombre+'?','Sus máquinas vuelven a tomar el horario general de la planta.',()=>{c.personal.splice(i,1);Object.values(c.horarios||{}).forEach(w=>delete w[e.id]);pgGuardarCfg();render();},'Quitar');}
 function pgCfgSet(k,v){
   if(!pgPuede())return;const c=pgCfg();
   if(!(+v>0)){toast('Valor no válido');render();return;}
@@ -4113,7 +4230,7 @@ function pgHojaHTML(f,d,m,lleno){
   return `<section class="hoja">
     <div class="top"><div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><b>DOBLASER S.A.S.</b> · Producción</div></div>
       <div class="doc"><div class="lbl">${lleno?'REPORTE DE TRABAJO':'HOJA DE TRABAJO'}</div><div class="num">${esc(m.nombre)}</div>
-        <div class="row" style="text-transform:capitalize"><b>${pgFechaLarga(f)}</b></div><div class="row">Proceso: <b>${esc(m.proc)}</b> · Turno ${pgHora(c.inicio)} a ${pgHora(c.fin)}</div></div></div>
+        <div class="row" style="text-transform:capitalize"><b>${pgFechaLarga(f)}</b></div><div class="row">Proceso: <b>${esc(m.proc)}</b> · Turno ${(v=>v.libre?'—':pgHora(v.ini)+' a '+pgHora(v.fin))(pgVentana(f,m.id))}</div></div></div>
     <div class="datos"><span>Operario: <b>${esc(op)||'&nbsp;'}</b></span>${lleno?'':'<span>Llegó: <b style="min-width:70px">&nbsp;</b></span><span>Salió: <b style="min-width:70px">&nbsp;</b></span>'}</div>
     ${d.nota?`<div class="ind"><b>Indicaciones del día:</b> ${esc(d.nota)}</div>`:''}
     <table class="it"><thead><tr><th class="c" style="width:18px">#</th><th style="width:62px">Hora</th><th style="width:150px">Orden · cliente</th><th>Qué hay que hacer</th><th class="c" style="width:42px">Plan</th>${thExtra}</tr></thead>
