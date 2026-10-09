@@ -1001,6 +1001,117 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .fc-tr.tibio .fc-tr-m{color:#b45309}
 .fc-tr.malo .fc-tr-b div{background:#b42318}
 .fc-tr.malo .fc-tr-m{color:#b42318}
+/* ---- Programación de planta (ROP → Programación) ---- */
+.pg-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.pg-tabs .spacer{flex:1}
+.pg-tab{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line)}
+.pg-tab.on{background:var(--wine);color:#fff;border-color:var(--wine)}
+.pg-estado{font-size:12px;color:var(--ink-3)}
+.pg-wrap{display:grid;grid-template-columns:270px minmax(0,1fr);gap:14px;align-items:start}
+.pg-side{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px;position:sticky;top:12px;max-height:calc(100vh - 30px);overflow-y:auto}
+.pg-busca{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px}
+.pg-chk{font-size:12px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.pg-grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:14px 0 6px}
+.pg-card{border:1px solid var(--line);border-left:4px solid var(--bb,#999);border-radius:8px;padding:8px 9px;margin-bottom:8px;background:#fff}
+.pg-card[draggable=true]{cursor:grab}
+.pg-card.sel,.pg-chip.sel,.pg-act.sel{outline:2px solid var(--wine);outline-offset:1px}
+.pg-ct{display:flex;align-items:center;gap:6px}
+.pg-ct .spacer{flex:1}
+.pg-cc{font-size:12.5px;font-weight:600;line-height:1.3;margin-top:3px}
+.pg-cf{font-size:11px;color:var(--ink-3);margin-top:2px}
+.pg-cf .tarde{color:#b91c1c;font-weight:700}
+.pg-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.pg-chip{position:relative;overflow:hidden;font-size:11px;border:1px solid var(--line);border-radius:6px;padding:3px 7px 5px;background:var(--bg);user-select:none}
+.pg-chip[draggable=true]{cursor:grab}
+.pg-chip span{color:var(--ink-2)}
+.pg-chip i{position:absolute;left:0;bottom:0;height:3px;background:var(--st-proc)}
+.pg-chip.ok{background:var(--st-proc-bg);color:var(--st-proc);border-color:#bfe3cb}
+.pg-chip.ok span{color:var(--st-proc)}
+.pg-chip.sin{border-style:dashed;color:var(--ink-3);background:#fff}
+.pg-chip em{font-style:normal;font-size:9.5px;color:#92400e;margin-left:3px}
+.pg-mini{min-width:26px;height:26px;border-radius:6px;border:1px solid var(--line);font-size:12px;color:var(--ink-2);background:#fff;padding:0 6px}
+.pg-mini:hover{background:var(--bg)}
+.pg-acts{display:flex;flex-wrap:wrap;gap:5px}
+.pg-act{font-size:11.5px;padding:4px 8px;border-radius:6px;border:1px dashed var(--ink-3);color:var(--ink-2);background:#fff;user-select:none}
+.pg-act[draggable=true]{cursor:grab}
+.pg-main{min-width:0}
+.pg-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.pg-bar .spacer{flex:1}
+.pg-bar input[type=date]{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.pg-fecha{font-family:'Archivo';font-size:17px;font-weight:600;text-transform:capitalize;margin-right:6px}
+.pg-nota{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:10px;font-size:13px;background:#fff}
+.pg-grid{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;box-shadow:var(--shadow)}
+.pg-gin{min-width:720px}
+.pg-row{display:grid;grid-template-columns:140px 1fr;border-bottom:1px solid var(--line-2)}
+.pg-row:last-child{border-bottom:none}
+.pg-head{background:var(--bg)}
+.pg-rh{padding:8px 10px;border-right:1px solid var(--line);background:#fcfbfa;position:relative}
+.pg-mn{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
+.pg-mn button{font-size:12px;opacity:.6}.pg-mn button:hover{opacity:1}
+.pg-mp{font-size:11px;color:var(--ink-3)}
+.pg-op{width:100%;font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;margin:4px 0 2px;background:#fff}
+.pg-load{height:5px;background:var(--line-2);border-radius:3px;overflow:hidden;margin-top:4px}
+.pg-load i{display:block;height:100%;background:var(--st-prog)}
+.pg-load i.over{background:#b91c1c}
+.pg-loadn{font-size:10.5px;color:var(--ink-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.pg-track{position:relative;min-height:84px}
+.pg-head .pg-track{min-height:26px}
+.pg-head .pg-rh{font-size:11px;color:var(--ink-3);padding:5px 10px}
+.pg-tick{position:absolute;top:5px;transform:translateX(-50%);font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pg-tick:first-child{transform:none}
+.pg-line{position:absolute;top:0;bottom:0;border-left:1px solid var(--line-2);pointer-events:none}
+.pg-break{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(120,110,100,.10) 0 6px,rgba(120,110,100,.22) 6px 12px);pointer-events:none;text-align:center;z-index:3}
+.pg-break em{font-style:normal;font-size:9.5px;color:var(--ink-2);position:absolute;bottom:2px;left:0;right:0;font-weight:600}
+.pg-track.ed{cursor:default}
+.pg-track.ed.tapsel{cursor:copy;background:#fdf6f7}
+.pg-track.over{background:var(--wine-soft)}
+.pg-guia{position:absolute;top:0;bottom:0;border-left:2px dashed var(--wine);display:none;pointer-events:none;z-index:3}
+.pg-track.over .pg-guia{display:block}
+.pg-guia::after{content:attr(data-h);position:absolute;top:2px;left:4px;font-size:10.5px;font-weight:700;color:var(--wine);background:#fff;padding:0 4px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.pg-b{position:absolute;top:6px;bottom:6px;background:var(--bc,#eef0f2);border:1px solid var(--bb,#6b7280);border-left-width:4px;border-radius:7px;padding:4px 9px 4px 6px;overflow:hidden;cursor:pointer;font-size:11px;line-height:1.25;box-shadow:0 1px 2px rgba(0,0,0,.06);z-index:1}
+.pg-b[draggable=true]{cursor:grab}
+.pg-b:hover{box-shadow:0 3px 10px rgba(0,0,0,.16);z-index:2}
+.pg-b.act{background:repeating-linear-gradient(45deg,#f8f7f6 0 8px,#efedeb 8px 16px);border-color:#8a857f}
+.pg-b.alerta{border-color:#b91c1c;border-left-color:#b91c1c}
+.pg-b.r-completo{background:#e4f5ea;border-color:#15803d}
+.pg-b.r-completo .pg-bt{color:#15803d}
+.pg-b.r-parcial{background:#fbedd8;border-color:#b45309}
+.pg-b.r-nohecho{opacity:.55}
+.pg-b.r-nohecho .pg-bt{text-decoration:line-through}
+.pg-b.pasa{border-right:3px solid #b91c1c}
+.pg-bt{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-bs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+.pg-bh{white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:10.5px}
+.pg-rz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;touch-action:none}
+.pg-rz::after{content:'';position:absolute;right:3px;top:35%;bottom:35%;border-right:2px solid rgba(0,0,0,.18)}
+.pg-ayuda{font-size:12px;color:var(--ink-3);margin:10px 2px 0;line-height:1.55}
+.pg-avisos{margin-top:12px;border:1px solid #fca5a5;background:#fef2f2;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#991b1b}
+.pg-avisos li{margin-left:18px;margin-top:3px}
+.pg-in{width:80px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:#fff}
+.pg-in.w{width:100%;min-width:160px}
+.pg-rep select{padding:5px 6px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;background:#fff;margin:1px 0}
+.pg-rep tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+.pg-sem{width:100%;border-collapse:collapse;font-size:12.5px}
+.pg-sem th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.pg-sem th.hoy{color:var(--wine)}
+.pg-sem td{padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.pg-sem td.pg-sc{cursor:pointer;min-width:110px}
+.pg-sem td.pg-sc:hover{background:var(--bg)}
+.pg-sem .num{text-align:right}
+.pg-sr{font-size:10.5px;color:var(--ink-2);margin-top:3px;line-height:1.35}
+.pg-aj{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.pg-aj>.panel:first-child{grid-column:1/-1}
+.pg-aj-in td.pg-w40{width:40%}
+@media(max-width:760px){.pg-aj{grid-template-columns:1fr}}
+.pg-aj .panel{margin-bottom:0}
+.pg-aj-in{padding:14px 18px}
+.pg-aj-in table{width:100%;border-collapse:collapse;font-size:13px}
+.pg-aj-in td{padding:4px 4px}
+.pg-aj-in input,.pg-aj-in select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:#fff}
+.pg-aj-in label{display:block;font-size:11px;color:var(--ink-3);margin:8px 0 3px}
+.pg-aj-in .pg-mini{width:auto}
+@media(max-width:980px){.pg-wrap{grid-template-columns:1fr}.pg-side{position:static;max-height:360px}}
+.panel-h .lnk,.fc-vacio .lnk{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--wine);text-decoration:underline;cursor:pointer}
 .fact-box{padding:20px;max-width:520px;width:100%;text-align:left;max-height:92vh;overflow-y:auto}
 .fc-t{font-size:16px;font-weight:700;letter-spacing:-.01em}
 .fc-cli{font-size:13.5px;color:var(--ink-3);margin-bottom:12px}
@@ -1750,7 +1861,7 @@ function doblezDetalle(esp,mm,fam){
 async function cloudSaveConfig(k,v){if(!USING_SB||!sb)return;try{await sb.from('config').upsert({k,v:JSON.stringify(v)},{onConflict:'k'});}catch(e){}}
 async function loadCloudConfig(){
   if(!USING_SB||!sb)return;
-  try{const{data,error}=await sb.from('config').select('*');if(error||!data)return;
+  try{const{data,error}=await sb.from('config').select('*').not('k','like','prog:%');if(error||!data)return;
     const t=data.find(r=>r.k==='tarifas'),m=data.find(r=>r.k==='materiales'),cm=data.find(r=>r.k==='clientes_mat'),pt=data.find(r=>r.k==='prod_plantillas');
     const db=data.find(r=>r.k==='doblez');
     if(db&&db.v){try{const g=(typeof db.v==='string')?JSON.parse(db.v):db.v;
@@ -3073,7 +3184,9 @@ function renderRop(){
      txt:'en órdenes que este filtro de arriba está escondiendo',
      btn:{lbl:'Quitar filtros',fn:"ropKpi='';ropFilter='Todas';render()"}}
   ]);
-  const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="seg"><button class="${ropMode==='lista'?'on':''}" onclick="ropMode='lista';render()">▤ Lista</button><button class="${ropMode==='tablero'?'on':''}" onclick="ropMode='tablero';render()">▦ Tablero</button><button class="${ropMode==='tiempos'?'on':''}" onclick="ropMode='tiempos';render()">⏱ Tiempos</button></div></div>`;
+  const modos=`<div class="seg">${[['lista','▤ Lista'],['tablero','▦ Tablero'],['tiempos','⏱ Tiempos'],['prog','📅 Programación']].map(([k,l])=>`<button class="${ropMode===k?'on':''}" onclick="ropSetMode('${k}')">${l}</button>`).join('')}</div>`;
+  const toolbar=`<div class="toolbar"><div class="seg" id="ropSeg">${['Todas',...ROP_ESTADOS].map(e=>`<button class="${e===ropFilter?'on':''}" onclick="ropFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div>${modos}</div>`;
+  if(ropMode==='prog')return `<div class="toolbar"><div class="spacer"></div>${modos}</div>`+pgRender();
   const NOM={prod:'en producción',late:'atrasadas',soon:'por vencer'};
   const hint=ropKpi&&NOM[ropKpi]
     ?`<div class="board-hint filtrando">Mostrando solo las órdenes <b>${NOM[ropKpi]}</b>. <button type="button" class="lnk" onclick="ropSetKpi('${ropKpi}')">Ver todas</button></div>`
@@ -3091,6 +3204,915 @@ function ropTableHTML(rows,total){
   ${rows.map(x=>{const al=ropAlert(x),pr=ropProgress(x),nov=ropNovedadAbierta(x);return `<tr${x.color?` class="rop-tr-color" style="--rc:${esc(x.color)}"`:''}><td><span class="code">${x.rop}</span>${nov?`<svg class="rop-nov-ico" title="${esc(nov.texto)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`:''}</td><td>${cliLink(x.cliente)}${x.subtitulo?`<div class="rop-sub">${esc(x.subtitulo)}</div>`:''}</td><td class="hide-sm">${cotLinkCell(x)}</td><td class="num tnum">${(()=>{const v=ropValor(x);return v?`${COP(v.total)}<div class="muted" style="font-size:10px">${{venta:'de la venta',cot:'de la cotización',orden:'de las piezas'}[v.fuente]}</div>`:'<span class="muted">—</span>';})()}</td><td><div class="pbar" title="${esc(ropStages(x).map(s=>s+' '+(ropAvance(x)[s]||0)+'%').join(' · '))}"><div class="pbar-t"><div class="pbar-f ${pr.pct>=100?'done':''}" style="width:${pr.pct}%"></div></div><span class="pbar-n">${pr.pct}%</span></div></td><td class="muted hide-sm">${fmtDate(x.ingreso)}</td><td>${x.entrega?`<span class="muted">${fmtDate(x.entrega)}</span>${al?` <span class="due ${al.level}">${al.label}</span>`:''}`:'<span class="muted">—</span>'}</td><td><span class="pill ${ropClass(x.estado)}"><span class="d"></span>${x.estado}</span>${ropSinVenta(x)?'<div><span class="sin-venta" title="Entregada y todavía no está en Ventas — mándala con el botón $">Sin venta</span></div>':''}</td><td class="hide-sm"><div class="dfiles">${driveCell(x)}</div></td><td>${rowActions('rop',x.id)}</td></tr>`}).join('')||emptyRow(10)}
   </tbody></table>`);
 }
+/* =========================================================
+   Programación de planta — el tablero del director operativo.
+   Cada día es una hoja de 7 a 20 h con una fila por máquina. Las órdenes
+   vigentes se arrastran desde la lista de la izquierda y el bloque sale ya
+   con las horas que le faltan a esa orden en ese proceso: las de "Tiempos de
+   producción" de la orden o, si la orden no las tiene, las que se estiman de
+   su cotización (minutos de láser, golpes y mm de soldadura). Al final del
+   día se anota lo que hizo cada operario; lo que no se terminó vuelve a
+   quedar pendiente para programarlo otro día.
+   Cada día se guarda en la tabla config con la llave "prog:AAAA-MM-DD" y los
+   ajustes en "prog_cfg". loadCloudConfig se salta las llaves "prog:" para no
+   bajarlas en cada carga del CRM.
+   ========================================================= */
+const PG_PROCS=['Corte','Doblez','Soldadura','Pintura'];
+const PG_UNI={Corte:'láminas',Doblez:'piezas',Soldadura:'piezas',Pintura:'piezas'};
+const PG_HECHO={Corte:'Láminas cortadas',Doblez:'Piezas dobladas',Soldadura:'Piezas soldadas',Pintura:'Piezas pintadas'};
+const PG_ACTS=['Mantenimiento','Limpieza','Capacitación','Trabajo interno','Montaje'];
+const PG_EST={completo:'Terminado',parcial:'A medias',nohecho:'No se hizo'};
+const PG_CFG_DEF={inicio:420,fin:1200,paso:15,
+  descansos:[{ini:720,fin:780,lbl:'Almuerzo'}],
+  maquinas:[{id:'laser',nombre:'Láser',proc:'Corte',operario:''},
+            {id:'dobladora',nombre:'Dobladora',proc:'Doblez',operario:''},
+            {id:'soldadura',nombre:'Soldadura',proc:'Soldadura',operario:''}],
+  segGolpe:20,mmHora:3000};
+const PG_DIAS_ATRAS=120;
+let PG={cfg:null,dias:{},ok:false,cargando:false,error:'',fecha:'',tab:'dia',sel:null,busca:'',todas:false,drag:null,estado:'',_rz:0};
+
+/* ---- fechas y horas ---- */
+function pgFmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function pgHoy(){return pgFmt(new Date());}
+function pgSumar(f,n){const d=new Date(f+'T12:00:00');d.setDate(d.getDate()+n);return pgFmt(d);}
+function pgDiaSem(f){return new Date(f+'T12:00:00').getDay();}
+function pgHabil(f,dir){let x=pgSumar(f,dir);if(pgDiaSem(x)===0)x=pgSumar(x,dir);return x;}
+function pgFechaLarga(f){return new Date(f+'T12:00:00').toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function pgCorta(f){return new Date(f+'T12:00:00').toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'});}
+function pgHora(m){m=Math.round(+m||0);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
+function pgHora2(m){return pgHora(m).padStart(5,'0');}
+function pgMin(s){const p=String(s||'').split(':');return (+p[0]||0)*60+(+p[1]||0);}
+function pgHc(m){m=Math.round(+m||0);const h=Math.floor(m/60),r=m%60;return h?(h+'h'+(r?String(r).padStart(2,'0'):'')):(r+' min');}
+function pgId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ---- ajustes ---- */
+function pgNormCfg(v){
+  const c=JSON.parse(JSON.stringify(PG_CFG_DEF));
+  if(!v||typeof v!=='object')return c;
+  ['inicio','fin','paso','segGolpe','mmHora'].forEach(k=>{if(+v[k]>0)c[k]=+v[k];});
+  if(Array.isArray(v.descansos))c.descansos=v.descansos.filter(d=>d&&+d.fin>+d.ini).map(d=>({ini:+d.ini,fin:+d.fin,lbl:d.lbl||'Descanso'}));
+  if(Array.isArray(v.maquinas)&&v.maquinas.length)c.maquinas=v.maquinas.filter(m=>m&&m.id).map(m=>({id:String(m.id),nombre:m.nombre||'Máquina',proc:PG_PROCS.includes(m.proc)?m.proc:'Corte',operario:m.operario||''}));
+  if(!(c.fin>c.inicio))c.fin=c.inicio+60;
+  return c;
+}
+function pgCfg(){return PG.cfg||(PG.cfg=pgNormCfg(null));}
+function pgDescansos(){const c=pgCfg();return (c.descansos||[]).filter(d=>+d.fin>+d.ini).map(d=>({ini:+d.ini,fin:+d.fin,lbl:d.lbl||'Descanso'})).sort((a,b)=>a.ini-b.ini);}
+function pgNormDia(v){
+  const d=(v&&typeof v==='object')?v:{};
+  return {bloques:Array.isArray(d.bloques)?d.bloques.filter(b=>b&&b.id):[],
+    reportes:(d.reportes&&typeof d.reportes==='object')?d.reportes:{},
+    operarios:(d.operarios&&typeof d.operarios==='object')?d.operarios:{},
+    nota:d.nota||'',updatedBy:d.updatedBy||'',updatedAt:d.updatedAt||''};
+}
+function pgDia(f,crear){
+  if(PG.dias[f])return PG.dias[f];
+  const d=pgNormDia(null);if(crear)PG.dias[f]=d;return d;
+}
+function pgOperario(d,m){const o=d&&d.operarios&&d.operarios[m.id];return (o!=null&&o!=='')?o:(m.operario||'');}
+
+/* ---- aritmética del horario: los descansos no cuentan como trabajo ---- */
+function pgFin(ini,min){
+  let t=ini,rest=Math.max(0,+min||0),g=0;const ds=pgDescansos();
+  while(rest>0&&g++<60){
+    const d=ds.find(x=>t>=x.ini&&t<x.fin);if(d){t=d.fin;continue;}
+    const nx=ds.find(x=>x.ini>t);const st=Math.min(rest,(nx?nx.ini:1e9)-t);t+=st;rest-=st;
+  }
+  return t;
+}
+function pgTrabajo(a,b){let m=Math.max(0,b-a);pgDescansos().forEach(d=>{m-=Math.max(0,Math.min(b,d.fin)-Math.max(a,d.ini));});return Math.max(0,m);}
+function pgSaltaDescanso(t){const d=pgDescansos().find(x=>t>=x.ini&&t<x.fin);return d?d.fin:t;}
+function pgCapacidad(){const c=pgCfg();return pgTrabajo(c.inicio,c.fin);}
+/* primer hueco libre en una máquina desde la hora T (salta descansos y trabajos ya puestos) */
+function pgHueco(f,maq,T,excl){
+  const c=pgCfg();
+  const bl=pgDia(f).bloques.filter(b=>b.maq===maq&&b.id!==excl).sort((a,b)=>a.ini-b.ini);
+  T=Math.max(c.inicio,Math.min(c.fin,T));
+  let cambio=true,g=0;
+  while(cambio&&g++<80){cambio=false;const t0=pgSaltaDescanso(T);if(t0!==T){T=t0;cambio=true;}
+    for(const b of bl){const fb=pgFin(b.ini,b.min);if(T>=b.ini&&T<fb){T=fb;cambio=true;}}}
+  T=Math.min(T,c.fin);
+  const nx=bl.find(b=>b.ini>=T);const lim=Math.min(c.fin,nx?nx.ini:c.fin);
+  return {ini:T,lim,disp:pgTrabajo(T,lim)};
+}
+function pgPrimerHueco(f,maq,min){
+  const c=pgCfg();let T=c.inicio,mejor=null;
+  for(let g=0;g<60&&T<c.fin;g++){
+    const h=pgHueco(f,maq,T);
+    if(h.disp>=min)return h;
+    if(h.disp>=c.paso&&(!mejor||h.disp>mejor.disp))mejor=h;
+    if(h.lim>=c.fin)break;
+    T=h.lim>h.ini?h.lim:h.ini+c.paso;
+  }
+  return mejor;
+}
+
+/* ---- órdenes y sus tiempos ---- */
+function pgRops(){return (CACHE.rop||[]).filter(r=>!ropCerrada(r)&&r.estado!=='Entregado');}
+function pgRopPorId(id){return (CACHE.rop||[]).find(r=>String(r.id)===String(id));}
+function pgProcsRop(r){
+  const st=ropStages(r).filter(s=>PG_PROCS.includes(s));
+  const t=(r&&r.tiempos&&typeof r.tiempos==='object')?r.tiempos:{};
+  PG_PROCS.forEach(p=>{if(+t[p]>0&&!st.includes(p))st.push(p);});
+  return PG_PROCS.filter(p=>st.includes(p));
+}
+/* estimado desde la cotización: lmin de láser, golpes × s/golpe, mm de soldadura ÷ mm/h */
+function pgEstimadoCot(r){
+  const c=r&&r.cotId&&(CACHE.cotizaciones||[]).find(k=>String(k.id)===String(r.cotId));
+  if(!c||!Array.isArray(c.items))return null;
+  const cfg=pgCfg(),o={Corte:0,Doblez:0,Soldadura:0};
+  const suma=(k,n)=>{if(!k)return;o.Corte+=(+k.lmin||0)*n;o.Doblez+=(+k.golpes||0)*(+cfg.segGolpe||20)/60*n;o.Soldadura+=(+k.mig||0)/(+cfg.mmHora||3000)*60*n;};
+  c.items.forEach(it=>{if(it&&it.subpiezas&&it.subpiezas.length)it.subpiezas.forEach(sp=>suma(sp&&sp.calc,Math.max(1,+(sp&&sp.cant)||1)));else suma(it&&it.calc,1);});
+  Object.keys(o).forEach(k=>o[k]=Math.round(o[k]));
+  return o;
+}
+function pgTiempos(r){
+  const t=(r&&r.tiempos&&typeof r.tiempos==='object')?r.tiempos:{};
+  const est=pgEstimadoCot(r)||{},out={};
+  pgProcsRop(r).forEach(p=>{
+    if(+t[p]>0)out[p]={min:+t[p],fuente:'orden'};
+    else if(+est[p]>0)out[p]={min:est[p],fuente:'cot'};
+    else out[p]={min:0,fuente:''};
+  });
+  return out;
+}
+/* lo que un bloque ya "gastó" del tiempo de la orden: si nadie lo ha reportado
+   cuenta completo (está programado); si se reportó, cuenta lo que se hizo */
+function pgConsumo(b,rep){
+  if(!rep||!rep.estado||rep.estado==='completo')return b.min;
+  if(rep.estado==='parcial')return Math.round(b.min*Math.max(0,Math.min(100,+rep.pct||50))/100);
+  return 0;
+}
+/* por orden y proceso: rep = lo reportado como hecho que todavía no se pasó al
+   % de avance de la orden (rep.apl guarda cuánto de ese reporte ya se pasó),
+   fut = lo programado que todavía no tiene reporte */
+function pgUso(){
+  const u={};
+  Object.keys(PG.dias).sort().forEach(f=>{const d=PG.dias[f];
+    (d.bloques||[]).forEach(b=>{if(b.tipo!=='rop')return;
+      const k=b.ropId+'|'+b.proc;const x=u[k]||(u[k]={rep:0,fut:0,prog:0,ultimo:'',fin:0,cant:0});
+      const rep=(d.reportes||{})[b.id];if(rep&&rep.estado)x.rep+=Math.max(0,pgConsumo(b,rep)-(+rep.apl||0));else x.fut+=b.min;x.prog+=b.min;
+      const fb=pgFin(b.ini,b.min);if(f>x.ultimo||(f===x.ultimo&&fb>x.fin)){x.ultimo=f;x.fin=fb;}
+      if(rep&&+rep.cant>0)x.cant+=+rep.cant;});});
+  return u;
+}
+/* falta = total − lo que ya dice el % de avance de la orden − lo reportado que
+   aún no se pasó a ese % − lo programado sin reporte */
+function pgPendiente(r,p,ti,uso){
+  if(!r||r.estado==='Procesado')return 0;
+  const t=(ti||pgTiempos(r))[p];if(!t||!t.min)return 0;
+  const av=ropAvance(r)[p]||0;if(av>=100)return 0;
+  const x=(uso||pgUso())[r.id+'|'+p]||{rep:0,fut:0};
+  return Math.max(0,Math.round(t.min*(1-av/100)-x.rep-x.fut));
+}
+function pgColor(id){let h=0;String(id).split('').forEach(c=>{h=(h*53+c.charCodeAt(0)*17)%360;});return {bc:'hsl('+h+',62%,93%)',bb:'hsl('+h+',48%,40%)'};}
+function pgPorEntrega(a,b){return ((a.entrega||'9999')).localeCompare(b.entrega||'9999')||((a.rop||'').localeCompare(b.rop||''));}
+function pgPuede(){const u=currentUser();return !!u&&(isAdmin()||/Director operativo|Gerente/i.test(u.role||''));}
+function pgPuedeReportar(){const u=currentUser();return pgPuede()||(!!u&&/Producci/i.test(u.role||''));}
+
+/* ---- nube ---- */
+async function pgCargar(){
+  if(PG.cargando)return;PG.cargando=true;PG.error='';
+  try{
+    if(USING_SB&&sb){
+      const desde='prog:'+pgSumar(pgHoy(),-PG_DIAS_ATRAS);
+      const [a,b]=await Promise.all([
+        sb.from('config').select('k,v').like('k','prog:%').gte('k',desde),
+        sb.from('config').select('k,v').eq('k','prog_cfg')]);
+      if(a.error)throw a.error;if(b.error)throw b.error;
+      const dias={};
+      (a.data||[]).forEach(x=>{try{const v=typeof x.v==='string'?JSON.parse(x.v):x.v;dias[x.k.slice(5)]=pgNormDia(v);}catch(e){}});
+      Object.keys(_pgT).forEach(f=>{if(PG.dias[f])dias[f]=PG.dias[f];});   /* lo que aún no se ha subido manda */
+      PG.dias=dias;
+      const cf=(b.data||[])[0];
+      if(cf&&cf.v){try{PG.cfg=pgNormCfg(typeof cf.v==='string'?JSON.parse(cf.v):cf.v);}catch(e){}}
+    }else{
+      const all=LS.get('prog_dias',{})||{};PG.dias={};Object.keys(all).forEach(f=>PG.dias[f]=pgNormDia(all[f]));
+      const v=LS.get('prog_cfg',null);if(v)PG.cfg=pgNormCfg(v);
+    }
+    PG.ok=true;
+  }catch(e){PG.error=(e&&e.message)||'sin conexión';}
+  PG.cargando=false;
+  if(VIEW==='rop'&&ropMode==='prog')render();
+}
+const _pgT={};
+function pgEstado(t){PG.estado=t;const e=document.getElementById('pgEstado');if(e)e.textContent=t;}
+function pgGuardar(f){
+  const d=PG.dias[f];if(!d)return;
+  const u=currentUser();d.updatedBy=u?u.name:'—';d.updatedAt=new Date().toISOString();
+  pgEstado('Guardando…');clearTimeout(_pgT[f]);_pgT[f]=setTimeout(()=>pgSubir(f),600);
+}
+async function pgSubir(f){
+  delete _pgT[f];const d=PG.dias[f];if(!d)return;
+  if(USING_SB&&sb){
+    try{const{error}=await sb.from('config').upsert({k:'prog:'+f,v:JSON.stringify(d)},{onConflict:'k'});if(error)throw error;pgEstado('✓ Guardado');}
+    catch(e){pgEstado('⚠ No se guardó');toast('No se pudo guardar la programación: '+((e&&e.message)||'sin conexión'));}
+  }else{const all=LS.get('prog_dias',{})||{};all[f]=d;LS.set('prog_dias',all);pgEstado('✓ Guardado en este equipo');}
+}
+let _pgCfgT=null;
+function pgGuardarCfg(){
+  pgEstado('Guardando…');clearTimeout(_pgCfgT);
+  _pgCfgT=setTimeout(async()=>{
+    if(USING_SB&&sb){try{const{error}=await sb.from('config').upsert({k:'prog_cfg',v:JSON.stringify(PG.cfg)},{onConflict:'k'});if(error)throw error;pgEstado('✓ Ajustes guardados');}
+      catch(e){pgEstado('⚠ No se guardó');toast('No se pudieron guardar los ajustes: '+((e&&e.message)||''));}}
+    else{LS.set('prog_cfg',PG.cfg);pgEstado('✓ Ajustes guardados');}
+  },600);
+}
+/* cambio puntual en una orden (estado, avance o tiempos) sin tocar lo demás */
+async function pgActualizarRop(r,campos){
+  const u=currentUser();const row={...campos,updatedBy:u?u.name:'—',updatedAt:new Date().toISOString()};
+  if(USING_SB&&sb&&!isLocalId(r.id)){
+    try{const{error}=await sb.from('rop').update(row).eq('id',r.id);if(error)throw error;}
+    catch(e){toast('No se pudo actualizar '+(r.rop||'la orden')+': '+((e&&e.message)||''));return false;}
+  }else{const l=LS.get('rop',[]);const i=l.findIndex(x=>String(x.id)===String(r.id));if(i>=0){l[i]={...l[i],...row};LS.set('rop',l);}}
+  Object.assign(r,row);return true;
+}
+
+/* ---- pantalla ---- */
+function pgRender(){
+  if(!PG.fecha)PG.fecha=pgHoy();
+  if(!PG.ok){
+    if(!PG.cargando&&!PG.error)pgCargar();
+    return PG.error
+      ?`<div class="fc-vacio">No se pudo cargar la programación: ${esc(PG.error)}<br><br><button class="btn ghost sm" onclick="PG.error='';pgCargar()">Reintentar</button></div>`
+      :'<div class="fc-vacio">Cargando la programación…</div>';
+  }
+  const tabs=[['dia','Programa del día'],['reporte','Reporte del día'],['semana','Semana'],['ajustes','Máquinas y horario']];
+  const bar=`<div class="pg-tabs">${tabs.map(([k,l])=>`<button type="button" class="pg-tab ${PG.tab===k?'on':''}" onclick="PG.tab='${k}';render()">${l}</button>`).join('')}
+    <div class="spacer"></div><span id="pgEstado" class="pg-estado">${esc(PG.estado)}</span>
+    <button type="button" class="btn ghost sm" onclick="PG.ok=false;pgCargar()" title="Traer lo que hayan cambiado otros equipos">↻ Actualizar</button></div>`;
+  let cuerpo;
+  if(PG.tab==='reporte')cuerpo=pgReporteHTML();
+  else if(PG.tab==='semana')cuerpo=pgSemanaHTML();
+  else if(PG.tab==='ajustes')cuerpo=pgAjustesHTML();
+  else cuerpo=pgDiaHTML();
+  return bar+cuerpo;
+}
+function pgBarraFecha(extra){
+  const f=PG.fecha;
+  return `<div class="pg-bar"><span class="pg-fecha">${pgFechaLarga(f)}</span>
+    <button type="button" class="btn ghost sm" onclick="PG.fecha=pgHabil(PG.fecha,-1);render()" title="Día anterior">◀</button>
+    <input type="date" value="${f}" onchange="if(this.value){PG.fecha=this.value;render()}">
+    <button type="button" class="btn ghost sm" onclick="PG.fecha=pgHabil(PG.fecha,1);render()" title="Día siguiente">▶</button>
+    ${f!==pgHoy()?`<button type="button" class="btn ghost sm" onclick="PG.fecha=pgHoy();render()">Hoy</button>`:''}
+    <div class="spacer"></div>${extra||''}</div>`;
+}
+
+/* ---- día: lista de órdenes + horario por máquina ---- */
+function pgDiaHTML(){
+  const f=PG.fecha,d=pgDia(f),c=pgCfg(),uso=pgUso(),ed=pgPuede();
+  const span=c.fin-c.inicio,X=m=>((m-c.inicio)/span*100).toFixed(3)+'%';
+  const horas=[];for(let h=Math.ceil(c.inicio/60);h*60<=c.fin;h++)horas.push(h);
+  const cap=pgCapacidad();
+  const head=`<div class="pg-row pg-head"><div class="pg-rh">Máquina · operario</div><div class="pg-track">${horas.map(h=>`<span class="pg-tick" style="left:${X(h*60)}">${h}:00</span>`).join('')}</div></div>`;
+  const avisos=[];
+  const ops=[...new Set(c.maquinas.map(m=>m.operario).concat(...Object.values(PG.dias).map(x=>Object.values(x.operarios||{}))).filter(Boolean))];
+  const filas=c.maquinas.map(m=>{
+    const bl=d.bloques.filter(b=>b.maq===m.id).sort((a,b)=>a.ini-b.ini);
+    const ocup=bl.reduce((a,b)=>a+b.min,0),pct=cap?Math.round(ocup/cap*100):0;
+    const op=pgOperario(d,m);
+    const bloques=bl.map(b=>{const x=pgBloqueHTML(b,f,uso,ed);x.avisos.forEach(a=>avisos.push(a));return x.html;}).join('');
+    return `<div class="pg-row">
+      <div class="pg-rh"><div class="pg-mn">${esc(m.nombre)}${bl.length?`<button type="button" title="Imprimir la hoja de esta máquina" onclick="pgImprimirHojas('${m.id}',false)">🖨</button>`:''}</div><div class="pg-mp">${esc(m.proc)}</div>
+        ${ed?`<input class="pg-op" list="pgOps" value="${esc(op)}" placeholder="Operario" onchange="pgSetOperario('${m.id}',this.value)">`:`<div class="pg-mp"><b>${esc(op)||'sin operario'}</b></div>`}
+        <div class="pg-load" title="${fmtMin(ocup)} de ${fmtMin(cap)}"><i class="${ocup>cap?'over':''}" style="width:${Math.min(100,pct)}%"></i></div>
+        <div class="pg-loadn">${pgHc(ocup)} de ${pgHc(cap)} · ${pct}%</div></div>
+      <div class="pg-track ${ed?'ed':''} ${ed&&PG.sel?'tapsel':''}" ${ed?`ondragover="pgOver(event)" ondragleave="pgLeave(event)" ondrop="pgDrop(event,'${m.id}')" onclick="pgClickTrack(event,'${m.id}')"`:''}>
+        ${horas.map(h=>`<span class="pg-line" style="left:${X(h*60)}"></span>`).join('')}
+        ${pgDescansos().map(x=>`<span class="pg-break" style="left:${X(x.ini)};width:${((x.fin-x.ini)/span*100).toFixed(3)}%"><em>${esc(x.lbl)}</em></span>`).join('')}
+        ${bloques}<span class="pg-guia"></span></div></div>`;
+  }).join('');
+  const extra=ed?`<button type="button" class="btn sm" onclick="pgAuto()" title="Llena el tiempo libre de cada máquina con las órdenes que más pronto se entregan">⚡ Programar automático</button>
+      <button type="button" class="btn ghost sm" onclick="pgImprimirPrograma()">🖨 Programa</button>
+      <button type="button" class="btn ghost sm" onclick="pgImprimirHojas('',false)">🖨 Hojas de operarios</button>
+      <button type="button" class="btn ghost sm" onclick="pgVaciar()" title="Quita del día lo que no tenga reporte">Vaciar día</button>`
+    :`<button type="button" class="btn ghost sm" onclick="pgImprimirPrograma()">🖨 Programa</button><button type="button" class="btn ghost sm" onclick="pgImprimirHojas('',false)">🖨 Hojas de operarios</button>`;
+  const ayuda=ed
+    ?`<b>Cómo se usa:</b> arrastra una orden (o solo uno de sus procesos) desde la izquierda hasta la fila de la máquina, en la hora donde va: el bloque sale con las horas que le faltan a esa orden. En celular o tablet, toca la orden y luego toca la fila. Arrastra un bloque para moverlo, estira su borde derecho para darle más o menos horas, o tócalo para editarlo, pasarlo a otro día o borrarlo. Lo que no quepa hoy sigue en la lista para otro día. Al final de la jornada, anota en <b>Reporte del día</b> lo que hizo cada operario.`
+    :'Solo el director operativo y gerencia pueden mover la programación. Toca un bloque para ver el detalle.';
+  return pgBarraFecha(extra)+`<div class="pg-wrap">${pgLadoHTML(uso,ed)}
+    <div class="pg-main">
+      ${ed?`<input class="pg-nota" value="${esc(d.nota)}" placeholder="Indicaciones del día para todos los operarios (salen impresas en las hojas)" onchange="pgSetNota(this.value)">`:(d.nota?`<div class="pg-nota">${esc(d.nota)}</div>`:'')}
+      <div class="pg-grid"><div class="pg-gin">${head}${filas}</div></div>
+      <datalist id="pgOps">${ops.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
+      ${avisos.length?`<div class="pg-avisos"><b>⚠ Revisar en este día</b><ul>${[...new Set(avisos)].map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}
+      <div class="pg-ayuda">${ayuda}</div>
+      ${d.updatedAt?`<div class="pg-ayuda">Último cambio: ${esc(d.updatedBy||'—')} · ${fmtDateTime(d.updatedAt)}</div>`:''}
+    </div></div>`;
+}
+function pgBloqueHTML(b,f,uso,ed){
+  const c=pgCfg(),span=c.fin-c.inicio,fin=pgFin(b.ini,b.min);
+  const l=(b.ini-c.inicio)/span*100,w=Math.max(.8,(Math.min(fin,c.fin)-b.ini)/span*100);
+  const rep=(pgDia(f).reportes||{})[b.id];const est=rep&&rep.estado;
+  let titulo,sub,color=null;const alertas=[];
+  if(b.tipo==='rop'){
+    const r=pgRopPorId(b.ropId);titulo=b.rop||(r&&r.rop)||'Orden';
+    sub=r?((r.cliente||'')+(r.subtitulo?' · '+r.subtitulo:'')):'(la orden ya no está)';
+    color=pgColor(b.ropId);
+    if(r&&r.entrega&&f>r.entrega&&!est)alertas.push(titulo+': se entrega el '+fmtDate(r.entrega)+' y este '+b.proc.toLowerCase()+' está programado después');
+    const sq=pgAvisoSecuencia(b,f,uso);if(sq&&!est)alertas.push(titulo+': '+sq);
+  }else{titulo=b.act||'Actividad';sub=b.nota||'';}
+  if(fin>c.fin)alertas.push(titulo+': se pasa de la hora de salida ('+pgHora(c.fin)+')');
+  const tip=titulo+' — '+sub+'\n'+pgHora(b.ini)+' a '+pgHora(fin)+' · '+fmtMin(b.min)+(b.tipo==='rop'?' de '+b.proc.toLowerCase():'')+(b.nota&&b.tipo==='rop'?'\n'+b.nota:'')+(est?'\nReporte: '+PG_EST[est]:'')+(alertas.length?'\n⚠ '+alertas.join('\n⚠ '):'');
+  const html=`<div class="pg-b ${b.tipo==='act'?'act':''} ${est?'r-'+est:''} ${alertas.length?'alerta':''} ${fin>c.fin?'pasa':''}" style="left:${l.toFixed(3)}%;width:${w.toFixed(3)}%;${color?`--bc:${color.bc};--bb:${color.bb}`:''}"
+    ${ed?`draggable="true" ondragstart="pgDragIni(event,'blq','${b.id}')" ondragend="pgDragFin()"`:''} onclick="event.stopPropagation();pgEditar('${b.id}')" title="${esc(tip)}">
+    <div class="pg-bt">${alertas.length?'⚠ ':''}${est==='completo'?'✓ ':''}${esc(titulo)}</div><div class="pg-bs">${esc(sub)}</div>
+    <div class="pg-bh">${pgHora(b.ini)}–${pgHora(fin)} · ${pgHc(b.min)}</div>
+    ${ed?`<span class="pg-rz" title="Estira para cambiar las horas" onpointerdown="pgResizeIni(event,'${b.id}')" onclick="event.stopPropagation()"></span>`:''}</div>`;
+  return {html,avisos:alertas};
+}
+/* doblez antes de que esté el corte, soldadura antes del doblez... */
+function pgAvisoSecuencia(b,f,uso){
+  const r=pgRopPorId(b.ropId);if(!r)return '';
+  const ps=pgProcsRop(r),i=ps.indexOf(b.proc);if(i<=0)return '';
+  const ti=pgTiempos(r);
+  for(const p of ps.slice(0,i)){
+    if(!ti[p]||!ti[p].min||(ropAvance(r)[p]||0)>=100)continue;
+    const x=uso[b.ropId+'|'+p];
+    if(pgPendiente(r,p,ti,uso)>0)return 'el '+p.toLowerCase()+' de esta orden todavía no está programado completo';
+    if(!x)continue;
+    if(x.ultimo>f||(x.ultimo===f&&x.fin>b.ini))return 'el '+p.toLowerCase()+' termina después de que empieza el '+b.proc.toLowerCase();
+  }
+  return '';
+}
+function pgLadoHTML(uso,ed){
+  const t=PG.busca.trim().toLowerCase(),hoy=pgHoy();
+  let rs=pgRops().slice().sort(pgPorEntrega).map(r=>{
+    const ti=pgTiempos(r),ps=Object.keys(ti);
+    const pend=ps.reduce((a,p)=>a+pgPendiente(r,p,ti,uso),0);
+    const sinT=ps.filter(p=>!ti[p].min&&(ropAvance(r)[p]||0)<100);
+    const ult=ps.map(p=>(uso[r.id+'|'+p]||{}).ultimo||'').sort().pop()||'';
+    return {r,ti,ps,pend,sinT,ult};
+  });
+  if(t)rs=rs.filter(x=>[x.r.rop,x.r.cliente,x.r.subtitulo].join(' ').toLowerCase().includes(t));
+  const card=x=>{
+    const r=x.r,al=ropAlert(r),col=pgColor(r.id);
+    const sel=PG.sel&&PG.sel.tipo==='rop'&&PG.sel.id===String(r.id);
+    const chips=x.ps.map(p=>{
+      const tot=x.ti[p].min,pe=pgPendiente(r,p,x.ti,uso),u=Math.max(0,tot-pe),av=ropAvance(r)[p]||0;
+      const hecho=(ropAvance(r)[p]||0)>=100||r.estado==='Procesado';
+      const pct=tot?Math.min(100,Math.round(u/tot*100)):0;
+      const csel=sel&&PG.sel.proc===p;
+      const txt=hecho?'hecho ✓':(tot?(pe>0?'faltan '+pgHc(pe):'programado ✓'):'sin tiempo');
+      const tip=hecho?p+' ya está al 100% en la orden':(tot?p+': '+fmtMin(tot)+' en total ('+(x.ti[p].fuente==='cot'?'estimado de la cotización':'de la orden')+')'+(av?' · avance '+av+'%':'')+' · hecho o programado '+fmtMin(u)+(pe>0?' · faltan '+fmtMin(pe):''):p+' sin tiempo cargado: toca ✎ para ponerlo');
+      return `<div class="pg-chip ${hecho||(tot&&pe<=0)?'ok':''} ${!tot&&!hecho?'sin':''} ${csel?'sel':''}" title="${esc(tip)}"
+        ${ed&&!hecho?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','${p}')" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','${p}')"`:''}><b>${p}</b> <span>${txt}</span>${x.ti[p].fuente==='cot'&&!hecho?'<em>est.</em>':''}${tot&&!hecho?`<i style="width:${pct}%"></i>`:''}</div>`;
+    }).join('');
+    const tarde=x.ult&&r.entrega&&x.ult>r.entrega;
+    return `<div class="pg-card ${sel&&!PG.sel.proc?'sel':''}" style="--bb:${col.bb}" ${ed?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','')" ondragend="pgDragFin()" onclick="pgElegir('rop','${r.id}','')"`:''}>
+      <div class="pg-ct"><span class="code">${esc(r.rop)}</span>${al?`<span class="due ${al.level}">${al.label}</span>`:''}<span class="spacer"></span>
+        ${ed?`<button type="button" class="pg-mini" title="Cargar o corregir las horas de esta orden" onclick="event.stopPropagation();pgTiemposDlg('${r.id}')">✎</button>`:''}
+        <button type="button" class="pg-mini" title="Abrir la orden" onclick="event.stopPropagation();openForm('rop','${r.id}')">↗</button></div>
+      <div class="pg-cc">${esc(r.cliente||'—')}${r.subtitulo?' · '+esc(r.subtitulo):''}</div>
+      <div class="pg-cf">${esc(r.estado||'')} · entrega ${r.entrega?pgCorta(r.entrega):'sin fecha'}${x.ult?` · <span class="${tarde?'tarde':''}">programada hasta ${pgCorta(x.ult)}${tarde?' ⚠':''}</span>`:''}</div>
+      <div class="pg-chips">${chips||'<span class="pg-cf">Sin procesos de planta</span>'}</div></div>`;
+  };
+  const conPend=rs.filter(x=>x.pend>0),sinTiempo=rs.filter(x=>x.pend<=0&&x.sinT.length),listas=rs.filter(x=>x.pend<=0&&!x.sinT.length);
+  const actSel=s=>PG.sel&&PG.sel.tipo==='act'&&PG.sel.id===s;
+  return `<aside class="pg-side">
+    <input class="pg-busca" placeholder="Buscar orden, cliente o proyecto" value="${esc(PG.busca)}" oninput="PG.busca=this.value;clearTimeout(window._pgB);window._pgB=setTimeout(()=>{render();const e=document.querySelector('.pg-busca');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}},250)">
+    ${ed?`<div class="pg-grp">Otras actividades</div><div class="pg-acts">${PG_ACTS.map(a=>`<span class="pg-act ${actSel(a)?'sel':''}" draggable="true" ondragstart="pgDragIni(event,'act','${a}','')" ondragend="pgDragFin()" onclick="pgElegir('act','${a}','')">${a}</span>`).join('')}</div>`:''}
+    <div class="pg-grp">Por programar · ${conPend.length}</div>
+    ${conPend.map(card).join('')||'<div class="pg-cf">Ninguna orden tiene horas pendientes.</div>'}
+    ${sinTiempo.length?`<div class="pg-grp">Sin tiempos cargados · ${sinTiempo.length}</div><div class="pg-cf" style="margin-bottom:6px">Toca ✎ para ponerles horas, o arrástralas igual y ajusta el bloque.</div>${sinTiempo.map(card).join('')}`:''}
+    ${listas.length?`<label class="pg-chk" style="margin-top:12px"><input type="checkbox" ${PG.todas?'checked':''} onchange="PG.todas=this.checked;render()"> Ver las ${listas.length} ya programadas completas</label>${PG.todas?listas.map(card).join(''):''}`:''}
+  </aside>`;
+}
+
+/* ---- arrastrar, tocar, mover, estirar ---- */
+function pgDragIni(e,tipo,id,proc){
+  e.stopPropagation();
+  PG.drag={tipo,id:String(id),proc:proc||'',off:0};
+  if(tipo==='blq'){const b=pgDia(PG.fecha).bloques.find(x=>x.id===id);const tr=e.currentTarget.closest('.pg-track');if(b&&tr)PG.drag.off=pgTiempoDeX(e,tr)-b.ini;}
+  try{e.dataTransfer.setData('text/plain',tipo+':'+id);e.dataTransfer.effectAllowed='move';}catch(_){}
+}
+function pgDragFin(){PG.drag=null;document.querySelectorAll('.pg-track.over').forEach(t=>t.classList.remove('over'));}
+function pgTiempoDeX(e,tr){const c=pgCfg(),rc=tr.getBoundingClientRect();const x=Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width));const p=c.paso||15;return Math.round((c.inicio+x*(c.fin-c.inicio))/p)*p;}
+function pgOver(e){
+  if(!PG.drag)return;e.preventDefault();const tr=e.currentTarget;tr.classList.add('over');
+  const g=tr.querySelector('.pg-guia');if(!g)return;const c=pgCfg(),p=c.paso||15;
+  const T=Math.max(c.inicio,Math.round((pgTiempoDeX(e,tr)-(PG.drag.off||0))/p)*p);
+  g.style.left=((T-c.inicio)/(c.fin-c.inicio)*100)+'%';g.dataset.h=pgHora(T);
+}
+function pgLeave(e){const tr=e.currentTarget;if(!e.relatedTarget||!tr.contains(e.relatedTarget))tr.classList.remove('over');}
+function pgDrop(e,maq){
+  e.preventDefault();e.currentTarget.classList.remove('over');
+  const dg=PG.drag;PG.drag=null;if(!dg)return;
+  const c=pgCfg(),p=c.paso||15;const T=Math.round((pgTiempoDeX(e,e.currentTarget)-(dg.off||0))/p)*p;
+  if(dg.tipo==='blq')pgMover(dg.id,maq,T);else pgColocar(maq,T,dg);
+}
+function pgElegir(tipo,id,proc){
+  const s=PG.sel;id=String(id);
+  PG.sel=(s&&s.tipo===tipo&&s.id===id&&s.proc===proc)?null:{tipo,id,proc:proc||''};
+  render();if(PG.sel)toast('Ahora toca la fila de la máquina, en la hora donde va');
+}
+function pgClickTrack(e,maq){if(!PG.sel)return;pgColocar(maq,pgTiempoDeX(e,e.currentTarget),PG.sel);}
+function pgColocar(maq,T,it){
+  if(!pgPuede())return;
+  const f=PG.fecha,c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);if(!m)return;
+  if(it.tipo==='rop'&&it.proc&&it.proc!==m.proc){toast('Esa fila es de '+m.proc.toLowerCase()+'. El '+it.proc.toLowerCase()+' va en una máquina de '+it.proc.toLowerCase());return;}
+  const h=pgHueco(f,maq,T);
+  if(h.disp<(c.paso||15)){toast('No queda espacio libre en esa parte del día');return;}
+  let b,msg='';
+  if(it.tipo==='act'){b={id:pgId(),maq,tipo:'act',act:it.id,ini:h.ini,min:Math.min(60,h.disp),nota:''};}
+  else{
+    const r=pgRopPorId(it.id);if(!r)return;
+    const p=m.proc,ti=pgTiempos(r);
+    const pend=pgPendiente(r,p,ti);
+    let min=pend;
+    if(!ti[p])msg=r.rop+' no tiene '+p.toLowerCase()+' entre sus procesos; se puso 1 h';
+    else if(!ti[p].min)msg=r.rop+' no tiene horas de '+p.toLowerCase()+'; se puso 1 h (ajústala o cárgala con ✎)';
+    else if(pend<=0)msg=r.rop+' ya tenía todo el '+p.toLowerCase()+' programado; se puso 1 h';
+    if(!(min>0))min=60;
+    if(min>h.disp){if(!msg)msg='Cupieron '+pgHc(h.disp)+' aquí; quedan '+pgHc(min-h.disp)+' para otro día';min=h.disp;}
+    b={id:pgId(),maq,tipo:'rop',ropId:String(r.id),rop:r.rop,proc:p,ini:h.ini,min,nota:''};
+    if(r.estado==='Sin procesar')pgActualizarRop(r,{estado:'Programado'});
+  }
+  pgDia(f,true).bloques.push(b);PG.sel=null;pgGuardar(f);render();
+  if(msg)toast(msg);
+}
+function pgMover(id,maq,T){
+  const f=PG.fecha,d=pgDia(f,true),b=d.bloques.find(x=>x.id===id);if(!b)return;
+  const c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);
+  if(b.tipo==='rop'&&m&&m.proc!==b.proc){toast('Ese bloque es de '+b.proc.toLowerCase()+' y esa máquina es de '+m.proc.toLowerCase());return;}
+  const h=pgHueco(f,maq,T,id);
+  if(h.disp<(c.paso||15)){toast('No cabe ahí');return;}
+  b.maq=maq;b.ini=h.ini;
+  if(b.min>h.disp){toast('Solo cupo '+pgHc(h.disp)+'; lo demás vuelve a quedar pendiente');b.min=h.disp;}
+  pgGuardar(f);render();
+}
+function pgResizeIni(e,id){
+  e.preventDefault();e.stopPropagation();
+  const el=e.currentTarget.closest('.pg-b'),tr=el&&el.closest('.pg-track');if(!tr)return;
+  el.setAttribute('draggable','false');
+  const f=PG.fecha,b=pgDia(f).bloques.find(x=>x.id===id);if(!b)return;
+  const c=pgCfg(),p=c.paso||15,span=c.fin-c.inicio;
+  const nx=pgDia(f).bloques.filter(x=>x.maq===b.maq&&x.id!==id&&x.ini>b.ini).sort((a,z)=>a.ini-z.ini)[0];
+  const max=pgTrabajo(b.ini,Math.min(c.fin,nx?nx.ini:c.fin));
+  const mv=ev=>{
+    const T=pgTiempoDeX(ev,tr);
+    let min=Math.round(pgTrabajo(b.ini,Math.max(b.ini,T))/p)*p;min=Math.max(p,Math.min(max,min));
+    b.min=min;const fin=pgFin(b.ini,min);
+    el.style.width=((Math.min(fin,c.fin)-b.ini)/span*100)+'%';
+    const hh=el.querySelector('.pg-bh');if(hh)hh.textContent=pgHora(b.ini)+'–'+pgHora(fin)+' · '+pgHc(min);
+  };
+  const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);PG._rz=Date.now();pgGuardar(f);render();};
+  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+}
+function pgSetOperario(maq,v){
+  const f=PG.fecha,d=pgDia(f,true);v=(v||'').trim();d.operarios[maq]=v;
+  const m=pgCfg().maquinas.find(x=>x.id===maq);
+  if(m&&!m.operario&&v){m.operario=v;pgGuardarCfg();}   /* el primero que se escribe queda como el de siempre */
+  pgGuardar(f);
+}
+function pgSetNota(v){const f=PG.fecha;pgDia(f,true).nota=(v||'').trim();pgGuardar(f);}
+
+/* ---- programar automático: llena el tiempo libre de cada máquina con las
+   órdenes que más pronto se entregan, respetando corte → doblez → soldadura ---- */
+function pgAuto(){
+  if(!pgPuede())return;
+  const f=PG.fecha,c=pgCfg(),d=pgDia(f,true),p=c.paso||15;
+  const rops=pgRops().filter(r=>r.estado!=='Procesado').sort(pgPorEntrega);
+  const maqs=c.maquinas.slice().sort((a,b)=>PG_PROCS.indexOf(a.proc)-PG_PROCS.indexOf(b.proc));
+  let n=0;const puestos=[];
+  for(const m of maqs){
+    const descartadas=new Set();
+    for(let g=0;g<40;g++){
+      const uso=pgUso();
+      const bl=d.bloques.filter(b=>b.maq===m.id);
+      const cur=bl.length?Math.max(...bl.map(b=>pgFin(b.ini,b.min))):c.inicio;
+      if(cur>=c.fin)break;
+      let puesto=false;
+      for(const r of rops){
+        if(descartadas.has(r.id))continue;
+        const ti=pgTiempos(r);if(!ti[m.proc]||!ti[m.proc].min)continue;
+        const pend=pgPendiente(r,m.proc,ti,uso);if(pend<=0)continue;
+        const ps=pgProcsRop(r);let ok=true,desde=cur;
+        for(const q of ps.slice(0,ps.indexOf(m.proc))){
+          if(!ti[q].min||(ropAvance(r)[q]||0)>=100)continue;
+          const x=uso[r.id+'|'+q];
+          if(pgPendiente(r,q,ti,uso)>0||(x&&x.ultimo>f)){ok=false;break;}
+          if(!x)continue;
+          if(x.ultimo===f)desde=Math.max(desde,x.fin);
+        }
+        if(!ok){descartadas.add(r.id);continue;}
+        const h=pgHueco(f,m.id,desde);
+        if(h.disp<p){descartadas.add(r.id);continue;}
+        const min=Math.min(pend,h.disp);
+        d.bloques.push({id:pgId(),maq:m.id,tipo:'rop',ropId:String(r.id),rop:r.rop,proc:m.proc,ini:h.ini,min,nota:''});
+        if(r.estado==='Sin procesar')pgActualizarRop(r,{estado:'Programado'});
+        n++;puestos.push(r.rop);puesto=true;break;
+      }
+      if(!puesto)break;
+    }
+  }
+  if(!n){toast('No hay órdenes con horas pendientes que quepan hoy (revisa las que están sin tiempos)');return;}
+  pgGuardar(f);render();toast('Se programaron '+n+' trabajo(s): '+[...new Set(puestos)].join(', '));
+}
+function pgVaciar(){
+  const f=PG.fecha,d=pgDia(f);
+  const quita=d.bloques.filter(b=>!(d.reportes[b.id]&&d.reportes[b.id].estado));
+  if(!quita.length){toast('No hay nada que quitar (lo reportado se conserva)');return;}
+  pedirConfirmacion('¿Vaciar el '+pgCorta(f)+'?','Se quitan '+quita.length+' trabajo(s) programados. Lo que ya tiene reporte se conserva. Las horas vuelven a quedar pendientes en sus órdenes.',()=>{
+    d.bloques=d.bloques.filter(b=>d.reportes[b.id]&&d.reportes[b.id].estado);pgGuardar(f);render();toast('Día vaciado');},'Vaciar');
+}
+
+/* ---- cuadros: editar bloque y tiempos de una orden ---- */
+function pgCaja(){
+  let b=document.getElementById('pgLayer');
+  if(!b){b=document.createElement('div');b.id='pgLayer';b.className='confirm-layer';document.body.appendChild(b);b.addEventListener('click',e=>{if(e.target===b)pgCerrar();});}
+  return b;
+}
+function pgCerrar(){const b=document.getElementById('pgLayer');if(b)b.classList.remove('show');}
+function pgEditar(id){
+  if(Date.now()-(PG._rz||0)<400)return;
+  if(PG.sel){PG.sel=null;render();}
+  const f=PG.fecha,d=pgDia(f),b=d.bloques.find(x=>x.id===id);if(!b)return;
+  const c=pgCfg(),ed=pgPuede(),m=c.maquinas.find(x=>x.id===b.maq),fin=pgFin(b.ini,b.min);
+  const r=b.tipo==='rop'?pgRopPorId(b.ropId):null;
+  let info='',que='';
+  if(r){
+    const ti=pgTiempos(r)[b.proc],pend=pgPendiente(r,b.proc),av=ropAvance(r)[b.proc]||0;
+    info=ti&&ti.min?`La orden tiene <b>${fmtMin(ti.min)}</b> de ${b.proc.toLowerCase()} (${ti.fuente==='cot'?'estimado de la cotización':'de la orden'})${av?', con '+av+'% de avance':''}. Con todo lo programado ${pend>0?`<b>faltan ${fmtMin(pend)}</b>`:'ya está cubierto'}.`
+      :`Esta orden no tiene horas de ${b.proc.toLowerCase()} cargadas.`;
+    PG._pend=pend;
+    const q=pgQueHacer(r,b.proc);
+    que=q.lineas.length?`<div class="fc-sub" style="margin:8px 0 2px"><b>Qué hay que hacer</b>${q.total?' · '+esc(q.total):''}</div><div style="font-size:12.5px;max-height:130px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 9px">${q.lineas.map(esc).join('<br>')}</div>`:'';
+  }
+  const rep=d.reportes[b.id];
+  const opts=[];for(let t=c.inicio;t<c.fin;t+=c.paso)opts.push(`<option value="${t}" ${t===b.ini?'selected':''}>${pgHora(t)}</option>`);
+  if(!opts.some(o=>o.includes('selected')))opts.unshift(`<option value="${b.ini}" selected>${pgHora(b.ini)}</option>`);
+  const box=pgCaja();
+  box.innerHTML=`<div class="confirm-box fact-box">
+    <div class="fc-t">${b.tipo==='rop'?esc(b.rop)+' · '+esc(b.proc):esc(b.act||'Actividad')}</div>
+    <div class="fc-cli">${r?esc(r.cliente||'')+(r.subtitulo?' · '+esc(r.subtitulo):'')+' · ':''}${esc(m?m.nombre:'')} · ${pgCorta(f)} · ${pgHora(b.ini)} a ${pgHora(fin)}${r&&r.entrega?' · entrega '+pgCorta(r.entrega):''}</div>
+    ${info?`<div class="fc-intro" style="margin:0 0 10px;font-size:12.5px">${info}</div>`:''}
+    ${rep&&rep.estado?`<div class="fc-intro" style="margin:0 0 10px;font-size:12.5px">Reportado: <b>${PG_EST[rep.estado]}</b>${rep.cant?' · '+esc(String(rep.cant))+' '+(PG_UNI[b.proc]||''):''}${rep.obs?' · '+esc(rep.obs):''}</div>`:''}
+    ${ed?`<div class="fc-campos">
+      <div><label>Empieza</label><select id="pgEIni" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px">${opts.join('')}</select></div>
+      <div><label>Horas de trabajo</label><input id="pgEDur" type="number" min="0.25" step="0.25" value="${+(b.min/60).toFixed(2)}"></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 10px">
+        <button type="button" class="btn ghost sm" onclick="pgEDurMas(-0.5)">− 30 min</button>
+        <button type="button" class="btn ghost sm" onclick="pgEDurMas(0.5)">+ 30 min</button>
+        ${r&&PG._pend>0?`<button type="button" class="btn ghost sm" onclick="document.getElementById('pgEDur').value=${+((b.min+PG._pend)/60).toFixed(2)}">Todo lo que falta (${pgHc(b.min+PG._pend)})</button>`:''}</div>
+      <div class="fc-campos"><div style="flex:1"><label>Nota para el operario (sale en su hoja)</label><input id="pgENota" value="${esc(b.nota||'')}" placeholder="Ej: primero las piezas de calibre 12 · usar el troquel de 30"></div></div>
+      ${que}
+      <div class="fc-campos" style="margin-top:10px"><div><label>Pasar a otro día</label><input id="pgEDia" type="date" value="${pgHabil(f,1)}"></div>
+        <div style="display:flex;align-items:flex-end;gap:6px"><button type="button" class="btn ghost sm" onclick="pgPasarDia('${b.id}')">Pasar</button>
+        ${r&&PG._pend>0?`<button type="button" class="btn ghost sm" title="Programa lo que falta en el siguiente día hábil" onclick="pgContinuar('${b.id}')">Lo que falta, mañana</button>`:''}</div></div>`
+      :`${b.nota?`<div class="fc-intro" style="font-size:12.5px">Nota: ${esc(b.nota)}</div>`:''}${que}`}
+    <div class="fc-acc">
+      ${ed?`<button type="button" class="btn ghost" onclick="pgBorrar('${b.id}')">Quitar</button>`:''}
+      <button type="button" class="btn ghost" onclick="pgCerrar()">${ed?'Cancelar':'Cerrar'}</button>
+      ${ed?`<button type="button" class="btn" onclick="pgEditGuardar('${b.id}')">Guardar</button>`:''}
+    </div></div>`;
+  box.classList.add('show');
+}
+function pgEDurMas(h){const e=document.getElementById('pgEDur');if(e)e.value=Math.max(0.25,Math.round(((+e.value||0)+h)*4)/4);}
+function pgEditGuardar(id){
+  const f=PG.fecha,d=pgDia(f,true),b=d.bloques.find(x=>x.id===id);if(!b)return;
+  const c=pgCfg(),p=c.paso||15;
+  const ini=+document.getElementById('pgEIni').value;
+  let min=Math.max(p,Math.round((+document.getElementById('pgEDur').value||0)*60/p)*p);
+  const h=pgHueco(f,b.maq,ini,id);
+  if(h.disp<p){toast('A esa hora no hay espacio libre');return;}
+  let msg='';
+  if(h.ini!==ini)msg='A esa hora ya había otro trabajo; empieza a las '+pgHora(h.ini);
+  if(min>h.disp){msg='Solo caben '+pgHc(h.disp)+' antes del siguiente trabajo o de la salida';min=h.disp;}
+  b.ini=h.ini;b.min=min;b.nota=document.getElementById('pgENota').value.trim();
+  pgCerrar();pgGuardar(f);render();if(msg)toast(msg);
+}
+function pgBorrar(id){
+  const f=PG.fecha,d=pgDia(f,true);
+  d.bloques=d.bloques.filter(x=>x.id!==id);delete d.reportes[id];
+  pgCerrar();pgGuardar(f);render();toast('Quitado; sus horas vuelven a quedar pendientes');
+}
+function pgPasarDia(id){
+  const f=PG.fecha,d=pgDia(f,true),b=d.bloques.find(x=>x.id===id);if(!b)return;
+  const f2=(document.getElementById('pgEDia')||{}).value;if(!f2||f2===f){toast('Elige otro día');return;}
+  const h=pgPrimerHueco(f2,b.maq,b.min);
+  if(!h){toast('Ese día la máquina ya está llena');return;}
+  const nb={...b,id:pgId(),ini:h.ini,min:Math.min(b.min,h.disp)};
+  d.bloques=d.bloques.filter(x=>x.id!==id);delete d.reportes[id];
+  pgDia(f2,true).bloques.push(nb);pgGuardar(f);pgGuardar(f2);pgCerrar();render();
+  toast('Pasado al '+pgCorta(f2)+' a las '+pgHora(h.ini)+(nb.min<b.min?' (solo cupieron '+pgHc(nb.min)+')':''));
+}
+function pgContinuar(id){
+  const f=PG.fecha,b=pgDia(f).bloques.find(x=>x.id===id);if(!b)return;
+  const r=pgRopPorId(b.ropId);const pend=pgPendiente(r,b.proc);
+  if(pend<=0){toast('No falta nada de esa orden');return;}
+  let f2=pgHabil(f,1),h=null;
+  for(let i=0;i<10&&!h;i++){h=pgPrimerHueco(f2,b.maq,pend);if(!h)f2=pgHabil(f2,1);}
+  if(!h){toast('No hay espacio en los próximos días');return;}
+  const min=Math.min(pend,h.disp);
+  pgDia(f2,true).bloques.push({id:pgId(),maq:b.maq,tipo:'rop',ropId:b.ropId,rop:b.rop,proc:b.proc,ini:h.ini,min,nota:b.nota||''});
+  pgGuardar(f2);pgCerrar();render();
+  toast('Programadas '+pgHc(min)+' el '+pgCorta(f2)+' a las '+pgHora(h.ini)+(min<pend?'; aún faltan '+pgHc(pend-min):''));
+}
+function pgTiemposDlg(id){
+  const r=pgRopPorId(id);if(!r)return;
+  const t=(r.tiempos&&typeof r.tiempos==='object')?r.tiempos:{},est=pgEstimadoCot(r)||{},ps=pgProcsRop(r);
+  const box=pgCaja();
+  box.innerHTML=`<div class="confirm-box fact-box">
+    <div class="fc-t">Horas de ${esc(r.rop)}</div>
+    <div class="fc-cli">${esc(r.cliente||'')}${r.subtitulo?' · '+esc(r.subtitulo):''}</div>
+    <div class="fc-intro" style="margin:0 0 12px;font-size:12.5px">Horas que toma cada proceso para <b>toda la orden</b>. Con esto se llenan los bloques del horario. Se guardan en la orden, en "Tiempos de producción".${Object.keys(est).some(k=>est[k]>0)?' Lo gris es lo que se estima de la cotización.':''}</div>
+    <div class="fc-campos">${PG_PROCS.map(p=>`<div><label>${p}${ps.includes(p)?'':' (no está en la orden)'}</label><input type="number" min="0" step="0.25" id="pgT_${p}" value="${+t[p]?+(t[p]/60).toFixed(2):''}" placeholder="${+est[p]?'≈ '+(est[p]/60).toFixed(1)+' h':'horas'}"></div>`).join('')}</div>
+    <div class="fc-acc"><button type="button" class="btn ghost" onclick="pgCerrar()">Cancelar</button><button type="button" class="btn" onclick="pgTiemposGuardar('${r.id}')">Guardar</button></div></div>`;
+  box.classList.add('show');
+  setTimeout(()=>{const e=document.getElementById('pgT_'+(ps[0]||'Corte'));if(e)e.focus();},30);
+}
+async function pgTiemposGuardar(id){
+  const r=pgRopPorId(id);if(!r)return;
+  const t={...((r.tiempos&&typeof r.tiempos==='object')?r.tiempos:{})};
+  PG_PROCS.forEach(p=>{const e=document.getElementById('pgT_'+p);if(!e)return;const h=+e.value||0;if(h>0)t[p]=Math.round(h*60);else delete t[p];});
+  pgCerrar();
+  if(await pgActualizarRop(r,{tiempos:t})){toast('Horas guardadas en '+r.rop);render();}
+}
+
+/* ---- reporte del día: lo que hizo cada operario ---- */
+function pgReporteHTML(){
+  const f=PG.fecha,d=pgDia(f),c=pgCfg(),ed=pgPuedeReportar(),dis=ed?'':'disabled';
+  let nB=0,nR=0;
+  const secs=c.maquinas.map(m=>{
+    const bl=d.bloques.filter(b=>b.maq===m.id).sort((a,b)=>a.ini-b.ini);if(!bl.length)return '';
+    let tPlan=0,tReal=0,tCant=0;
+    const filas=bl.map(b=>{
+      const rep=d.reportes[b.id]||{},r=b.tipo==='rop'?pgRopPorId(b.ropId):null;
+      nB++;if(rep.estado)nR++;
+      tPlan+=b.min;const mr=(rep.minReal!==''&&rep.minReal!=null)?+rep.minReal:null;tReal+=mr!=null?mr:(rep.estado==='completo'?b.min:0);tCant+=+rep.cant||0;
+      return `<tr>
+        <td class="nw tnum">${pgHora(b.ini)}–${pgHora(pgFin(b.ini,b.min))}</td>
+        <td>${b.tipo==='rop'?`<span class="code">${esc(b.rop)}</span> <b>${esc(r?r.cliente:'')}</b>${r&&r.subtitulo?`<div class="fc-sub">${esc(r.subtitulo)}</div>`:''}`:`<b>${esc(b.act||'')}</b>`}${b.nota?`<div class="fc-sub">${esc(b.nota)}</div>`:''}</td>
+        <td class="num tnum">${pgHc(b.min)}</td>
+        <td><select ${dis} onchange="pgRep('${b.id}','estado',this.value)"><option value="">— sin reportar —</option>${Object.keys(PG_EST).map(k=>`<option value="${k}" ${rep.estado===k?'selected':''}>${PG_EST[k]}</option>`).join('')}</select>
+          ${rep.estado==='parcial'?`<br><select ${dis} onchange="pgRep('${b.id}','pct',this.value)">${[25,50,75].map(p=>`<option value="${p}" ${+(rep.pct||50)===p?'selected':''}>${p}% de lo planeado</option>`).join('')}</select>`:''}</td>
+        <td><input class="pg-in" type="number" min="0" step="0.25" ${dis} value="${mr!=null?+(mr/60).toFixed(2):''}" placeholder="${+(b.min/60).toFixed(2)}" onchange="pgRep('${b.id}','minReal',this.value===''?'':Math.round(+this.value*60))"></td>
+        <td class="nw">${b.tipo==='rop'?`<input class="pg-in" type="number" min="0" step="1" ${dis} value="${rep.cant!=null&&rep.cant!==''?esc(String(rep.cant)):''}" onchange="pgRep('${b.id}','cant',this.value)"> <span class="fc-sub">${PG_UNI[b.proc]||''}</span>`:'<span class="fc-sub">—</span>'}</td>
+        <td><input class="pg-in w" ${dis} value="${esc(rep.obs||'')}" placeholder="Novedad, daño, faltó material…" onchange="pgRep('${b.id}','obs',this.value)"></td></tr>`;
+    }).join('');
+    const op=pgOperario(d,m);
+    return panel(esc(m.nombre)+' · '+esc(m.proc),(op?'Operario: <b>'+esc(op)+'</b>':'sin operario')+` · <button type="button" class="lnk" onclick="pgImprimirHojas('${m.id}',true)">🖨 imprimir</button>`,
+      `<table class="fc-tabla pg-rep"><thead><tr><th>Hora</th><th>Trabajo</th><th class="num">Planeado</th><th>¿Cómo quedó?</th><th>Horas reales</th><th>${esc(PG_HECHO[m.proc]||'Cantidad')}</th><th>Observación</th></tr></thead>
+       <tbody>${filas}</tbody><tfoot><tr><td></td><td>Total</td><td class="num tnum">${pgHc(tPlan)}</td><td></td><td class="tnum">${tReal?pgHc(tReal):''}${tReal&&tPlan?` <span class="fc-sub">(${Math.round(tReal/tPlan*100)}%)</span>`:''}</td><td class="tnum">${tCant||''} ${tCant?esc(PG_UNI[m.proc]||''):''}</td><td></td></tr></tfoot></table>`);
+  }).join('');
+  const extra=`<button type="button" class="btn ghost sm" onclick="pgImprimirHojas('',true)">🖨 Imprimir el reporte</button>
+    ${pgPuede()?`<button type="button" class="btn sm" onclick="pgAvanceOrdenes()" title="Sube el % de avance de cada orden según lo reportado">Pasar el avance a las órdenes</button>`:''}`;
+  return pgBarraFecha(extra)+(secs
+    ?`<div class="fc-intro"><b>${nR} de ${nB}</b> trabajos reportados. Pasa aquí lo que cada operario anotó en su hoja al final de la jornada. Lo que quede <b>a medias</b> o <b>no se hizo</b> vuelve a aparecer como pendiente en la lista de órdenes para programarlo otro día. Si dejas vacías las horas reales, se toman las planeadas.</div>${secs}`
+    :`<div class="fc-vacio">No hay nada programado este día. Ve a <button type="button" class="lnk" onclick="PG.tab='dia';render()">Programa del día</button> para armarlo.</div>`);
+}
+function pgRep(bid,campo,v){
+  const f=PG.fecha,d=pgDia(f,true),b=d.bloques.find(x=>x.id===bid);if(!b)return;
+  const rep=d.reportes[bid]||(d.reportes[bid]={});
+  if(campo==='cant')v=v===''?'':Math.max(0,+v||0);
+  if(campo==='pct')v=+v||50;
+  rep[campo]=v;
+  if(campo==='estado'&&v==='parcial'&&!rep.pct)rep.pct=50;
+  const u=currentUser();rep.por=u?u.name:'—';rep.ts=new Date().toISOString();
+  if(campo==='estado'&&(v==='completo'||v==='parcial')&&b.tipo==='rop'){
+    const r=pgRopPorId(b.ropId);if(r&&(r.estado==='Sin procesar'||r.estado==='Programado'))pgActualizarRop(r,{estado:'En proceso'});
+  }
+  pgGuardar(f);if(campo==='estado'||campo==='pct')render();
+}
+function pgAvanceOrdenes(){
+  if(!pgPuede())return;
+  const hecho={},blq={};
+  Object.keys(PG.dias).forEach(f=>{const d=PG.dias[f];d.bloques.forEach(b=>{if(b.tipo!=='rop')return;const rp=d.reportes[b.id];if(!rp||!rp.estado)return;
+    const nuevo=pgConsumo(b,rp)-(+rp.apl||0);if(nuevo<=0)return;
+    const k=b.ropId+'|'+b.proc;hecho[k]=(hecho[k]||0)+nuevo;(blq[k]=blq[k]||[]).push({f,b,rp});});});
+  const cambios=[];
+  Object.keys(hecho).forEach(k=>{
+    const [id,p]=k.split('|');const r=pgRopPorId(id);if(!r||ropCerrada(r))return;
+    const ti=pgTiempos(r)[p];if(!ti||!ti.min)return;
+    const av=ropAvance(r);if(!(p in av))return;
+    const pct=Math.min(100,Math.round((av[p]||0)+hecho[k]/ti.min*100));
+    if(pct>(av[p]||0))cambios.push({r,p,de:av[p]||0,a:pct,k});
+  });
+  if(!cambios.length){toast('Las órdenes ya tienen ese avance o más');return;}
+  pedirConfirmacion('¿Actualizar el avance de '+cambios.length+' proceso(s)?',
+    cambios.map(x=>x.r.rop+' · '+x.p+': '+x.de+'% → '+x.a+'%').join('\n')+'\n\nSe suma lo reportado como terminado o a medias que todavía no se había pasado, comparado con las horas de cada orden. Cada reporte se pasa una sola vez.',
+    async()=>{
+      const por={};cambios.forEach(x=>{(por[x.r.id]=por[x.r.id]||{r:x.r,av:{}}).av[x.p]=x.a;});
+      let n=0;
+      const tocados=new Set();
+      for(const id in por){const {r,av}=por[id];const nuevo={...ropAvance(r),...av};
+        const fases=Object.entries(ropAvance({...r,avance:nuevo})).filter(([,v])=>v>=100).map(([k])=>k);
+        if(await pgActualizarRop(r,{avance:nuevo,fases})){n++;
+          cambios.filter(x=>String(x.r.id)===String(id)).forEach(x=>(blq[x.k]||[]).forEach(({f,b,rp})=>{rp.apl=pgConsumo(b,rp);tocados.add(f);}));}}
+      tocados.forEach(f=>pgGuardar(f));
+      render();toast('Avance actualizado en '+n+' orden(es)');
+    },'Actualizar');
+}
+
+/* ---- semana: carga de cada máquina y lo que falta por programar ---- */
+function pgSemanaHTML(){
+  const f=PG.fecha,lunes=pgSumar(f,-((pgDiaSem(f)+6)%7)),dias=[0,1,2,3,4,5].map(i=>pgSumar(lunes,i));
+  const c=pgCfg(),cap=pgCapacidad(),hoy=pgHoy(),uso=pgUso();
+  const head=`<tr><th>Máquina</th>${dias.map(x=>`<th class="${x===hoy?'hoy':''}">${pgCorta(x)}</th>`).join('')}<th class="num">Semana</th></tr>`;
+  const filas=c.maquinas.map(m=>{
+    let tot=0;
+    const celdas=dias.map(x=>{
+      const bl=pgDia(x).bloques.filter(b=>b.maq===m.id),oc=bl.reduce((a,b)=>a+b.min,0);tot+=oc;
+      const pct=cap?Math.round(oc/cap*100):0,rs=[...new Set(bl.map(b=>b.tipo==='rop'?b.rop:b.act))];
+      return `<td class="pg-sc" onclick="PG.fecha='${x}';PG.tab='dia';render()" title="Abrir este día"><div class="pg-load"><i class="${oc>cap?'over':''}" style="width:${Math.min(100,pct)}%"></i></div>
+        <div class="pg-loadn">${oc?pgHc(oc)+' · '+pct+'%':'libre'}</div><div class="pg-sr">${rs.slice(0,5).map(esc).join(' · ')}${rs.length>5?' +'+(rs.length-5):''}</div></td>`;
+    }).join('');
+    return `<tr><td><b>${esc(m.nombre)}</b><div class="fc-sub">${esc(m.proc)} · ${esc(m.operario||'sin operario')}</div></td>${celdas}<td class="num tnum">${pgHc(tot)}<div class="fc-sub">de ${pgHc(cap*6)}</div></td></tr>`;
+  }).join('');
+  const carga={};PG_PROCS.forEach(p=>carga[p]={pend:0,ord:0,sin:0});
+  const riesgo=[];
+  pgRops().forEach(r=>{
+    const ti=pgTiempos(r);let pendR=0,ult='';
+    Object.keys(ti).forEach(p=>{const pe=pgPendiente(r,p,ti,uso);
+      if(!ti[p].min&&(ropAvance(r)[p]||0)<100&&r.estado!=='Procesado')carga[p].sin++;else if(pe>0){carga[p].pend+=pe;carga[p].ord++;pendR+=pe;}
+      const u=uso[r.id+'|'+p];if(u&&u.ultimo>ult)ult=u.ultimo;});
+    if(r.entrega&&ult&&ult>r.entrega)riesgo.push({r,txt:'programada hasta el '+pgCorta(ult)+' y se entrega el '+pgCorta(r.entrega)});
+    else if(r.entrega&&pendR>0&&r.entrega<=pgSumar(hoy,5))riesgo.push({r,txt:'faltan '+fmtMin(pendR)+' sin programar y se entrega el '+pgCorta(r.entrega)});
+  });
+  const cargaT=PG_PROCS.filter(p=>carga[p].pend||carga[p].sin||c.maquinas.some(m=>m.proc===p)).map(p=>{
+    const n=c.maquinas.filter(m=>m.proc===p).length,diasN=n&&cap?carga[p].pend/(cap*n):0;
+    return `<tr><td><b>${p}</b></td><td class="num tnum">${carga[p].pend?fmtMin(carga[p].pend):'—'}</td><td class="num">${carga[p].ord||'—'}</td><td class="num">${n||'<span style="color:#b91c1c">ninguna</span>'}</td><td class="num tnum">${carga[p].pend?(n?diasN.toFixed(1)+' días':'—'):'—'}</td><td class="num">${carga[p].sin?`<span style="color:#b45309">${carga[p].sin}</span>`:'—'}</td></tr>`;
+  }).join('');
+  const nav=`<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
+    <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,-7);render()">◀ Anterior</button>
+    <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,7);render()">Siguiente ▶</button>
+    ${dias.includes(hoy)?'':`<button type="button" class="btn ghost sm" onclick="PG.fecha=pgHoy();render()">Esta semana</button>`}</div>`;
+  return nav+panel('Carga por máquina','toca un día para abrirlo',`<table class="pg-sem"><thead>${head}</thead><tbody>${filas}</tbody></table>`)
+    +panel('Lo que falta por programar','de todas las órdenes vigentes',`<table class="pg-sem"><thead><tr><th>Proceso</th><th class="num">Horas pendientes</th><th class="num">Órdenes</th><th class="num">Máquinas</th><th class="num">Equivale a</th><th class="num">Órdenes sin tiempo</th></tr></thead><tbody>${cargaT}</tbody></table>`)
+    +(riesgo.length?panel('⚠ Órdenes en riesgo de no salir a tiempo',riesgo.length+' orden(es)',`<table class="pg-sem"><tbody>${riesgo.sort((a,b)=>pgPorEntrega(a.r,b.r)).map(x=>`<tr><td class="nw"><span class="code">${esc(x.r.rop)}</span></td><td><b>${esc(x.r.cliente||'')}</b>${x.r.subtitulo?' · '+esc(x.r.subtitulo):''}</td><td>${esc(x.txt)}</td></tr>`).join('')}</tbody></table>`):'');
+}
+
+/* ---- ajustes: horario, descansos, máquinas y operarios ---- */
+function pgAjustesHTML(){
+  const c=pgCfg(),ed=pgPuede(),dis=ed?'':'disabled';
+  const procOpts=v=>PG_PROCS.map(p=>`<option ${p===v?'selected':''}>${p}</option>`).join('');
+  const maqs=c.maquinas.map((m,i)=>`<tr>
+    <td><input ${dis} value="${esc(m.nombre)}" onchange="pgCfgMaq(${i},'nombre',this.value)"></td>
+    <td><select ${dis} onchange="pgCfgMaq(${i},'proc',this.value)">${procOpts(m.proc)}</select></td>
+    <td><input ${dis} value="${esc(m.operario)}" placeholder="Operario de siempre" onchange="pgCfgMaq(${i},'operario',this.value)"></td>
+    <td class="nw">${ed?`<button type="button" class="pg-mini" onclick="pgCfgMover(${i},-1)" title="Subir">▲</button> <button type="button" class="pg-mini" onclick="pgCfgMover(${i},1)" title="Bajar">▼</button> <button type="button" class="pg-mini" onclick="pgCfgQuitar('maq',${i})" title="Quitar">✕</button>`:''}</td></tr>`).join('');
+  const desc=c.descansos.map((x,i)=>`<tr>
+    <td class="pg-w40"><input ${dis} value="${esc(x.lbl)}" onchange="pgCfgDesc(${i},'lbl',this.value)"></td>
+    <td><input ${dis} type="time" step="900" value="${pgHora2(x.ini)}" onchange="pgCfgDesc(${i},'ini',pgMin(this.value))"></td>
+    <td><input ${dis} type="time" step="900" value="${pgHora2(x.fin)}" onchange="pgCfgDesc(${i},'fin',pgMin(this.value))"></td>
+    <td>${ed?`<button type="button" class="pg-mini" onclick="pgCfgQuitar('desc',${i})" title="Quitar">✕</button>`:''}</td></tr>`).join('');
+  return `<div class="fc-intro">${ed?'Los cambios se guardan solos y los ven todos los equipos.':'Solo el director operativo y gerencia pueden cambiar esto.'} Una máquina por fila del horario: si hay dos dobladoras, pon dos máquinas con proceso Doblez.</div>
+  <div class="pg-aj">
+    ${panel('Máquinas y operarios',c.maquinas.length+' máquinas',`<div class="pg-aj-in"><table><thead><tr><th style="text-align:left;font-size:11px;color:var(--ink-3)">Máquina</th><th style="text-align:left;font-size:11px;color:var(--ink-3)">Proceso</th><th style="text-align:left;font-size:11px;color:var(--ink-3)">Operario</th><th></th></tr></thead><tbody>${maqs}</tbody></table>
+      ${ed?`<button type="button" class="btn ghost sm" style="margin-top:8px" onclick="pgCfgAgregar('maq')">+ Agregar máquina</button>`:''}</div>`)}
+    ${panel('Horario de trabajo','capacidad '+fmtMin(pgCapacidad())+' por máquina al día',`<div class="pg-aj-in">
+      <div style="display:flex;gap:10px"><div style="flex:1"><label>Entrada</label><input ${dis} type="time" step="900" value="${pgHora2(c.inicio)}" onchange="pgCfgSet('inicio',pgMin(this.value))"></div>
+      <div style="flex:1"><label>Salida</label><input ${dis} type="time" step="900" value="${pgHora2(c.fin)}" onchange="pgCfgSet('fin',pgMin(this.value))"></div>
+      <div style="flex:1"><label>Cuadrícula</label><select ${dis} onchange="pgCfgSet('paso',+this.value)">${[15,30,60].map(p=>`<option value="${p}" ${c.paso===p?'selected':''}>${p} min</option>`).join('')}</select></div></div>
+      <label style="margin-top:14px">Descansos (no cuentan como horas de trabajo)</label>
+      <table><tbody>${desc}</tbody></table>
+      ${ed?`<button type="button" class="btn ghost sm" style="margin-top:8px" onclick="pgCfgAgregar('desc')">+ Agregar descanso</button>`:''}</div>`)}
+    ${panel('Estimar desde la cotización','cuando la orden no tiene horas',`<div class="pg-aj-in">
+      <div class="fc-sub">Si una orden no tiene sus "Tiempos de producción", se estiman de su cotización: el corte con los minutos de láser, el doblez con los golpes y la soldadura con los mm.</div>
+      <div style="display:flex;gap:10px"><div style="flex:1"><label>Segundos por golpe (con manipulación)</label><input ${dis} type="number" min="1" value="${c.segGolpe}" onchange="pgCfgSet('segGolpe',+this.value)"></div>
+      <div style="flex:1"><label>mm de soldadura por hora</label><input ${dis} type="number" min="1" value="${c.mmHora}" onchange="pgCfgSet('mmHora',+this.value)"></div></div></div>`)}
+  </div>`;
+}
+function pgCfgSet(k,v){
+  if(!pgPuede())return;const c=pgCfg();
+  if(!(+v>0)){toast('Valor no válido');render();return;}
+  const nuevo={...c,[k]:+v};
+  if((k==='inicio'||k==='fin')&&!(nuevo.fin>nuevo.inicio)){toast('La salida tiene que ser después de la entrada');render();return;}
+  c[k]=+v;pgGuardarCfg();render();
+}
+function pgCfgMaq(i,k,v){if(!pgPuede())return;const m=pgCfg().maquinas[i];if(!m)return;m[k]=k==='nombre'?((v||'').trim()||'Máquina'):(v||'').trim();pgGuardarCfg();render();}
+function pgCfgDesc(i,k,v){if(!pgPuede())return;const x=pgCfg().descansos[i];if(!x)return;x[k]=k==='lbl'?((v||'').trim()||'Descanso'):+v;if(x.fin<=x.ini)toast('Ese descanso termina antes de empezar: no se tendrá en cuenta');pgGuardarCfg();render();}
+function pgCfgAgregar(t){
+  if(!pgPuede())return;const c=pgCfg();
+  if(t==='maq')c.maquinas.push({id:'m'+Date.now().toString(36),nombre:'Máquina '+(c.maquinas.length+1),proc:'Doblez',operario:''});
+  else c.descansos.push({ini:600,fin:615,lbl:'Pausa'});
+  pgGuardarCfg();render();
+}
+function pgCfgQuitar(t,i){
+  if(!pgPuede())return;const c=pgCfg();
+  if(t==='desc'){c.descansos.splice(i,1);pgGuardarCfg();render();return;}
+  const m=c.maquinas[i];if(!m)return;
+  if(c.maquinas.length<=1){toast('Tiene que quedar al menos una máquina');return;}
+  const hoy=pgHoy(),n=Object.keys(PG.dias).filter(f=>f>=hoy).reduce((a,f)=>a+PG.dias[f].bloques.filter(b=>b.maq===m.id).length,0);
+  pedirConfirmacion('¿Quitar '+m.nombre+'?',n?'Tiene '+n+' trabajo(s) programados de hoy en adelante; dejarán de verse y sus horas vuelven a quedar pendientes.':'No tiene trabajos programados de hoy en adelante.',()=>{
+    c.maquinas.splice(i,1);
+    if(n)Object.keys(PG.dias).filter(f=>f>=hoy).forEach(f=>{const d=PG.dias[f];const a=d.bloques.length;d.bloques=d.bloques.filter(b=>b.maq!==m.id);if(d.bloques.length!==a)pgGuardar(f);});
+    pgGuardarCfg();render();},'Quitar');
+}
+function pgCfgMover(i,dir){if(!pgPuede())return;const a=pgCfg().maquinas,j=i+dir;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];pgGuardarCfg();render();}
+
+/* ---- impresos ---- */
+function pgQueHacer(r,proc){
+  if(!r)return {lineas:[],total:''};
+  const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>p&&(p.desc||'').trim());
+  const nP=piezas.reduce((a,p)=>a+(+p.cant||0),0),lin=[];let total='';
+  if(proc==='Corte'){
+    const lam=(Array.isArray(r.consumo)?r.consumo:[]).filter(x=>x&&x.material&&(x.clase||'lamina')==='lamina');
+    lam.forEach(x=>lin.push((+x.cant||0)+' lám. · '+x.material+(x.calibre?' cal. '+x.calibre:'')+((+x.largo&&+x.ancho)?' ('+x.largo+'×'+x.ancho+')':'')));
+    const nL=lam.reduce((a,x)=>a+(+x.cant||0),0);
+    total=[nL?nL+' láminas':'',nP?nP+' piezas':''].filter(Boolean).join(' · ');
+  }else total=nP?nP+' piezas':'';
+  piezas.forEach(p=>lin.push((+p.cant||0)+' × '+p.desc.trim()+(p.mat?' — '+p.mat:'')));
+  return {lineas:lin,total};
+}
+const PG_PRINT_CSS=`*{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#222;font-size:11px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .hoja{padding:10mm 11mm;page-break-after:always}.hoja:last-child{page-break-after:auto}
+  .top{display:flex;justify-content:space-between;gap:16px;border-bottom:3px solid #7b1e2b;padding-bottom:8px;margin-bottom:8px}
+  .brand img{height:42px;display:block;margin-bottom:3px}.brand .co{font-size:9.5px;color:#666}
+  .doc{text-align:right}.doc .lbl{font-size:9px;letter-spacing:.14em;color:#999}.doc .num{font-size:20px;font-weight:800;color:#7b1e2b;margin:1px 0 3px}
+  .doc .row{font-size:10.5px;color:#555}.doc .row b{color:#222}
+  .datos{display:flex;gap:18px;font-size:11.5px;margin:6px 0 8px}.datos b{border-bottom:1px solid #999;display:inline-block;min-width:150px;padding:0 4px}
+  .ind{border:1px solid #e5d3a8;background:#fffbeb;border-radius:6px;padding:6px 9px;margin-bottom:8px;font-size:11px}
+  table.it{width:100%;border-collapse:collapse}
+  table.it th{background:#1d1d1d;color:#fff;font-size:8.5px;text-transform:uppercase;letter-spacing:.05em;padding:5px 5px;text-align:left}
+  table.it td{padding:5px 5px;border:1px solid #d9d9d9;vertical-align:top}
+  table.it td.esc{background:#fafafa;min-width:60px;height:40px}
+  .sub{font-size:9px;color:#777}.c{text-align:center}.n{text-align:right;white-space:nowrap}
+  .q{font-size:9.5px;color:#333;margin-top:2px;line-height:1.35}
+  .op{font-size:10px;white-space:nowrap}
+  h2{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#7b1e2b;margin:12px 0 5px}
+  .lineas div{border-bottom:1px solid #bbb;height:22px}
+  .firmas{display:flex;gap:40px;margin-top:30px}.firmas div{flex:1;border-top:1px solid #333;padding-top:4px;font-size:10px;color:#555;text-align:center}
+  .pie{margin-top:12px;font-size:8.5px;color:#999;text-align:center}`;
+function pgHojaHTML(f,d,m,lleno){
+  const c=pgCfg(),bl=d.bloques.filter(b=>b.maq===m.id).sort((a,b)=>a.ini-b.ini),op=pgOperario(d,m);
+  const u=currentUser();
+  let tPlan=0,tReal=0,tCant=0;
+  const filas=bl.map((b,i)=>{
+    const r=b.tipo==='rop'?pgRopPorId(b.ropId):null,rep=d.reportes[b.id]||{};
+    const q=r?pgQueHacer(r,b.proc):{lineas:[],total:''};
+    const lin=q.lineas.slice(0,8);
+    tPlan+=b.min;const mr=(rep.minReal!==''&&rep.minReal!=null)?+rep.minReal:(rep.estado==='completo'?b.min:null);if(mr)tReal+=mr;tCant+=+rep.cant||0;
+    const trabajo=b.tipo==='rop'
+      ?`<b>${esc(b.rop)}</b> · ${esc(r?r.cliente:'')}${r&&r.subtitulo?`<div class="sub">${esc(r.subtitulo)}</div>`:''}${r&&r.entrega?`<div class="sub">Entrega: ${fmtDate(r.entrega)}</div>`:''}`
+      :`<b>${esc(b.act||'Actividad')}</b>`;
+    const que=(lin.length?`<div class="q">${lin.map(esc).join('<br>')}${q.lineas.length>lin.length?`<br><i>… y ${q.lineas.length-lin.length} más (ver la orden)</i>`:''}</div>`:'')
+      +(q.total?`<div class="sub" style="margin-top:2px"><b>Total orden: ${esc(q.total)}</b></div>`:'')+(b.nota?`<div class="q"><b>Nota:</b> ${esc(b.nota)}</div>`:'');
+    const cols=lleno
+      ?`<td class="c">${mr!=null?pgHc(mr):'—'}</td><td class="c"><b>${rep.cant!=null&&rep.cant!==''?esc(String(rep.cant)):'—'}</b></td><td class="c">${rep.estado?PG_EST[rep.estado]+(rep.estado==='parcial'?' ('+(rep.pct||50)+'%)':''):'—'}</td><td>${esc(rep.obs||'')}</td>`
+      :`<td class="esc"></td><td class="esc"></td><td class="esc"></td><td class="op">☐ Sí<br>☐ A medias<br>☐ No</td>`;
+    return `<tr><td class="c">${i+1}</td><td class="n">${pgHora(b.ini)}–${pgHora(pgFin(b.ini,b.min))}</td><td>${trabajo}</td><td>${que||'<span class="sub">—</span>'}</td><td class="c">${pgHc(b.min)}</td>${cols}</tr>`;
+  }).join('');
+  const thExtra=lleno
+    ?`<th class="c">Horas reales</th><th class="c">${esc(PG_HECHO[m.proc]||'Cantidad')}</th><th class="c">Quedó</th><th>Observación</th>`
+    :`<th class="c" style="width:58px">Inicio real</th><th class="c" style="width:58px">Fin real</th><th class="c" style="width:70px">${esc(PG_HECHO[m.proc]||'Cantidad')}</th><th style="width:62px">¿Terminó?</th>`;
+  return `<section class="hoja">
+    <div class="top"><div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><b>DOBLASER S.A.S.</b> · Producción</div></div>
+      <div class="doc"><div class="lbl">${lleno?'REPORTE DE TRABAJO':'HOJA DE TRABAJO'}</div><div class="num">${esc(m.nombre)}</div>
+        <div class="row" style="text-transform:capitalize"><b>${pgFechaLarga(f)}</b></div><div class="row">Proceso: <b>${esc(m.proc)}</b> · Turno ${pgHora(c.inicio)} a ${pgHora(c.fin)}</div></div></div>
+    <div class="datos"><span>Operario: <b>${esc(op)||'&nbsp;'}</b></span>${lleno?'':'<span>Llegó: <b style="min-width:70px">&nbsp;</b></span><span>Salió: <b style="min-width:70px">&nbsp;</b></span>'}</div>
+    ${d.nota?`<div class="ind"><b>Indicaciones del día:</b> ${esc(d.nota)}</div>`:''}
+    <table class="it"><thead><tr><th class="c" style="width:18px">#</th><th style="width:62px">Hora</th><th style="width:150px">Orden · cliente</th><th>Qué hay que hacer</th><th class="c" style="width:42px">Plan</th>${thExtra}</tr></thead>
+      <tbody>${filas}</tbody>
+      ${lleno?`<tfoot><tr><td colspan="4" class="n"><b>Total</b></td><td class="c"><b>${pgHc(tPlan)}</b></td><td class="c"><b>${tReal?pgHc(tReal):'—'}</b></td><td class="c"><b>${tCant||'—'}</b></td><td colspan="2"></td></tr></tfoot>`:''}</table>
+    ${lleno?'':`<h2>Trabajo no programado, novedades y daños</h2><div class="lineas"><div></div><div></div><div></div><div></div></div>`}
+    <div class="firmas"><div>Firma del operario</div><div>Revisó · director operativo</div></div>
+    <div class="pie">Impreso ${fmtDateTime(new Date().toISOString())}${u?' por '+esc(u.name):''} · CRM Doblaser · Programación de planta</div>
+  </section>`;
+}
+function pgImprimirHojas(maqId,lleno){
+  const f=PG.fecha,d=pgDia(f),c=pgCfg();
+  const ms=c.maquinas.filter(m=>(!maqId||m.id===maqId)&&d.bloques.some(b=>b.maq===m.id));
+  if(!ms.length){toast('No hay trabajos programados '+(maqId?'en esa máquina':'ese día'));return;}
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Hojas ${f}</title><style>@page{size:Letter;margin:0}${PG_PRINT_CSS}</style></head><body>${ms.map(m=>pgHojaHTML(f,d,m,lleno)).join('')}</body></html>`;
+  printDoc(html,cleanFileName((lleno?'Reporte de trabajo ':'Hojas de trabajo ')+f+(maqId&&ms[0]?' - '+ms[0].nombre:'')));
+}
+function pgImprimirPrograma(){
+  const f=PG.fecha,d=pgDia(f),c=pgCfg(),span=c.fin-c.inicio;
+  if(!d.bloques.length){toast('No hay nada programado ese día');return;}
+  const X=m=>((m-c.inicio)/span*100).toFixed(3)+'%';
+  const horas=[];for(let h=Math.ceil(c.inicio/60);h*60<=c.fin;h++)horas.push(h);
+  const filas=c.maquinas.map(m=>{
+    const bl=d.bloques.filter(b=>b.maq===m.id).sort((a,b)=>a.ini-b.ini);
+    return `<div class="fr"><div class="fh"><b>${esc(m.nombre)}</b><div class="sub">${esc(m.proc)} · ${esc(pgOperario(d,m)||'sin operario')}</div></div><div class="ft">
+      ${horas.map(h=>`<span class="ln" style="left:${X(h*60)}"></span>`).join('')}
+      ${pgDescansos().map(x=>`<span class="br" style="left:${X(x.ini)};width:${((x.fin-x.ini)/span*100).toFixed(3)}%"></span>`).join('')}
+      ${bl.map(b=>{const fin=pgFin(b.ini,b.min),r=b.tipo==='rop'?pgRopPorId(b.ropId):null,col=b.tipo==='rop'?pgColor(b.ropId):{bc:'#f2f2f2',bb:'#888'};
+        return `<div class="bk" style="left:${X(b.ini)};width:${((Math.min(fin,c.fin)-b.ini)/span*100).toFixed(3)}%;background:${col.bc};border-color:${col.bb}"><b>${esc(b.tipo==='rop'?b.rop:b.act)}</b><br>${esc(r?r.cliente:(b.nota||''))}<br><span class="sub">${pgHora(b.ini)}–${pgHora(fin)} · ${pgHc(b.min)}</span></div>`;}).join('')}
+    </div></div>`;}).join('');
+  const lista=c.maquinas.map(m=>{const bl=d.bloques.filter(b=>b.maq===m.id).sort((a,b)=>a.ini-b.ini);if(!bl.length)return '';
+    return bl.map((b,i)=>{const r=b.tipo==='rop'?pgRopPorId(b.ropId):null;return `<tr>${i===0?`<td rowspan="${bl.length}"><b>${esc(m.nombre)}</b><div class="sub">${esc(pgOperario(d,m))}</div></td>`:''}<td class="n">${pgHora(b.ini)}–${pgHora(pgFin(b.ini,b.min))}</td><td>${esc(b.tipo==='rop'?b.rop:b.act)}</td><td>${esc(r?(r.cliente||'')+(r.subtitulo?' · '+r.subtitulo:''):'')}</td><td class="c">${pgHc(b.min)}</td><td>${r&&r.entrega?fmtDate(r.entrega):''}</td><td>${esc(b.nota||'')}</td></tr>`;}).join('');}).join('');
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Programa ${f}</title><style>@page{size:Letter landscape;margin:0}${PG_PRINT_CSS}
+    .tl{border:1px solid #ccc;border-radius:6px;overflow:hidden;margin-bottom:10px}
+    .fr{display:flex;border-bottom:1px solid #ddd;min-height:52px}.fr:last-child{border-bottom:none}
+    .fh{width:110px;padding:5px 7px;border-right:1px solid #ccc;background:#fafafa;flex-shrink:0}
+    .ft{position:relative;flex:1}.hd .ft{height:18px}.hd{min-height:18px;background:#f3f3f3}
+    .tk{position:absolute;top:3px;font-size:8.5px;color:#777;transform:translateX(-50%)}
+    .ln{position:absolute;top:0;bottom:0;border-left:1px solid #eee}
+    .br{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,#f3f3f3 0 5px,#e6e6e6 5px 10px)}
+    .bk{position:absolute;top:4px;bottom:4px;border:1px solid;border-left-width:3px;border-radius:4px;padding:2px 4px;font-size:8.5px;line-height:1.25;overflow:hidden}
+  </style></head><body><section class="hoja">
+    <div class="top"><div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><b>DOBLASER S.A.S.</b> · Producción</div></div>
+      <div class="doc"><div class="lbl">PROGRAMA DE PRODUCCIÓN</div><div class="num" style="text-transform:capitalize">${pgFechaLarga(f)}</div><div class="row">Turno ${pgHora(c.inicio)} a ${pgHora(c.fin)}</div></div></div>
+    ${d.nota?`<div class="ind"><b>Indicaciones del día:</b> ${esc(d.nota)}</div>`:''}
+    <div class="tl"><div class="fr hd"><div class="fh"></div><div class="ft">${horas.map(h=>`<span class="tk" style="left:${X(h*60)}">${h}:00</span>`).join('')}</div></div>${filas}</div>
+    <table class="it"><thead><tr><th>Máquina</th><th>Hora</th><th>Orden</th><th>Cliente · proyecto</th><th class="c">Horas</th><th>Entrega</th><th>Nota</th></tr></thead><tbody>${lista}</tbody></table>
+    <div class="pie">Impreso ${fmtDateTime(new Date().toISOString())} · CRM Doblaser · Programación de planta</div>
+  </section></body></html>`;
+  printDoc(html,cleanFileName('Programa de produccion '+f));
+}
+
 let ropFilterH='Todas';
 function renderRopHistorial(){
   const rows=CACHE.rop.filter(match).filter(x=>ropCerrada(x)).filter(x=>ropFilterH==='Todas'||x.estado===ropFilterH)
@@ -3357,7 +4379,8 @@ function createVentaFromRop(id){
   },60);
 }
 let ropFilter='Todas';
-let ropMode='lista';
+let ropMode=(()=>{try{return localStorage.getItem('db_ropMode')||'lista'}catch(e){return 'lista'}})();
+function ropSetMode(m){ropMode=m;try{localStorage.setItem('db_ropMode',m)}catch(e){}render();}
 let ropHist=false;
 
 /* =========================================================
@@ -5843,7 +6866,7 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
   <div class="field full"><label>Avance de producción — mueve la barra de cada proceso</label>
     <div id="ropAvanceBox"></div>
   </div>
-  <div class="field full"><label>Tiempos de producción — minutos que tomó cada proceso</label>
+  <div class="field full"><label>Tiempos de producción — minutos de cada proceso para toda la orden (con esto se llena la Programación)</label>
     <div id="ropTiemposBox"></div>
   </div>
   <div class="field full rop-bit"><label>Bitácora — entregas parciales y novedades</label>
