@@ -3387,7 +3387,7 @@ async function pgCargar(){
         sb.from('config').select('k,v').eq('k','prog_cfg')]);
       if(a.error)throw a.error;if(b.error)throw b.error;
       const dias={};
-      (a.data||[]).forEach(x=>{try{const v=typeof x.v==='string'?JSON.parse(x.v):x.v;dias[x.k.slice(5)]=pgNormDia(v);}catch(e){}});
+      (a.data||[]).forEach(x=>{try{const v=typeof x.v==='string'?JSON.parse(x.v):x.v;dias[x.k.slice(5)]=pgNormDia(v);PG_VER[x.k.slice(5)]=dias[x.k.slice(5)].updatedAt||'';}catch(e){}});
       Object.keys(_pgT).forEach(f=>{if(PG.dias[f])dias[f]=PG.dias[f];});   /* lo que aún no se ha subido manda */
       PG.dias=dias;
       const cf=(b.data||[])[0];
@@ -3408,10 +3408,31 @@ function pgGuardar(f){
   const u=currentUser();d.updatedBy=u?u.name:'—';d.updatedAt=new Date().toISOString();
   pgEstado('Guardando…');clearTimeout(_pgT[f]);_pgT[f]=setTimeout(()=>pgSubir(f),600);
 }
+const PG_VER={},PG_BORRADOS=new Set();
+window.addEventListener('beforeunload',e=>{if(Object.keys(_pgT).length){Object.keys(_pgT).forEach(f=>{clearTimeout(_pgT[f]);pgSubir(f);});e.preventDefault();e.returnValue='';}});
+/* si otro equipo guardó este día después de que lo cargamos, se juntan los dos:
+   los bloques y reportes que él agregó se conservan, los nuestros mandan, y lo
+   que borramos aquí no revive */
+async function pgJuntarRemoto(f,d){
+  try{
+    const{data}=await sb.from('config').select('v').eq('k','prog:'+f).maybeSingle();
+    if(!data||!data.v)return 0;
+    const r=pgNormDia(typeof data.v==='string'?JSON.parse(data.v):data.v);
+    if(!r.updatedAt||r.updatedAt===PG_VER[f])return 0;
+    let n=0;const ids=new Set(d.bloques.map(b=>b.id));
+    r.bloques.forEach(b=>{if(!ids.has(b.id)&&!PG_BORRADOS.has(b.id)){d.bloques.push(b);n++;}});
+    Object.keys(r.reportes).forEach(k=>{if(!d.reportes[k]&&!PG_BORRADOS.has(k))d.reportes[k]=r.reportes[k];});
+    Object.keys(r.operarios).forEach(k=>{if(d.operarios[k]==null)d.operarios[k]=r.operarios[k];});
+    if(!d.nota&&r.nota)d.nota=r.nota;
+    return n||1;
+  }catch(e){return 0;}
+}
 async function pgSubir(f){
   delete _pgT[f];const d=PG.dias[f];if(!d)return;
   if(USING_SB&&sb){
-    try{const{error}=await sb.from('config').upsert({k:'prog:'+f,v:JSON.stringify(d)},{onConflict:'k'});if(error)throw error;pgEstado('✓ Guardado');}
+    const junto=await pgJuntarRemoto(f,d);
+    try{const{error}=await sb.from('config').upsert({k:'prog:'+f,v:JSON.stringify(d)},{onConflict:'k'});if(error)throw error;PG_VER[f]=d.updatedAt;pgEstado('✓ Guardado');
+      if(junto){toast('Otro equipo también había cambiado este día: se juntaron los dos cambios');if(VIEW==='rop'&&ropMode==='prog')render();}}
     catch(e){pgEstado('⚠ No se guardó');toast('No se pudo guardar la programación: '+((e&&e.message)||'sin conexión'));}
   }else{const all=LS.get('prog_dias',{})||{};all[f]=d;LS.set('prog_dias',all);pgEstado('✓ Guardado en este equipo');}
 }
@@ -3525,7 +3546,7 @@ function pgResumenDiaHTML(f,d,uso){
   const filas=ids.map(i=>{const x=por[i],r=pgRopPorId(i),ti=r?pgTiempos(r):{};
     const tarde=r&&r.entrega&&f>r.entrega;
     return `<tr><td class="nw"><span class="code">${esc(x.rop)}</span></td><td><b>${esc(r?r.cliente:'')}</b>${r&&r.subtitulo?`<div class="fc-sub">${esc(r.subtitulo)}</div>`:''}</td>
-      ${procs.map(p=>`<td class="num tnum">${x.h[p]?pgHc(x.h[p])+(r&&ti[p]&&ti[p].min?`<div class="fc-sub">faltan ${pgHc(pgPendiente(r,p,ti,uso))}</div>`:''):'<span class="fc-sub">—</span>'}</td>`).join('')}
+      ${procs.map(p=>`<td class="num tnum">${x.h[p]?pgHc(x.h[p])+(r&&ti[p]&&ti[p].min?`<div class="fc-sub">${pgPendiente(r,p,ti,uso)>0?'faltan '+pgHc(pgPendiente(r,p,ti,uso)):'completo ✓'}</div>`:''):'<span class="fc-sub">—</span>'}</td>`).join('')}
       <td class="nw ${tarde?'':''}">${r&&r.entrega?`<span style="${tarde?'color:#b91c1c;font-weight:700':''}">${pgCorta(r.entrega)}</span>`:'—'}</td><td>${x.rep?x.rep+' de '+x.n:'<span class="fc-sub">sin reportar</span>'}</td></tr>`;}).join('');
   return panel('Resumen del día',pgFechaLarga(f),kpis+(ids.length
     ?`<table class="fc-tabla" style="margin:6px 0"><thead><tr><th style="padding-top:10px">Orden</th><th style="padding-top:10px">Cliente · proyecto</th>${procs.map(p=>`<th class="num" style="padding-top:10px">${p}</th>`).join('')}<th style="padding-top:10px">Entrega</th><th style="padding-top:10px">Reporte</th></tr></thead><tbody>${filas}</tbody></table>`
@@ -3745,7 +3766,7 @@ function pgVaciar(){
   const quita=d.bloques.filter(b=>!(d.reportes[b.id]&&d.reportes[b.id].estado));
   if(!quita.length){toast('No hay nada que quitar (lo reportado se conserva)');return;}
   pedirConfirmacion('¿Vaciar el '+pgCorta(f)+'?','Se quitan '+quita.length+' trabajo(s) programados. Lo que ya tiene reporte se conserva. Las horas vuelven a quedar pendientes en sus órdenes.',()=>{
-    d.bloques=d.bloques.filter(b=>d.reportes[b.id]&&d.reportes[b.id].estado);pgGuardar(f);render();toast('Día vaciado');},'Vaciar');
+    quita.forEach(b=>PG_BORRADOS.add(b.id));d.bloques=d.bloques.filter(b=>d.reportes[b.id]&&d.reportes[b.id].estado);pgGuardar(f);render();toast('Día vaciado');},'Vaciar');
 }
 
 /* ---- cuadros: editar bloque y tiempos de una orden ---- */
@@ -3815,7 +3836,7 @@ function pgEditGuardar(id){
 }
 function pgBorrar(id){
   const f=PG.fecha,d=pgDia(f,true);
-  d.bloques=d.bloques.filter(x=>x.id!==id);delete d.reportes[id];
+  d.bloques=d.bloques.filter(x=>x.id!==id);delete d.reportes[id];PG_BORRADOS.add(id);
   pgCerrar();pgGuardar(f);render();toast('Quitado; sus horas vuelven a quedar pendientes');
 }
 function pgPasarDia(id){
@@ -3824,7 +3845,7 @@ function pgPasarDia(id){
   const h=pgPrimerHueco(f2,b.maq,b.min);
   if(!h){toast('Ese día la máquina ya está llena');return;}
   const nb={...b,id:pgId(),ini:h.ini,min:Math.min(b.min,h.disp)};
-  d.bloques=d.bloques.filter(x=>x.id!==id);delete d.reportes[id];
+  d.bloques=d.bloques.filter(x=>x.id!==id);delete d.reportes[id];PG_BORRADOS.add(id);
   pgDia(f2,true).bloques.push(nb);pgGuardar(f);pgGuardar(f2);pgCerrar();render();
   toast('Pasado al '+pgCorta(f2)+' a las '+pgHora(h.ini)+(nb.min<b.min?' (solo cupieron '+pgHc(nb.min)+')':''));
 }
@@ -8550,7 +8571,8 @@ document.getElementById('overlay').addEventListener('click',e=>{
 });
 document.getElementById('mBody').addEventListener('input',()=>{if(editing.t==='cotizaciones'&&!editing.id)queueCotDraft();});
 
-function today(){return new Date().toISOString().slice(0,10)}
+/* fecha local: toISOString es UTC y después de las 7 pm (Colombia, UTC-5) daba la de mañana */
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function addDays(d,n){try{const x=new Date((d||today())+'T00:00:00');x.setDate(x.getDate()+(+n||0));return x.toISOString().slice(0,10);}catch(e){return today();}}
 /* =========================================================
    Días hábiles en Colombia
