@@ -3411,7 +3411,7 @@ function pgPendiente(r,p,ti,uso){
 }
 function pgColor(id){let h=0;String(id).split('').forEach(c=>{h=(h*53+c.charCodeAt(0)*17)%360;});return {bc:'hsl('+h+',62%,93%)',bb:'hsl('+h+',48%,40%)'};}
 function pgPorEntrega(a,b){return ((a.entrega||'9999')).localeCompare(b.entrega||'9999')||((a.rop||'').localeCompare(b.rop||''));}
-function pgPuede(){const u=currentUser();return !!u&&(isAdmin()||/Director operativo|Gerente/i.test(u.role||''));}
+function pgPuede(){const u=currentUser();return !!u&&(isAdmin()||u.name==='Yuliana'||/Director operativo|Gerente/i.test(u.role||''));}
 function pgPuedeReportar(){const u=currentUser();return pgPuede()||(!!u&&/Producci/i.test(u.role||''));}
 
 /* ---- nube ---- */
