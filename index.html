@@ -1100,6 +1100,8 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pg-hor .pg-hl{color:var(--ink-3);font-weight:600;padding:6px 0}
 .pg-hor .lnk{background:none;border:0;padding:0;font:inherit;font-size:11px;color:var(--wine);text-decoration:underline;cursor:pointer}
 .pg-sem td .lnk{background:none;border:0;padding:0;font:inherit;color:var(--wine);text-decoration:underline;cursor:pointer}
+.pg-42{border:1px solid #e5d3a8;background:#fffbeb;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:10px;line-height:1.5}
+.pg-ext{display:inline-block;margin-top:2px;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700}
 .pg-ayuda{font-size:12px;color:var(--ink-3);margin:10px 2px 0;line-height:1.55}
 .pg-avisos{margin-top:12px;border:1px solid #fca5a5;background:#fef2f2;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#991b1b}
 .pg-avisos li{margin-left:18px;margin-top:3px}
@@ -4077,6 +4079,13 @@ function pgAjustesHTML(){
   </div>`;
 }
 const PG_DSEM=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const PG_JORNADA=42;   /* horas ordinarias a la semana; lo que pase son horas extra */
+function pgHorasSemTxt(min){
+  const j=PG_JORNADA*60;
+  if(min>j)return `<b>${pgHc(min)}</b><div class="pg-ext">+${pgHc(min-j)} extra</div>`;
+  if(min<j)return `<b>${pgHc(min)}</b><div class="fc-sub" style="color:#b45309">faltan ${pgHc(j-min)} para ${PG_JORNADA} h</div>`;
+  return `<b>${pgHc(min)}</b><div class="fc-sub" style="color:#15803d">jornada completa ✓</div>`;
+}
 function pgPersonalHTML(){
   const c=pgCfg(),ed=pgPuede(),dis=ed?'':'disabled',lunes=pgLunes(PG.fecha),hoy=pgHoy();
   const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
@@ -4089,7 +4098,7 @@ function pgPersonalHTML(){
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
         ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">`:'<div class="pg-hl">No trabaja</div>'}
         ${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>${cambio?` · <button type="button" class="lnk" onclick="pgHorBase('${e.id}',${dw})" title="Volver al horario base">base</button>`:''}`:''}</td>`;}).join('');
-    return `<tr><td><b>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum"><b>${pgHc(tot)}</b></td></tr>`;
+    return `<tr><td><b>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
   return `<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
       <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,-7);render()">◀ Anterior</button>
@@ -4099,6 +4108,7 @@ function pgPersonalHTML(){
       ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
       <button type="button" class="btn ghost sm" onclick="pgHorLimpiar()">Volver todo al horario base</button>
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
+    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:fechas.reduce((a,f)=>{const t=pgTurnoEmp(e,f);return a+(t?pgTrabajo(t.ini,t.fin):0);},0)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fechas.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
@@ -4140,6 +4150,8 @@ function pgEmpGuardar(){
   if(PG._emp>=0)Object.assign(c.personal[PG._emp],{nombre,ini,fin,dias});
   else c.personal.push({id:'e'+Date.now().toString(36),nombre,ini,fin,dias});
   pgCerrar();pgGuardarCfg();render();
+  const sem=pgTrabajo(ini,fin)*dias.length,j=PG_JORNADA*60;
+  toast('Horario base de '+nombre+': '+pgHc(sem)+' a la semana'+(sem>j?' · '+pgHc(sem-j)+' son horas extra':sem<j?' · faltan '+pgHc(j-sem)+' para '+PG_JORNADA+' h':' · jornada completa'));
 }
 function pgEmpQuitar(i){const c=pgCfg(),e=c.personal[i];if(!e)return;
   pedirConfirmacion('¿Quitar a '+e.nombre+'?','Sus máquinas vuelven a tomar el horario general de la planta.',()=>{c.personal.splice(i,1);Object.values(c.horarios||{}).forEach(w=>delete w[e.id]);pgGuardarCfg();render();},'Quitar');}
