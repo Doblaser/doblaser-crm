@@ -2382,9 +2382,10 @@ function factAbrir(id){
       <div><label>Fecha de la factura</label><input id="fcFecha" type="date" value="${v.fechaFactura||today()}"></div>
       <div><label>Se vence el</label><input id="fcVence" type="date" value="${v.fechaVence||''}"></div>
     </div>
-    <div class="fc-campos"><div style="flex:1"><label>Nota (opcional)</label><input id="fcNota" type="text" value="${esc(v.notaFactura)||''}" placeholder="Lo que haya que recordar de esta factura"></div></div>
+    <div class="fc-campos"><div style="flex:1"><label>Observaciones (salen impresas en el soporte)</label><textarea id="fcNota" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:14px;resize:vertical" placeholder="Ej: factura FE-1234 cubre ROP-2650 y ROP-2651 · anticipo del 50% · pendiente la OC del cliente">${esc(v.notaFactura)||''}</textarea></div></div>
     <div class="fc-acc">
       <button type="button" class="btn ghost" onclick="factCerrar()">Cancelar</button>
+      <button type="button" class="btn ghost" onclick="factImprimir('${v.id}',true)">🖨 Imprimir soporte</button>
       ${v.facturada?`<button type="button" class="btn ghost" onclick="factQuitar('${v.id}')">Quitar la factura</button>`:''}
       <button type="button" class="btn" onclick="factGuardar('${v.id}')">${v.facturada?'Guardar':'Marcar facturada'}</button>
     </div>
@@ -2471,6 +2472,105 @@ function factPorFacturarHTML(){
         <td><button class="btn sm" onclick="factAbrir('${v.id}')">Facturar</button></td>
       </tr>`;}).join('')}</tbody></table>`
     :'<div class="fc-vacio">No hay nada con precio pendiente por facturar.</div>'}${tablaSinPrecio}`;
+}
+
+/* ---- facturadas: cada una con su soporte imprimible ---- */
+function factFacturadasHTML(){
+  const t=qTerms();
+  const rows=(CACHE.ventas||[]).filter(v=>v.facturada)
+    .filter(v=>!t.length||incluyeTodo(JSON.stringify(v),t)||incluyeTodo(factRef(v),t))
+    .sort((a,b)=>(b.fechaFactura||b.fecha||'').localeCompare(a.fechaFactura||a.fecha||''));
+  return `<div class="fc-intro"><b>${rows.length} ventas facturadas</b>, la más reciente primero. Usa el buscador de arriba para encontrar por número de factura, cliente, orden o cotización.</div>
+    ${rows.length?`<table class="fc-tabla"><thead><tr>
+      <th>Factura</th><th>Fecha</th><th>Cliente</th><th>Orden / cotización</th><th class="num">Total con IVA</th><th class="num">Saldo</th><th>Observaciones</th><th></th>
+    </tr></thead><tbody>${rows.map(v=>`<tr>
+      <td><span class="code">${esc(v.numFactura)||'—'}</span></td>
+      <td class="nw">${v.fechaFactura?fmtDate(v.fechaFactura):'—'}</td>
+      <td><b>${esc(v.cliente)||'—'}</b></td>
+      <td><span class="code">${esc(factRef(v))}</span></td>
+      <td class="num tnum">${COP(factTotal(v))}</td>
+      <td class="num tnum">${factSaldo(v)>1000?COP(factSaldo(v)):'<span class="fc-nota">pagada</span>'}</td>
+      <td style="max-width:260px"><div class="fc-sub" style="white-space:pre-wrap">${esc(v.notaFactura||'')}</div></td>
+      <td class="nw"><button class="btn ghost sm" onclick="factImprimir('${v.id}')">🖨 Imprimir</button> <button class="btn ghost sm" onclick="factAbrir('${v.id}')">Editar</button></td>
+    </tr>`).join('')}</tbody></table>`:'<div class="fc-vacio">Todavía no hay ventas facturadas.</div>'}`;
+}
+/* Soporte de facturación: todo lo que necesita la contadora para saber a qué
+   corresponde una factura -- orden, cotización, OC, piezas, valores, pagos y sus
+   propias observaciones. desdeDialogo=true imprime lo escrito en el cuadro aunque
+   todavía no se haya guardado. */
+function factImprimir(id,desdeDialogo){
+  let v=(CACHE.ventas||[]).find(x=>String(x.id)===String(id));if(!v)return;
+  if(desdeDialogo){const g=k=>{const e=document.getElementById(k);return e?e.value.trim():'';};
+    v={...v,numFactura:g('fcNum')||v.numFactura,fechaFactura:g('fcFecha')||v.fechaFactura,fechaVence:g('fcVence')||v.fechaVence,notaFactura:g('fcNota')};}
+  printDoc(factSoporteHTML(v),cleanFileName('Soporte factura '+(v.numFactura||'sin numero')+' - '+(v.cliente||'')));
+}
+function factSoporteHTML(v){
+  const r=factRopDe(v);
+  const c=v.cotizacion?(CACHE.cotizaciones||[]).find(x=>x.numero===v.cotizacion):(r&&r.cotId?(CACHE.cotizaciones||[]).find(x=>String(x.id)===String(r.cotId)):null);
+  const base=+v.valor||0,iva=base*IVA,total=factTotal(v),abon=+v.abonado||0,saldo=Math.max(0,total-abon);
+  /* el detalle sale de lo que se facturó; si la venta no lo tiene, de la orden; si no, de la cotización */
+  let det=(Array.isArray(v.piezasFactura)?v.piezasFactura:[]).filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>({d:p.desc,m:p.mat,c:+p.cant||0,u:+p.precio||0}));
+  let fuente='la venta';
+  if(!det.length&&r&&Array.isArray(r.piezas)){det=r.piezas.filter(p=>(p.desc||'').trim()).map(p=>({d:p.desc,m:p.mat,c:+p.cant||0,u:+p.precio||0}));fuente='la orden '+(r.rop||'');}
+  if(!det.some(x=>x.u>0)&&c&&Array.isArray(c.items)&&c.items.length){det=c.items.map(it=>({d:it.desc||it.proc,m:[it.material,it.calibre].filter(Boolean).join(' '),c:+it.cant||0,u:+it.vu||0}));fuente='la cotización '+(c.numero||'');}
+  const sumDet=det.reduce((a,x)=>a+x.c*x.u,0);
+  const fila=(k,val)=>val?`<tr><th>${k}</th><td>${val}</td></tr>`:'';
+  const entregas=r?entregasDe(r):[];
+  const servs=(Array.isArray(v.servicios)&&v.servicios.length?v.servicios:[v.servicio]).filter(Boolean).join(', ');
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Soporte factura ${esc(v.numFactura||'')}</title>
+<style>
+  @page{size:Letter;margin:0}*{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#222;font-size:11.5px;line-height:1.45;padding:12mm 14mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .top{display:flex;justify-content:space-between;gap:18px;border-bottom:3px solid #7b1e2b;padding-bottom:10px}
+  .brand img{height:48px;display:block;margin-bottom:4px}.brand .co{font-size:10px;color:#666}
+  .doc{text-align:right}.doc .lbl{font-size:9.5px;letter-spacing:.14em;color:#999}.doc .num{font-size:21px;font-weight:800;color:#7b1e2b;margin:2px 0 4px}
+  .doc .row{font-size:10.5px;color:#555}.doc .row b{color:#222}
+  h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7b1e2b;margin:14px 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  table.kv{width:100%;border-collapse:collapse}table.kv th{text-align:left;color:#888;font-weight:500;width:42%;padding:3px 6px 3px 0;vertical-align:top}table.kv td{padding:3px 0;font-weight:600}
+  table.it{width:100%;border-collapse:collapse}table.it th{background:#1d1d1d;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:6px 7px;text-align:left}
+  table.it td{padding:6px 7px;border-bottom:1px solid #eee;vertical-align:top}.n{text-align:right;white-space:nowrap}.c{text-align:center}
+  .sub{font-size:9.5px;color:#888}
+  .tot{margin-left:auto;width:300px;margin-top:8px;border-collapse:collapse}.tot td{padding:4px 6px}.tot .g{font-size:14px;font-weight:800;color:#7b1e2b;border-top:2px solid #7b1e2b}
+  .obs{border:1px solid #e5d3a8;background:#fffbeb;border-radius:8px;padding:10px 12px;white-space:pre-wrap;font-size:12px;min-height:40px}
+  .aviso{margin-top:6px;font-size:10px;color:#92400e}
+  .pie{margin-top:16px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:6px;text-align:center}
+</style></head><body>
+  <div class="top">
+    <div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><b>DOBLASER S.A.S.</b> · Nit 901682190-5<br>${esc(EMPRESA.dir)} · ${esc(EMPRESA.ciudad)}</div></div>
+    <div class="doc"><div class="lbl">SOPORTE DE FACTURACIÓN</div><div class="num">${esc(v.numFactura)||'SIN FACTURAR'}</div>
+      <div class="row">Fecha factura: <b>${v.fechaFactura?fmtDate(v.fechaFactura):'—'}</b></div>
+      <div class="row">Vence: <b>${v.fechaVence?fmtDate(v.fechaVence):'—'}</b></div></div>
+  </div>
+  <div class="g2">
+    <div><h2>Cliente</h2><table class="kv">
+      ${fila('Cliente',esc(v.cliente)||'—')}${fila('NIT',esc(v.nit||(c&&c.nit)||''))}${fila('Contacto',esc((c&&c.contacto)||''))}
+      ${fila('Asesor',esc(v.asesor||''))}${fila('Servicios',esc(servs))}</table></div>
+    <div><h2>Con qué se enlaza</h2><table class="kv">
+      ${fila('Orden de producción',r?esc(r.rop)+(r.subtitulo?' · '+esc(r.subtitulo):''):'')}
+      ${fila('Cotización',c?esc(c.numero)+(c.fecha?' · '+fmtDate(c.fecha):'')+' · '+COP(cotTotal(c).total)+' con IVA':esc(v.cotizacion||''))}
+      ${fila('Orden de compra',esc(v.ordenCompra||(r&&r.aprobacion)||''))}
+      ${fila('Fecha de la venta',v.fecha?fmtDate(v.fecha):'')}
+      ${fila('Ingreso → entrega',r?((r.ingreso?fmtDate(r.ingreso):'—')+' → '+(r.entrega?fmtDate(r.entrega):'—')):'')}
+      ${fila('Remisiones',entregas.length?entregas.map(g=>'Entrega '+g.n+' ('+fmtDate(g.fecha)+')').join(', '):'')}
+    </table></div>
+  </div>
+  ${v.descripcion?`<h2>Descripción</h2><div>${esc(v.descripcion)}</div>`:''}
+  <h2>Detalle facturado <span class="sub" style="text-transform:none;letter-spacing:0">(tomado de ${esc(fuente)})</span></h2>
+  ${det.length?`<table class="it"><thead><tr><th class="c" style="width:24px">#</th><th>Descripción</th><th class="c" style="width:55px">Cant.</th><th class="n" style="width:95px">V. unitario</th><th class="n" style="width:105px">Subtotal</th></tr></thead><tbody>
+    ${det.map((x,i)=>`<tr><td class="c">${i+1}</td><td>${esc(x.d)||'—'}${x.m?`<div class="sub">${esc(x.m)}</div>`:''}</td><td class="c">${x.c.toLocaleString('es-CO')}</td><td class="n">${x.u?COP(x.u):'—'}</td><td class="n">${x.u?COP(x.c*x.u):'—'}</td></tr>`).join('')}
+  </tbody></table>${sumDet>0&&Math.abs(sumDet-base)>1?`<div class="aviso">⚠ La suma del detalle (${COP(sumDet)}) no coincide con el valor de la venta sin IVA (${COP(base)}). Revisar antes de enviar.</div>`:''}`:'<div class="sub">Sin detalle de piezas.</div>'}
+  <table class="tot">
+    <tr><td>Base sin IVA</td><td class="n">${COP(base)}</td></tr>
+    <tr><td>IVA 19%</td><td class="n">${COP(iva)}</td></tr>
+    <tr><td class="g">Total</td><td class="n g">${COP(total)}</td></tr>
+    <tr><td>Abonado${v.fechaPago?' ('+fmtDate(v.fechaPago)+')':''}</td><td class="n">${COP(abon)}</td></tr>
+    <tr><td><b>Saldo</b></td><td class="n"><b>${COP(saldo)}</b></td></tr>
+  </table>
+  <h2>Observaciones de facturación</h2>
+  <div class="obs">${v.notaFactura?esc(v.notaFactura):'<span class="sub">Sin observaciones.</span>'}</div>
+  <div class="pie">Facturó: ${esc(v.facturadaPor||'—')} · Impreso ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''} · Documento interno, no es factura electrónica DIAN.</div>
+</body></html>`;
 }
 
 /* ---- 2. cartera ---- */
@@ -2569,12 +2669,13 @@ function renderFacturacion(){
   const pend=(CACHE.ventas||[]).filter(v=>!v.facturada).length;
   const deben=(CACHE.ventas||[]).filter(v=>(+v.valor||0)>0&&factSaldo(v)>1000);
   const tabs=[['porfacturar','Por facturar'+(pend?' ('+pend+')':'')],
-              ['cartera','Cartera'],['resumen','Resumen mensual']];
+              ['facturadas','Facturadas'],['cartera','Cartera'],['resumen','Resumen mensual']];
   const barra=`<div class="toolbar"><div class="seg">${tabs.map(([k,l])=>
     `<button class="${factTab===k?'on':''}" onclick="factSetTab('${k}')">${l}</button>`).join('')}</div></div>`;
   let cuerpo='';
   if(factTab==='porfacturar')cuerpo=factPorFacturarHTML();
   else if(factTab==='cartera')cuerpo=factCarteraHTML();
+  else if(factTab==='facturadas')cuerpo=factFacturadasHTML();
   else cuerpo=factResumenHTML();
   return barra+`<div class="fc-wrap">${cuerpo}</div>`;
 }
