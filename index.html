@@ -1059,6 +1059,13 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pg-head .pg-rh{font-size:11px;color:var(--ink-3);padding:5px 10px}
 .pg-tick{position:absolute;top:5px;transform:translateX(-50%);font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .pg-tick:first-child{transform:none}
+.pg-tick:last-child{transform:translateX(-100%)}
+.pg-track{min-height:var(--rowh,84px)}
+.pg-row:not(.pg-head) .pg-rh{min-height:var(--rowh,84px)}
+.pg-track{overflow:hidden}
+.pg-card .code{white-space:nowrap}
+.pg-res{margin-top:14px}
+.pg-res .panel{margin-bottom:0}
 .pg-line{position:absolute;top:0;bottom:0;border-left:1px solid var(--line-2);pointer-events:none}
 .pg-break{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(120,110,100,.10) 0 6px,rgba(120,110,100,.22) 6px 12px);pointer-events:none;text-align:center;z-index:3}
 .pg-break em{font-style:normal;font-size:9.5px;color:var(--ink-2);position:absolute;bottom:2px;left:0;right:0;font-weight:600}
@@ -1068,7 +1075,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pg-guia{position:absolute;top:0;bottom:0;border-left:2px dashed var(--wine);display:none;pointer-events:none;z-index:3}
 .pg-track.over .pg-guia{display:block}
 .pg-guia::after{content:attr(data-h);position:absolute;top:2px;left:4px;font-size:10.5px;font-weight:700;color:var(--wine);background:#fff;padding:0 4px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-.pg-b{position:absolute;top:6px;bottom:6px;background:var(--bc,#eef0f2);border:1px solid var(--bb,#6b7280);border-left-width:4px;border-radius:7px;padding:4px 9px 4px 6px;overflow:hidden;cursor:pointer;font-size:11px;line-height:1.25;box-shadow:0 1px 2px rgba(0,0,0,.06);z-index:1}
+.pg-b{position:absolute;top:8px;bottom:8px;background:var(--bc,#eef0f2);border:1px solid var(--bb,#6b7280);border-left-width:4px;border-radius:7px;padding:4px 9px 4px 6px;overflow:hidden;cursor:pointer;font-size:11px;line-height:1.25;box-shadow:0 1px 2px rgba(0,0,0,.06);z-index:1}
 .pg-b[draggable=true]{cursor:grab}
 .pg-b:hover{box-shadow:0 3px 10px rgba(0,0,0,.16);z-index:2}
 .pg-b.act{background:repeating-linear-gradient(45deg,#f8f7f6 0 8px,#efedeb 8px 16px);border-color:#8a857f}
@@ -1079,7 +1086,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .pg-b.r-nohecho{opacity:.55}
 .pg-b.r-nohecho .pg-bt{text-decoration:line-through}
 .pg-b.pasa{border-right:3px solid #b91c1c}
-.pg-bt{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-bt{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pg-bs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
 .pg-bh{white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:10.5px}
 .pg-rz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;touch-action:none}
@@ -3492,12 +3499,37 @@ function pgDiaHTML(){
   return pgBarraFecha(extra)+`<div class="pg-wrap">${pgLadoHTML(uso,ed)}
     <div class="pg-main">
       ${ed?`<input class="pg-nota" value="${esc(d.nota)}" placeholder="Indicaciones del día para todos los operarios (salen impresas en las hojas)" onchange="pgSetNota(this.value)">`:(d.nota?`<div class="pg-nota">${esc(d.nota)}</div>`:'')}
-      <div class="pg-grid"><div class="pg-gin">${head}${filas}</div></div>
+      <div class="pg-grid"><div class="pg-gin" style="--rowh:${Math.max(96,Math.min(190,Math.floor((innerHeight-470)/Math.max(1,c.maquinas.length))))}px">${head}${filas}</div></div>
       <datalist id="pgOps">${ops.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
       ${avisos.length?`<div class="pg-avisos"><b>⚠ Revisar en este día</b><ul>${[...new Set(avisos)].map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}
+      <div class="pg-res">${pgResumenDiaHTML(f,d,uso)}</div>
       <div class="pg-ayuda">${ayuda}</div>
       ${d.updatedAt?`<div class="pg-ayuda">Último cambio: ${esc(d.updatedBy||'—')} · ${fmtDateTime(d.updatedAt)}</div>`:''}
     </div></div>`;
+}
+/* debajo del horario: qué órdenes se trabajan ese día y cómo quedan */
+function pgResumenDiaHTML(f,d,uso){
+  const c=pgCfg(),cap=pgCapacidad();
+  const por={};
+  d.bloques.filter(b=>b.tipo==='rop').forEach(b=>{const x=por[b.ropId]||(por[b.ropId]={rop:b.rop,h:{},rep:0,n:0});x.h[b.proc]=(x.h[b.proc]||0)+b.min;x.n++;if(d.reportes[b.id]&&d.reportes[b.id].estado)x.rep++;});
+  const ids=Object.keys(por);
+  const ocup=d.bloques.reduce((a,b)=>a+b.min,0),capT=cap*c.maquinas.length;
+  const procs=PG_PROCS.filter(p=>c.maquinas.some(m=>m.proc===p)||ids.some(i=>por[i].h[p]));
+  const kp=(t,v,s)=>`<div style="flex:1;min-width:150px;padding:12px 16px;border-right:1px solid var(--line-2)"><div class="fc-sub" style="text-transform:uppercase;letter-spacing:.05em;font-size:10.5px">${t}</div><div style="font-size:22px;font-weight:700;font-family:'Archivo'">${v}</div><div class="fc-sub">${s}</div></div>`;
+  const libres=c.maquinas.filter(m=>!d.bloques.some(b=>b.maq===m.id)).map(m=>m.nombre);
+  const kpis=`<div style="display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line-2)">
+    ${kp('Ocupación de planta',(capT?Math.round(ocup/capT*100):0)+'%',pgHc(ocup)+' de '+pgHc(capT))}
+    ${kp('Órdenes en el día',ids.length,d.bloques.length+' trabajo(s)')}
+    ${kp('Reportados',d.bloques.filter(b=>d.reportes[b.id]&&d.reportes[b.id].estado).length+' / '+d.bloques.length,'al final de la jornada')}
+    ${kp('Máquinas sin trabajo',libres.length,libres.join(', ')||'todas tienen trabajo')}</div>`;
+  const filas=ids.map(i=>{const x=por[i],r=pgRopPorId(i),ti=r?pgTiempos(r):{};
+    const tarde=r&&r.entrega&&f>r.entrega;
+    return `<tr><td class="nw"><span class="code">${esc(x.rop)}</span></td><td><b>${esc(r?r.cliente:'')}</b>${r&&r.subtitulo?`<div class="fc-sub">${esc(r.subtitulo)}</div>`:''}</td>
+      ${procs.map(p=>`<td class="num tnum">${x.h[p]?pgHc(x.h[p])+(r&&ti[p]&&ti[p].min?`<div class="fc-sub">faltan ${pgHc(pgPendiente(r,p,ti,uso))}</div>`:''):'<span class="fc-sub">—</span>'}</td>`).join('')}
+      <td class="nw ${tarde?'':''}">${r&&r.entrega?`<span style="${tarde?'color:#b91c1c;font-weight:700':''}">${pgCorta(r.entrega)}</span>`:'—'}</td><td>${x.rep?x.rep+' de '+x.n:'<span class="fc-sub">sin reportar</span>'}</td></tr>`;}).join('');
+  return panel('Resumen del día',pgFechaLarga(f),kpis+(ids.length
+    ?`<table class="fc-tabla" style="margin:6px 0"><thead><tr><th style="padding-top:10px">Orden</th><th style="padding-top:10px">Cliente · proyecto</th>${procs.map(p=>`<th class="num" style="padding-top:10px">${p}</th>`).join('')}<th style="padding-top:10px">Entrega</th><th style="padding-top:10px">Reporte</th></tr></thead><tbody>${filas}</tbody></table>`
+    :`<div class="fc-vacio">Todavía no hay órdenes en este día. Arrástralas desde la lista o usa <b>⚡ Programar automático</b>.</div>`));
 }
 function pgBloqueHTML(b,f,uso,ed){
   const c=pgCfg(),span=c.fin-c.inicio,fin=pgFin(b.ini,b.min);
