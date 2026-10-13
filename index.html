@@ -1627,7 +1627,11 @@ const PERFILES_DEF=[
   {name:'Esteban',role:'Director operativo',views:['rop','inventario','cotizaciones','precios']},
   {name:'Daniel',role:'Diseñador',views:ALL_VIEWS.slice()},
   {name:'Yuliana',role:'Auxiliar contable',views:ALL_VIEWS.slice()},
-  {name:'Samuel',role:'Producción',views:['rop','inventario']}
+  {name:'Samuel',role:'Producción',views:['rop','inventario']},
+  /* Deisy entró el 13/10/2026. Arranca con el ROP y el inventario; el
+     Historial de órdenes va con el ROP (son las mismas órdenes ya cerradas).
+     Daniel le irá abriendo las demás desde Usuarios. */
+  {name:'Deisy',role:'Producción',views:['rop','ropHistorial','inventario']}
 ];
 const SERVICIOS=['Corte láser','Doblez','Soldadura','Pintura','Material','Terceros'];
 const PROCESOS=['Corte láser','Doblez','Soldadura','Pintura','Marcado láser','Material','Terceros'];
@@ -3197,7 +3201,9 @@ function renderRop(){
   const aviso=avisoEscondidos([
     {n:coinciden.filter(ropCerrada).length,
      txt:`en <b>${coinciden.filter(ropCerrada).length}</b> órden(es) ya cerradas`,
-     btn:{lbl:'Ver en Historial',fn:"setView('ropHistorial')"}},
+     /* sin permiso para el Historial el botón llevaría a una pantalla que le
+        rebota: se dice dónde están, pero sin el atajo */
+     btn:canView('ropHistorial')?{lbl:'Ver en Historial',fn:"setView('ropHistorial')"}:null},
     {n:coinciden.filter(x=>!ropCerrada(x)).length-coinciden.filter(x=>!ropCerrada(x)).filter(ropPasaKpi).filter(x=>ropFilter==='Todas'||x.estado===ropFilter).length,
      txt:'en órdenes que este filtro de arriba está escondiendo',
      btn:{lbl:'Quitar filtros',fn:"ropKpi='';ropFilter='Todas';render()"}}
@@ -4332,7 +4338,7 @@ function renderRopHistorial(){
   const aviso=avisoEscondidos([
     {n:coinciden.filter(x=>!ropCerrada(x)).length,
      txt:`en <b>${coinciden.filter(x=>!ropCerrada(x)).length}</b> órden(es) todavía activas`,
-     btn:{lbl:'Ver en el ROP',fn:"setView('rop')"}},
+     btn:canView('rop')?{lbl:'Ver en el ROP',fn:"setView('rop')"}:null},
     {n:ropFilterH==='Todas'?0:coinciden.filter(ropCerrada).length-rows.length,
      txt:'en otros estados',
      btn:{lbl:'Ver todos los estados',fn:"ropFilterH='Todas';render()"}}
