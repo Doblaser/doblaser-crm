@@ -359,6 +359,13 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .seg .seg-add{border:1px dashed var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;margin-left:4px}
 .seg .seg-add:hover{color:var(--text);border-color:var(--brand)}
 .inv-seg{flex-wrap:wrap}
+.rop-sec{border:1px solid var(--line);border-radius:12px;padding:14px 16px 16px;background:#fcfbfa}
+.rop-sec-h{display:flex;align-items:center;gap:10px;margin:-2px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-2)}
+.rop-sec-h b{display:block;font-family:'Archivo';font-size:14.5px;font-weight:600;color:var(--ink)}
+.rop-sec-h small{display:block;font-size:11.5px;color:var(--ink-3);font-weight:400}
+.rop-sec-n{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--wine);color:#fff;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rop-sec-int{background:#f7f6f4;border-style:dashed}
+.rop-sec .rop-mat{background:transparent;border:0;padding:0}
 .rop-mat{background:rgba(0,0,0,.13);border:1px solid var(--line);border-radius:10px;padding:12px 13px}
 .rop-mat-head{display:flex;align-items:center;gap:10px;margin:4px 0 10px}
 .rop-mat-head .rmh-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
@@ -7296,6 +7303,8 @@ function ropColor(c){
   document.querySelectorAll('#ropColores .rop-col').forEach(b=>b.classList.toggle('on',(b.style.getPropertyValue('--c')||'').trim()===c));
 }
 function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option value="${c.id}" ${String(r.cotId)===String(c.id)?'selected':''}>${esc(c.numero)} · ${esc(c.cliente)}</option>`).join('');return `<div class="fgrid">
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">1</span><div><b>Datos de la orden</b><small>número, estado, cliente y cómo se identifica</small></div></div>
+  <div class="fgrid">
   <div class="field"><label>N° ROP</label><input id="f_rop" value="${esc(r.rop)||nextRop()}"></div>
   <div class="field"><label>Estado</label><select id="f_estado">${opts(ROP_ESTADOS,r.estado||'Sin procesar')}</select></div>
   ${r.id?`<div class="field" id="ropDupBox"><label>&nbsp;</label><button type="button" class="btn ghost" style="align-self:flex-start" onclick="duplicarRop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;margin-right:6px;vertical-align:-2px"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>Duplicar orden</button></div>`:''}
@@ -7303,14 +7312,29 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
   <div class="field full"><label>Subtítulo del proyecto (opcional)</label><input id="f_subtitulo" value="${esc(r.subtitulo)}" placeholder="Ej. Puertas Torre 3 · Mesas IRENE" maxlength="60"></div>
   <div class="field full"><label>Color para identificarla</label><input type="hidden" id="f_color" value="${esc(r.color||'')}">
     <div class="rop-colores" id="ropColores">${ROP_COLORES.map(([c,n])=>`<button type="button" class="rop-col${(r.color||'')===c?' on':''}" style="${c?'--c:'+c:''}" title="${n}" onclick="ropColor('${c}')">${c?'':'—'}</button>`).join('')}</div></div>
+  </div></section>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">2</span><div><b>Origen, fechas y responsable</b><small>cotización u OC, quién pone el material, ingreso y entrega</small></div></div>
+  <div class="fgrid">
   <div class="field"><label>Cotización vinculada (trazabilidad)</label><select id="f_cotId" onchange="ropCotPick()"><option value="">— ninguna —</option>${cotOpts}</select></div>
   <div class="field"><label>Aprobación (COT DB / OC)</label><input id="f_aprobacion" value="${esc(r.aprobacion)}" placeholder="COT 1xxx / OC"></div>
   <div class="field"><label>Suministro material</label><select id="f_suministro">${opts(['Cliente','Doblaser'],r.suministro||'Cliente')}</select></div>
   <div class="field"><label>Fecha ingreso</label><input type="date" id="f_ingreso" value="${r.ingreso||today()}"></div>
   <div class="field"><label>Fecha entrega / finalización</label><input type="date" id="f_entrega" value="${r.entrega||''}"></div>
   <div class="field"><label>Asesor</label><select id="f_asesor">${opts(ASESOR_OPC,r.asesor||asesorActual())}</select></div>
-  <div class="field"><label>Costo real de fabricación (interno)</label><input type="number" id="f_costoReal" value="${r.costoReal||''}" placeholder="Materiales + procesos reales" oninput="ropCostCompare()"></div>
-  <div class="field full" id="ropCostBox"></div>
+  </div></section>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">3</span><div><b>Piezas a fabricar</b><small>qué se hace y cuántas unidades</small></div></div>
+  <div class="fgrid">
+  <div class="field full rop-pz"><label>Piezas de la orden — para órdenes que no vienen de cotización</label>
+    <div id="ropPzRows"></div>
+    <div class="rop-pz-btns">
+      <button type="button" class="btn ghost sm" onclick="rpAdd()">+ Pieza</button>
+      <button type="button" class="btn ghost sm" onclick="rpFromCot()">Traer de la cotización</button>
+    </div>
+    <div class="dfiles-hint">Escribe qué se fabrica y cuántas unidades. Sirve para las órdenes que entran directo a producción sin pasar por cotización.</div>
+  </div>
+  </div></section>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">4</span><div><b>Producción</b><small>procesos, avance y tiempos de cada uno</small></div></div>
+  <div class="fgrid">
   <div class="field full"><label>Procesos de esta orden — marca solo los que aplican</label>
     <div class="fases-chips" id="procChips">${ROP_PROCESOS.map(p=>`<label class="fase-chk ${ropStages(r).includes(p)?'on':''}"><input type="checkbox" value="${esc(p)}" ${ropStages(r).includes(p)?'checked':''} onchange="this.parentElement.classList.toggle('on',this.checked);renderRopAvance()"> ${esc(p)}</label>`).join('')}</div>
     <div class="dfiles-hint">La entrega se agrega sola al final. Si vinculas una cotización y no marcas nada, se toman los procesos de esa cotización.</div>
@@ -7321,6 +7345,9 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
   <div class="field full"><label>Tiempos de producción — minutos de cada proceso para toda la orden (con esto se llena la Programación)</label>
     <div id="ropTiemposBox"></div>
   </div>
+  </div></section>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">5</span><div><b>Entregas y bitácora</b><small>despachos parciales, remisiones firmadas y novedades</small></div></div>
+  <div class="fgrid">
   <div class="field full rop-bit"><label>Bitácora — entregas parciales y novedades</label>
     <div id="ropBitRows"></div>
     <div class="rb-nueva">
@@ -7345,15 +7372,9 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
     <div id="ropEntregasHist"></div>
     <div class="dfiles-hint">Cada entrega tiene su número, su remisión y <b>su propia firma</b>: firmar una nueva ya no borra la anterior. Usa <b>+ Nueva entrega</b> para despachar varias piezas de una sola vez.</div>
   </div>
-  <div class="field full rop-pz"><label>Piezas de la orden — para órdenes que no vienen de cotización</label>
-    <div id="ropPzRows"></div>
-    <div class="rop-pz-btns">
-      <button type="button" class="btn ghost sm" onclick="rpAdd()">+ Pieza</button>
-      <button type="button" class="btn ghost sm" onclick="rpFromCot()">Traer de la cotización</button>
-    </div>
-    <div class="dfiles-hint">Escribe qué se fabrica y cuántas unidades. Sirve para las órdenes que entran directo a producción sin pasar por cotización.</div>
-  </div>
-  <div class="field full"><label>Observaciones / alertas</label><textarea id="f_observaciones">${esc(r.observaciones)}</textarea></div>
+  </div></section>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">6</span><div><b>Material consumido</b><small>descuenta del inventario del dueño al guardar</small></div></div>
+  <div class="fgrid">
   <div class="field full rop-mat"><label>Material consumido en este proyecto — baja el stock al guardar</label>
     <div class="rop-mat-head"><span class="rmh-lbl">Dueño del material</span><select id="f_consumoDueno" onchange="if(this.value==='__nuevoCliente__'){agregarClienteDesdeSelect(this);}renderRopMat();">${duenoList().map(d=>`<option value="${esc(d)}" ${(r.consumoDueno||matchDueno(r.cliente))===d?'selected':''}>${d===DUENO_GEN?'General (Doblaser)':d}</option>`).join('')}<option value="__nuevoCliente__">+ Agregar nuevo cliente…</option></select></div>
     <div id="ropMatRows"></div>
@@ -7363,6 +7384,9 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
     </div>
     <div class="dfiles-hint">Indica cuántas láminas se usaron, por material y calibre. Al guardar la orden, esto descuenta del stock del dueño elegido — ideal para ALGAMAR, DEFENDER y E&D que traen su propio material. Si editas la orden, el consumo se recalcula solo.</div>
   </div>
+  </div></section>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">7</span><div><b>Archivos y observaciones</b><small>enlaces de Drive y alertas para el equipo</small></div></div>
+  <div class="fgrid">
   <div class="field full"><label>Archivos de producción · enlaces de Google Drive</label>
     <div class="dfiles-form">
       <div class="dfile-row"><span class="dfile-tag c-cut">Corte</span><input id="f_corteUrl" value="${esc(r.corteUrl)}" placeholder="Pega el enlace de Drive del archivo de corte">${r.corteUrl?`<a class="dfile-open" href="${esc(r.corteUrl)}" target="_blank" rel="noopener">Abrir</a>`:''}</div>
@@ -7371,6 +7395,14 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
     </div>
     <div class="dfiles-hint">En Google Drive: clic derecho sobre el archivo → <strong>Compartir → Copiar enlace</strong>, y pégalo aquí. Quedará como botón para abrirlo directo desde la orden de producción.</div>
   </div>
+  <div class="field full"><label>Observaciones / alertas</label><textarea id="f_observaciones">${esc(r.observaciones)}</textarea></div>
+  </div></section>
+  <section class="field full rop-sec rop-sec-int"><div class="rop-sec-h"><span class="rop-sec-n">8</span><div><b>Costo interno</b><small>costo real contra lo cotizado — solo uso interno</small></div></div>
+  <div class="fgrid">
+  <div class="field"><label>Costo real de fabricación (interno)</label><input type="number" id="f_costoReal" value="${r.costoReal||''}" placeholder="Materiales + procesos reales" oninput="ropCostCompare()"></div>
+  <div class="field full" id="ropCostBox"></div>
+  </div></section>
+
 </div>`}
 function ropCotPick(){const sel=document.getElementById('f_cotId');if(!sel||!sel.value)return;const c=CACHE.cotizaciones.find(x=>String(x.id)===String(sel.value));if(!c)return;const cli=document.getElementById('f_cliente');if(cli&&!cli.value)cli.value=c.cliente;const ap=document.getElementById('f_aprobacion');if(ap&&!ap.value)ap.value=c.numero;ropDuenoAuto();ropCostCompare();}
 function ropDuenoAuto(){const cli=document.getElementById('f_cliente'),sel=document.getElementById('f_consumoDueno');if(!cli||!sel)return;if(sel.value===DUENO_GEN){const m=matchDueno(cli.value);if(m!==DUENO_GEN)sel.value=m;}}
