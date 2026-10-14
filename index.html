@@ -3327,7 +3327,20 @@ function pgDia(f,crear){
   if(PG.dias[f])return PG.dias[f];
   const d=pgNormDia(null);if(crear)PG.dias[f]=d;return d;
 }
+/* En el láser un operario puede atender las dos máquinas: carga una mientras
+   la otra corta. Por eso la casilla de operario admite **varios nombres**
+   separados por coma, y la máquina queda disponible en la unión de sus turnos.
+   Antes la máquina moría fuera del turno del único operario asignado: si
+   Santiago entra a las 10, la Láser 3000 no se podía usar antes aunque Marlon
+   estuviera desde las 6. (Daniel, 14/10/2026.) */
 function pgOperario(d,m){const o=d&&d.operarios&&d.operarios[m.id];return (o!=null&&o!=='')?o:(m.operario||'');}
+/* la lista de nombres de una máquina */
+function pgOperarios(d,m){return String(pgOperario(d,m)||'').split(/[,;/]+/).map(x=>x.trim()).filter(Boolean);}
+/* ¿esta persona atiende esta máquina? */
+function pgAtiende(d,m,nombre){
+  const n=(nombre||'').trim().toLowerCase();if(!n)return false;
+  return pgOperarios(d,m).some(x=>x.toLowerCase()===n);
+}
 
 /* ---- aritmética del horario: los descansos no cuentan como trabajo ---- */
 function pgFin(ini,min){
@@ -3355,22 +3368,34 @@ function pgTurnoEmp(e,f){
 }
 function pgVentana(f,maq){
   const c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);
-  const op=m?pgOperario(pgDia(f),m):'',e=pgEmpleado(op),t=pgTurnoEmp(e,f);
-  if(t===undefined)return pgFestivo(f)?{ini:c.inicio,fin:c.inicio,op,libre:true,fest:true}:{ini:c.inicio,fin:c.fin,op,sin:true};
-  if(t===null)return {ini:c.inicio,fin:c.inicio,op,libre:true};
-  const ini=Math.max(c.inicio,t.ini),fin=Math.min(c.fin,t.fin);
-  return {ini,fin:Math.max(ini,fin),op};
+  const d=pgDia(f),ops=m?pgOperarios(d,m):[],op=ops.join(', ');
+  if(!ops.length)return {ini:c.inicio,fin:c.fin,op:'',sin:true};
+  /* la máquina está viva desde que entra el primero hasta que sale el último */
+  let ini=null,fin=null,alguienSinTurno=false,todosLibres=true;
+  ops.forEach(n=>{
+    const t=pgTurnoEmp(pgEmpleado(n),f);
+    if(t===undefined){alguienSinTurno=true;todosLibres=false;return;}
+    if(t===null)return;                       /* ese no trabaja hoy */
+    todosLibres=false;
+    ini=(ini==null)?t.ini:Math.min(ini,t.ini);
+    fin=(fin==null)?t.fin:Math.max(fin,t.fin);
+  });
+  if(alguienSinTurno)return {ini:c.inicio,fin:c.fin,op,sin:true};
+  if(todosLibres||ini==null)return pgFestivo(f)?{ini:c.inicio,fin:c.inicio,op,libre:true,fest:true}:{ini:c.inicio,fin:c.inicio,op,libre:true};
+  const a=Math.max(c.inicio,ini),b=Math.min(c.fin,fin);
+  return {ini:a,fin:Math.max(a,b),op,ops};
 }
 function pgCapacidad(f,maq){const c=pgCfg();if(f&&maq){const v=pgVentana(f,maq);return pgTrabajo(v.ini,v.fin);}return pgTrabajo(c.inicio,c.fin);}
 function pgCapDia(f){return pgCfg().maquinas.reduce((a,m)=>a+pgCapacidad(f,m.id),0);}
 /* primer hueco libre en una máquina desde la hora T (salta descansos y trabajos ya puestos) */
 function pgHueco(f,maq,T,excl){
   const c={...pgCfg(),...pgVentana(f,maq)};c.inicio=c.ini;
-  /* también cuenta como ocupado lo que su mismo operario tiene en otra máquina:
-     una persona no puede estar en dos máquinas a la vez */
-  const d=pgDia(f),op=(c.op||'').trim().toLowerCase();
-  const mismas=op?pgCfg().maquinas.filter(m=>pgOperario(d,m).trim().toLowerCase()===op).map(m=>m.id):[maq];
-  const bl=d.bloques.filter(b=>(b.maq===maq||mismas.includes(b.maq))&&b.id!==excl).sort((a,b)=>a.ini-b.ini);
+  /* Antes, lo que el mismo operario tenía en otra máquina contaba como ocupado:
+     no se podía programar en paralelo. En el láser eso no es cierto — una
+     persona carga una máquina mientras la otra corta — así que ya no bloquea;
+     el cruce se sigue avisando en el tablero (ver los avisos de pgLadoHTML). */
+  const d=pgDia(f);
+  const bl=d.bloques.filter(b=>b.maq===maq&&b.id!==excl).sort((a,b)=>a.ini-b.ini);
   T=Math.max(c.inicio,Math.min(c.fin,T));
   let cambio=true,g=0;
   while(cambio&&g++<80){cambio=false;const t0=pgSaltaDescanso(T);if(t0!==T){T=t0;cambio=true;}
@@ -3588,15 +3613,16 @@ function pgDiaHTML(){
     const cap=pgCapacidad(f,m.id),vt=pgVentana(f,m.id);
     const ocup=bl.reduce((a,b)=>a+b.min,0),pct=cap?Math.round(ocup/cap*100):(ocup?100:0);
     const op=pgOperario(d,m);
-    const turnoTxt=vt.sin?(op?'no está en el personal':''):(vt.libre?'no trabaja hoy':'turno '+pgHora(vt.ini)+'–'+pgHora(vt.fin));
-    const fueraTxt=vt.fest?'Festivo: '+esc(pgFestivo(f)):(vt.libre?esc(op)+' no trabaja este día':'fuera del turno de '+esc(op));
+    const nOps=pgOperarios(d,m).length;
+    const turnoTxt=vt.sin?(op?'no está en el personal':''):(vt.libre?'no trabaja hoy':'turno '+pgHora(vt.ini)+'–'+pgHora(vt.fin)+(nOps>1?' (entre '+nOps+')':''));
+    const fueraTxt=vt.fest?'Festivo: '+esc(pgFestivo(f)):(vt.libre?esc(op)+' no trabaja este día':(nOps>1?'nadie en turno':'fuera del turno de '+esc(op)));
     const sombras=vt.sin?'':(vt.libre?`<span class="pg-fuera" style="left:0;width:100%"><em>${fueraTxt}</em></span>`
       :(vt.ini>c.inicio?`<span class="pg-fuera" style="left:0;width:${X(vt.ini)}"><em>${vt.ini-c.inicio>=90?fueraTxt:''}</em></span>`:'')+(vt.fin<c.fin?`<span class="pg-fuera" style="left:${X(vt.fin)};right:0"><em>${c.fin-vt.fin>=90?fueraTxt:''}</em></span>`:''));
     bl.forEach(b=>{const fb=pgFin(b.ini,b.min);if(!vt.sin&&(vt.libre||b.ini<vt.ini||fb>vt.fin))avisos.push((b.rop||b.act)+' en '+m.nombre+': '+(vt.libre?op+' no trabaja ese día':'queda fuera del turno de '+op+' ('+pgHora(vt.ini)+'–'+pgHora(vt.fin)+')'));});
     const bloques=bl.map(b=>{const x=pgBloqueHTML(b,f,uso,ed);x.avisos.forEach(a=>avisos.push(a));return x.html;}).join('');
     return `<div class="pg-row">
       <div class="pg-rh"><div class="pg-mn">${esc(m.nombre)}${bl.length?`<button type="button" title="Imprimir la hoja de esta máquina" onclick="pgImprimirHojas('${m.id}',false)">🖨</button>`:''}</div><div class="pg-mp">${esc(m.proc)}</div>
-        ${ed?`<input class="pg-op" list="pgOps" value="${esc(op)}" placeholder="Operario" onchange="pgSetOperario('${m.id}',this.value)">`:`<div class="pg-mp"><b>${esc(op)||'sin operario'}</b></div>`}
+        ${ed?`<input class="pg-op" list="pgOps" value="${esc(op)}" placeholder="Operario(s)" title="Puedes poner más de uno separados por coma: la máquina queda disponible en la unión de sus turnos" onchange="pgSetOperario('${m.id}',this.value)">`:`<div class="pg-mp"><b>${esc(op)||'sin operario'}</b></div>`}
         <div class="pg-load" title="${fmtMin(ocup)} de ${fmtMin(cap)}"><i class="${ocup>cap?'over':''}" style="width:${Math.min(100,pct)}%"></i></div>
         <div class="pg-loadn">${pgHc(ocup)} de ${pgHc(cap)} · ${pct}%</div>${turnoTxt?`<div class="pg-loadn" style="${vt.libre||(vt.sin&&op)?'color:#b45309;font-weight:600':''}">${esc(turnoTxt)}</div>`:''}</div>
       <div class="pg-track ${ed?'ed':''} ${ed&&PG.sel?'tapsel':''}" ${ed?`ondragover="pgOver(event)" ondragleave="pgLeave(event)" ondrop="pgDrop(event,'${m.id}')" onclick="pgClickTrack(event,'${m.id}')"`:''}>
@@ -3604,11 +3630,19 @@ function pgDiaHTML(){
         ${pgDescansos().map(x=>`<span class="pg-break" style="left:${X(x.ini)};width:${((x.fin-x.ini)/span*100).toFixed(3)}%"><em>${esc(x.lbl)}</em></span>`).join('')}
         ${sombras}${bloques}<span class="pg-guia"></span></div></div>`;
   }).join('');
-  {const porOp={};c.maquinas.forEach(m=>{const op=pgOperario(d,m).trim().toLowerCase();if(!op)return;(porOp[op]=porOp[op]||[]).push(m);});
-   Object.values(porOp).filter(ms=>ms.length>1).forEach(ms=>{
-     const bs=d.bloques.filter(b=>ms.some(m=>m.id===b.maq));
-     for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++){const a=bs[i],b=bs[j];if(a.maq===b.maq)continue;
-       if(a.ini<pgFin(b.ini,b.min)&&b.ini<pgFin(a.ini,a.min)){avisos.push(pgOperario(d,ms[0])+' está en '+ms.map(m=>m.nombre).join(' y ')+' a la misma hora ('+pgHora(Math.max(a.ini,b.ini))+')');i=bs.length;break;}}});}
+  /* La misma persona en dos máquinas a la vez ya no se impide — en el láser se
+     carga una mientras la otra corta — pero se avisa, porque si son muchas horas
+     en paralelo conviene mirarlo. */
+  {const porOp={};c.maquinas.forEach(m=>pgOperarios(d,m).forEach(n=>{
+     const k=n.toLowerCase();(porOp[k]=porOp[k]||{nombre:n,maqs:[]}).maqs.push(m);}));
+   Object.values(porOp).filter(x=>x.maqs.length>1).forEach(x=>{
+     const ms=x.maqs,bs=d.bloques.filter(b=>ms.some(m=>m.id===b.maq));
+     for(let i=0;i<bs.length;i++){let corte=false;
+       for(let j=i+1;j<bs.length;j++){const a=bs[i],b=bs[j];if(a.maq===b.maq)continue;
+         if(a.ini<pgFin(b.ini,b.min)&&b.ini<pgFin(a.ini,a.min)){
+           avisos.push(x.nombre+' atiende '+ms.map(m=>m.nombre).join(' y ')+' a la vez desde las '+pgHora(Math.max(a.ini,b.ini))+' (se puede, pero revisa que alcance)');
+           corte=true;break;}}
+       if(corte)break;}});}
   const extra=ed?`<button type="button" class="btn sm" onclick="pgAuto()" title="Llena el tiempo libre de cada máquina con las órdenes que más pronto se entregan">⚡ Programar automático</button>
       <button type="button" class="btn ghost sm" onclick="pgImprimirPrograma()">🖨 Programa</button>
       <button type="button" class="btn ghost sm" onclick="pgImprimirHojas('',false)">🖨 Hojas de operarios</button>
