@@ -7397,22 +7397,10 @@ function formRop(r){r=r||{};const cotOpts=CACHE.cotizaciones.map(c=>`<option val
     <div class="dfiles-hint">Indica cuántas láminas se usaron, por material y calibre. Al guardar la orden, esto descuenta del stock del dueño elegido — ideal para ALGAMAR, DEFENDER y E&D que traen su propio material. Si editas la orden, el consumo se recalcula solo.</div>
   </div>
   </div></section>
-  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">7</span><div><b>Archivos y observaciones</b><small>enlaces de Drive y alertas para el equipo</small></div></div>
+  <section class="field full rop-sec "><div class="rop-sec-h"><span class="rop-sec-n">7</span><div><b>Observaciones</b><small>alertas y notas para el equipo</small></div></div>
   <div class="fgrid">
-  <div class="field full"><label>Archivos de producción · enlaces de Google Drive</label>
-    <div class="dfiles-form">
-      <div class="dfile-row"><span class="dfile-tag c-cut">Corte</span><input id="f_corteUrl" value="${esc(r.corteUrl)}" placeholder="Pega el enlace de Drive del archivo de corte">${r.corteUrl?`<a class="dfile-open" href="${esc(r.corteUrl)}" target="_blank" rel="noopener">Abrir</a>`:''}</div>
-      <div class="dfile-row"><span class="dfile-tag c-bend">Doblez</span><input id="f_doblezUrl" value="${esc(r.doblezUrl)}" placeholder="Pega el enlace de Drive del archivo de doblez">${r.doblezUrl?`<a class="dfile-open" href="${esc(r.doblezUrl)}" target="_blank" rel="noopener">Abrir</a>`:''}</div>
-      <div class="dfile-row"><span class="dfile-tag c-plan">Planos</span><input id="f_planosUrl" value="${esc(r.planosUrl)}" placeholder="Pega el enlace de Drive de planos / planimetría">${r.planosUrl?`<a class="dfile-open" href="${esc(r.planosUrl)}" target="_blank" rel="noopener">Abrir</a>`:''}</div>
-    </div>
-    <div class="dfiles-hint">En Google Drive: clic derecho sobre el archivo → <strong>Compartir → Copiar enlace</strong>, y pégalo aquí. Quedará como botón para abrirlo directo desde la orden de producción.</div>
-  </div>
+  <input type="hidden" id="f_corteUrl" value="${esc(r.corteUrl)}"><input type="hidden" id="f_doblezUrl" value="${esc(r.doblezUrl)}"><input type="hidden" id="f_planosUrl" value="${esc(r.planosUrl)}"><input type="hidden" id="f_costoReal" value="${r.costoReal||''}">
   <div class="field full"><label>Observaciones / alertas</label><textarea id="f_observaciones">${esc(r.observaciones)}</textarea></div>
-  </div></section>
-  <section class="field full rop-sec rop-sec-int"><div class="rop-sec-h"><span class="rop-sec-n">8</span><div><b>Costo interno</b><small>costo real contra lo cotizado — solo uso interno</small></div></div>
-  <div class="fgrid">
-  <div class="field"><label>Costo real de fabricación (interno)</label><input type="number" id="f_costoReal" value="${r.costoReal||''}" placeholder="Materiales + procesos reales" oninput="ropCostCompare()"></div>
-  <div class="field full" id="ropCostBox"></div>
   </div></section>
 
 </div>`}
