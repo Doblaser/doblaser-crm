@@ -359,6 +359,9 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .seg .seg-add{border:1px dashed var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;margin-left:4px}
 .seg .seg-add:hover{color:var(--text);border-color:var(--brand)}
 .inv-seg{flex-wrap:wrap}
+.inv-click{cursor:pointer}.inv-click:hover td{background:var(--bg)}
+.inv-sinmed{font-size:10.5px;font-weight:700;color:#b45309;background:#fbedd8;border-radius:5px;padding:1px 6px;margin-left:4px}
+.inv-reffil{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--wine-soft);border:1px solid var(--wine-line);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px}
 .rop-sec{border:1px solid var(--line);border-radius:12px;padding:14px 16px 16px;background:#fcfbfa}
 .rop-sec-h{display:flex;align-items:center;gap:10px;margin:-2px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-2)}
 .rop-sec-h b{display:block;font-family:'Archivo';font-size:14.5px;font-weight:600;color:var(--ink)}
@@ -5485,7 +5488,7 @@ function invStockTable(clase,dueno){
     const g=grupos[mat],tot=g.reduce((a,s)=>a+s.cant,0);
     return `<tr class="inv-grp"><td colspan="${clase==='retal'?5:4}"><span class="tag mat">${esc(mat)}</span>
         <span class="muted" style="font-size:11.5px">· ${g.length} referencia${g.length===1?'':'s'} · ${tot} en total</span></td></tr>`
-      +g.map(s=>`<tr><td>${esc(s.calibre)||'—'}</td><td class="muted">${invDims(s)}</td>
+      +g.map(s=>`<tr class="inv-click" onclick="invVerRef(${_invRefs.push(s)-1})" title="Ver y corregir los movimientos de esta lámina"><td>${esc(s.calibre)||'—'}</td><td class="muted">${invDims(s)}${movTieneDim(s)?'':' <span class="inv-sinmed">sin medidas</span>'}</td>
         <td class="c"><strong class="${s.cant<0?'inv-neg':''}">${s.cant}</strong></td>
         <td>${s.ubicacion===SIN_UBIC?'<span class="muted">sin ubicar</span>':`<span class="tag burro">${esc(s.ubicacion)}</span>`}</td>
         ${clase==='retal'?`<td class="muted" style="font-size:12px">${s.ult&&s.ult.cliente?esc(s.ult.cliente):'—'}</td>`:''}</tr>`).join('');
@@ -5521,7 +5524,7 @@ function invClientStockTable(dueno){
     const g=grupos[mat],tot=g.reduce((a,s)=>a+s.cant,0);
     return `<tr class="inv-grp"><td colspan="5"><span class="tag mat">${esc(mat)}</span>
         <span class="muted" style="font-size:11.5px">· ${g.length} referencia${g.length===1?'':'s'} · ${tot} en total</span></td></tr>`
-      +g.map(s=>`<tr><td>${esc(s.calibre)||'—'}</td><td class="muted">${invDims(s)}</td>
+      +g.map(s=>`<tr class="inv-click" onclick="invVerRef(${_invRefs.push(s)-1})" title="Ver y corregir los movimientos de esta lámina"><td>${esc(s.calibre)||'—'}</td><td class="muted">${invDims(s)}${movTieneDim(s)?'':' <span class="inv-sinmed">sin medidas</span>'}</td>
         <td class="c"><strong class="${s.cant<0?'inv-neg':''}" style="font-size:15px">${s.cant}</strong></td>
         <td>${s.ubicacion===SIN_UBIC?'<span class="muted">sin ubicar</span>':`<span class="tag burro">${esc(s.ubicacion)}</span>`}</td>
         <td class="muted" style="font-size:12px">${fmtDate(s.ult&&s.ult.fecha)}</td></tr>`).join('');
@@ -5558,8 +5561,10 @@ function burroChips(){
 }
 function renderInventario(){
   const isClient=invDueno!=='Todos'&&invDueno!==DUENO_GEN;
+  _invRefs=[];
   const movCoinciden=(CACHE.inventario||[]).filter(match);
   let mov=movCoinciden;
+  if(invRef)mov=(CACHE.inventario||[]).filter(m=>invEnRef(m,invRef));
   if(invDueno!=='Todos')mov=mov.filter(m=>(m.dueno||DUENO_GEN)===invDueno);
   const aviso=avisoEscondidos([
     {n:movCoinciden.length-mov.length,
@@ -5597,7 +5602,7 @@ function renderInventario(){
       <td class="c tnum">${sign}${+m.cantidad||0}</td>
       <td>${invDueno==='Todos'?`<span class="tag ${(m.dueno&&m.dueno!==DUENO_GEN)?'dobl':'mat'}">${esc(m.dueno&&m.dueno!==DUENO_GEN?m.dueno:'General')}</span> `:''}${esc(m.cliente)||(m.rop?'<span class="muted">ROP '+esc(m.rop)+'</span>':'<span class="muted">—</span>')}${m.auto?' <span class="muted" style="font-size:10px">(auto ROP)</span>':''}${m.notas?`<div class="muted" style="font-size:11px">${esc(m.notas)}</div>`:''}</td>
       <td class="num tnum">${m.costo?COP(m.costo):'—'}</td>
-      <td>${m.auto?`<div class="row-act"><span class="muted" style="font-size:11px">auto</span><button class="ic-btn del" title="Eliminar (también se quita de la orden de producción)" onclick="delMovAuto('${m.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>`:rowActions('inventario',m.id)}</td></tr>`;
+      <td>${m.auto?`<div class="row-act"><span class="muted" style="font-size:11px">auto</span><button class="ic-btn" title="Editar: sale de la orden ${esc(m.rop||'')}, se corrige en su material consumido" onclick="invEditarAuto('${m.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="ic-btn del" title="Eliminar (también se quita de la orden de producción)" onclick="delMovAuto('${m.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>`:rowActions('inventario',m.id)}</td></tr>`;
   }).join('')||emptyRow(7);
   const stockPanels=isClient
     ? `<div class="panel"><div class="panel-h"><h3>Stock de ${esc(invDueno)} — por material y calibre</h3></div><div class="tbl-wrap">${invClientStockTable(invDueno)}</div></div>`
@@ -5607,12 +5612,29 @@ function renderInventario(){
       </div>
       <div class="panel"><div class="panel-h"><h3>Stock de tubería</h3></div><div class="tbl-wrap">${invStockTable('tubo',invDueno)}</div></div>`;
   const novPanel=novList.length?`<div class="panel"><div class="panel-h"><h3>Novedades — material defectuoso o perdido</h3></div><div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Material</th><th class="c">Cant.</th>${invDueno==='Todos'?'<th>Dueño</th>':''}<th>Observación</th></tr></thead><tbody>${novList.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(m=>`<tr><td class="muted">${fmtDate(m.fecha)}</td><td><strong>${esc(m.material)}</strong> <span class="muted">${esc(m.calibre)||''}</span></td><td class="c tnum inv-neg">−${+m.cantidad||0}</td>${invDueno==='Todos'?`<td>${esc(m.dueno&&m.dueno!==DUENO_GEN?m.dueno:'General')}</td>`:''}<td>${esc(m.notas)||'<span class="muted">Sin detalle</span>'}</td></tr>`).join('')}</tbody></table></div></div>`:'';
-  return invChips()+aviso+kpis+stockPanels+novPanel+
+  const refTxt=invRef?`<div class="inv-reffil">Mostrando solo los movimientos de <b>${esc((invRef.dueno===DUENO_GEN?'General':invRef.dueno)+' · '+invRef.material.replace(/\s*\(.*\)/,'')+' '+(invRef.calibre||''))} · ${esc(invDims(invRef))}</b>. Con el lápiz se corrige cada uno (por ejemplo, ponerle las medidas que le faltan) y con la caneca se elimina.
+    <button type="button" class="btn ghost sm" onclick="invRef=null;render()">Ver todos</button></div>`:'';
+  return invChips()+aviso+kpis+stockPanels+novPanel+`<div id="invMovPanel"></div>`+refTxt+
     panel('Movimientos de material',`${mov.length} registros${invDueno!=='Todos'?' · '+esc(invDueno):''} · lo más reciente primero`,
       `<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th class="c">Cant.</th><th>Cliente / proyecto</th><th class="num">Costo</th><th></th></tr></thead><tbody>${movRows}</tbody></table>`);
 }
 /* tubería: se piden perfil y medida, no el ancho; el largo por defecto es el
    tubo entero de 6 m que se compra */
+function invEditarAuto(id){
+  const m=(CACHE.inventario||[]).find(x=>String(x.id)===String(id));if(!m)return;
+  const r=(CACHE.rop||[]).find(x=>String(x.id)===String(m.ropId))||(CACHE.rop||[]).find(x=>x.rop===m.rop);
+  if(!r){toast('La orden de este consumo ya no está; puedes eliminarlo');return;}
+  openForm('rop',r.id);
+  toast('Corrige el material en el recuadro "Material consumido" y guarda la orden');
+  setTimeout(()=>{const b=document.getElementById('ropMatRows');if(b)b.scrollIntoView({block:'center',behavior:'smooth'});},400);
+}
+/* clic en una línea del stock: se muestran solo sus movimientos, para corregirlos */
+let invRef=null,_invRefs=[];
+const invEnRef=(m,s)=>invKey(m)===invKey(s);
+function invVerRef(i){
+  const s=_invRefs[i];if(!s)return;invRef=s;render();
+  setTimeout(()=>{const e=document.getElementById('invMovPanel');if(e)e.scrollIntoView({behavior:'smooth',block:'start'});},50);
+}
 function invClaseChange(){
   const t=(document.getElementById('f_clase')||{}).value==='tubo';
   document.querySelectorAll('.inv-tubo').forEach(e=>e.style.display=t?'':'none');
@@ -8436,7 +8458,7 @@ function rmMedida(i,clave){
 /* \u00bfqueda alguna fila sin decir de cu\u00e1l l\u00e1mina sale, habiendo varias? */
 function rmAmbiguas(){
   return ropConsumo.map((r,i)=>({r,i}))
-    .filter(({r})=>r.material&&+r.cant>0&&!rmTieneMedida(r)&&rmMedidasDe(r).length>1);
+    .filter(({r})=>r.material&&+r.cant>0&&!rmTieneMedida(r));
 }
 /* cuánto hay de esa referencia exacta según los movimientos registrados */
 function rmDisponible(r){
@@ -8845,6 +8867,7 @@ async function saveForm(){
        movimiento nacía sin medidas y formaba un grupo fantasma aparte. */
     const _amb=rmAmbiguas();
     if(_amb.length){
+      if(!rmMedidasDe(_amb[0].r).length){toast('No hay '+_amb[0].r.material.replace(/\s*\(.*\)/,'')+' '+(_amb[0].r.calibre||'')+' con medidas en el inventario de ese dueño: registra primero su entrada con largo y ancho');return;}
       toast('Falta decir de cuál lámina sale: '+_amb.map(({r})=>r.material.replace(/\s*\(.*\)/,'')+' '+(r.calibre||'')).slice(0,2).join(', ')+(_amb.length>2?' y '+(_amb.length-2)+' más':''));
       const sel=document.querySelectorAll('#ropMatRows .rm-med')[_amb[0].i];
       if(sel){sel.scrollIntoView({block:'center',behavior:'smooth'});sel.focus();}
@@ -8883,7 +8906,9 @@ async function saveForm(){
        arrastra a las salidas automáticas de las órdenes, que heredan de ahí.
        El material entra con sus medidas o no entra. */
     const _clase=val('f_clase'),_tipo=val('f_tipo');
-    if(_tipo==='entrada'){
+    /* aplica a entradas, salidas y novedades: un movimiento sin medidas crea
+       una línea "—" aparte en el stock que no se cruza con ninguna lámina real */
+    if(true){
       if(_clase==='tubo'){
         if(!val('f_perfil')||!val('f_medida')){toast('Indica el perfil y la medida de la tubería');return}
         if(!(numv('f_largo')>0)){toast('Indica el largo del tubo en mm');return}
