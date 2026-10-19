@@ -6599,6 +6599,38 @@ function _remisionImprimir(r,fecha){
    arriba, y la tabla por pieza abajo, con scroll propio. Los graficos se
    crean con Chart.js (ya cargado para Estadisticas) DESPUES de insertar el
    HTML -- un canvas necesita existir en el DOM antes de poder dibujarse. */
+/* hoja para el cliente con solo las piezas que faltan por entregar */
+function imprimirPendiente(id){
+  const r=(CACHE.rop||[]).find(x=>String(x.id)===String(id));if(!r)return;
+  const bit=Array.isArray(r.bitacora)?r.bitacora:[];
+  const pend=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0).map(p=>{
+    const tot=+p.cant||0,ent=Math.min(tot,_entregadoDe(bit,p.desc,tot));return {d:p.desc,m:(p.mat||'').trim(),tot,ent,falta:Math.max(0,tot-ent)};}).filter(x=>x.falta>0);
+  if(!pend.length){toast('No falta ninguna pieza');return;}
+  const c=r.cotId?(CACHE.cotizaciones||[]).find(x=>String(x.id)===String(r.cotId)):null;
+  const tF=pend.reduce((a,x)=>a+x.falta,0),u=currentUser();
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pendiente ${esc(r.rop||'')}</title><style>
+  @page{size:Letter;margin:0}*{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#222;font-size:11.5px;line-height:1.45;padding:12mm 14mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .top{display:flex;justify-content:space-between;gap:18px;border-bottom:3px solid #7b1e2b;padding-bottom:10px}
+  .brand img{height:48px;display:block;margin-bottom:4px}.brand .co{font-size:10px;color:#666}
+  .doc{text-align:right}.doc .lbl{font-size:9.5px;letter-spacing:.14em;color:#999}.doc .num{font-size:21px;font-weight:800;color:#7b1e2b;margin:2px 0 4px}.doc .row{font-size:10.5px;color:#555}.doc .row b{color:#222}
+  .cli{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;margin:12px 0;font-size:12px}.cli span{color:#888}
+  table{width:100%;border-collapse:collapse;margin-top:6px}th{background:#1d1d1d;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:6px 7px;text-align:left}
+  td{padding:6px 7px;border-bottom:1px solid #eee;vertical-align:top}.n{text-align:right;white-space:nowrap}.c{text-align:center}.sub{font-size:9.5px;color:#888}
+  .f{font-weight:800;color:#7b1e2b;font-size:13px}tfoot td{font-weight:700;border-top:2px solid #7b1e2b;border-bottom:none}
+  .pie{margin-top:16px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:6px;text-align:center}
+  </style></head><body>
+  <div class="top"><div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><b>DOBLASER S.A.S.</b> · Nit 901682190-5<br>${esc(EMPRESA.dir)} · ${esc(EMPRESA.ciudad)}</div></div>
+    <div class="doc"><div class="lbl">PIEZAS PENDIENTES POR ENTREGAR</div><div class="num">${esc(r.rop||'')}</div><div class="row">Fecha: <b>${fmtDate(today())}</b></div>${r.entrega?`<div class="row">Entrega pactada: <b>${fmtDate(r.entrega)}</b></div>`:''}</div></div>
+  <div class="cli"><div><span>Cliente:</span> <b>${esc(r.cliente||'—')}</b></div><div><span>Proyecto:</span> <b>${esc(r.subtitulo||'—')}</b></div>
+    <div><span>Orden de compra / aprobación:</span> <b>${esc(r.aprobacion||'—')}</b></div><div><span>Cotización:</span> <b>${esc(c?c.numero:(r.cotizacion||'—'))}</b></div></div>
+  <table><thead><tr><th class="c" style="width:26px">#</th><th>Pieza</th><th class="n" style="width:70px">Pedido</th><th class="n" style="width:80px">Entregado</th><th class="n" style="width:80px">Pendiente</th></tr></thead>
+  <tbody>${pend.map((x,i)=>`<tr><td class="c">${i+1}</td><td>${esc(x.d)||'—'}${x.m?`<div class="sub">${esc(x.m)}</div>`:''}</td><td class="n">${x.tot}</td><td class="n">${x.ent}</td><td class="n f">${x.falta}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td></td><td>${pend.length} referencia(s) pendiente(s)</td><td></td><td></td><td class="n f">${tF}</td></tr></tfoot></table>
+  <div class="pie">Generado ${fmtDate(today())}${u?' por '+esc(u.name):''} · Doblaser S.A.S. · Documento informativo, no es remisión.</div>
+  </body></html>`;
+  printDoc(html,cleanFileName('Pendiente '+(r.rop||'')+' - '+(r.cliente||'')));
+}
 function panelResumenEntrega(r){
   const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
   if(!piezas.length)return '';
@@ -6622,7 +6654,8 @@ function panelResumenEntrega(r){
   }).join('');
   const pctTot=totTot>0?Math.round(totEnt/totTot*100):0;
   return `<div class="remi-resumen">
-    <div class="rs-t">Resumen de entregas \u2014 ${pctTot}% completado</div>
+    <div class="rs-t" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Resumen de entregas \u2014 ${pctTot}% completado
+      ${totTot>totEnt?`<button type="button" class="btn ghost sm" style="margin-left:auto" onclick="imprimirPendiente('${r.id}')">Imprimir lo pendiente</button>`:''}</div>
     <div class="rs-charts">
       <div class="rs-dona"><canvas id="remiDona"></canvas>
         <div class="rs-dona-txt"><b>${pctTot}%</b><span class="muted">entregado</span></div>
