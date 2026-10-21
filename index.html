@@ -9007,16 +9007,64 @@ function _descRegistro(t,id){
   if(t==='piezascli')return`${r.cliente||''} · ${r.pieza||''}`;
   return'';
 }
+/* Al borrar una orden hay que decidir qué pasa con su venta. Toda ROP crea su
+   venta sola, así que si la orden se va y la venta se queda, queda una venta
+   apuntando a una orden que ya no existe: sale en Ventas y en Facturación sin
+   que se pueda abrir la orden de la que vino. (Daniel, 21/10/2026: "cuando se
+   borra una orden no se borra el registro de venta y queda como caché".)
+   Se borra con la orden, salvo que ya tenga factura o abonos: ahí manda la
+   contabilidad y solo se le suelta el vínculo. */
+function ropVentaAlBorrar(id){
+  const r=(CACHE.rop||[]).find(x=>String(x.id)===String(id));
+  if(!r)return null;
+  const v=ropVentaDe(r);
+  if(!v)return null;
+  const facturada=!!v.facturada, abonos=+v.abonado||0;
+  return {v,r,facturada,abonos,protegida:facturada||abonos>0};
+}
 function confirmDel(t,id){
   delTarget={t,id};
-  const extra=(t==='rop')?'\nTambién se revierte el material que esta orden descontó del inventario.':'';
+  let extra=(t==='rop')?'\nTambién se revierte el material que esta orden descontó del inventario.':'';
+  if(t==='rop'){
+    const x=ropVentaAlBorrar(id);
+    if(x){
+      const monto=(+x.v.valor>0)?' de '+COP(x.v.valor):'';
+      extra+=x.protegida
+        ?'\n\nOJO: su venta'+monto+' ya está '+(x.facturada?'facturada':'abonada')+', así que NO se borra. Queda en Ventas, pero sin la orden detrás.'
+        :'\nSe borra también su venta'+monto+' (también queda en la Papelera).';
+    }
+  }
   const red=(PAPELERA_OK&&TABLAS_PAPELERA.includes(t))
     ?'\n\nQueda guardado en la Papelera por si hay que recuperarlo.'
     :'\n\nEsta acción no se puede deshacer.';
   pedirConfirmacion('¿Eliminar este registro?',
     (_descRegistro(t,id)||'')+red+extra,()=>doDel());
 }
-async function doDel(){const dt=delTarget.t;if(dt==='rop'){const prev=(CACHE.inventario||[]).filter(m=>m.auto&&String(m.ropId)===String(delTarget.id));for(const m of prev)await deleteRow('inventario',m.id);}await deleteRow(dt,delTarget.id);closeModal();CACHE[dt]=await getAll(dt);if(dt==='rop')CACHE.inventario=await getAll('inventario');await cargarPapelera();render();updateCounts();toast(PAPELERA_OK?'Eliminado · está en la Papelera':'Registro eliminado')}
+async function doDel(){
+  const dt=delTarget.t;
+  let avisoVenta='';
+  if(dt==='rop'){
+    const prev=(CACHE.inventario||[]).filter(m=>m.auto&&String(m.ropId)===String(delTarget.id));
+    for(const m of prev)await deleteRow('inventario',m.id);
+    const x=ropVentaAlBorrar(delTarget.id);
+    if(x){
+      if(x.protegida){
+        /* la venta se queda, pero sin apuntar a una orden que ya no existe */
+        await saveRow('ventas',{...x.v,ropId:null});
+        avisoVenta=' · su venta sigue en Ventas porque ya está '+(x.facturada?'facturada':'abonada');
+      }else{
+        await deleteRow('ventas',x.v.id);
+        avisoVenta=' · también su venta';
+      }
+    }
+  }
+  await deleteRow(dt,delTarget.id);
+  closeModal();
+  CACHE[dt]=await getAll(dt);
+  if(dt==='rop'){CACHE.inventario=await getAll('inventario');CACHE.ventas=await getAll('ventas');}
+  await cargarPapelera();render();updateCounts();
+  toast((PAPELERA_OK?'Eliminado · está en la Papelera':'Registro eliminado')+avisoVenta);
+}
 /* Duplicar una orden: abre el formulario de una ROP NUEVA (otro número, sin guardar
    todavía) con todo lo de la que está abierta -- piezas, descuentos de material,
    procesos, cliente -- para editar lo que cambie. No copia entregas, firmas, avance
