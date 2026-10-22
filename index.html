@@ -2,7 +2,9 @@
 <html lang="es-CO">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover">
+<meta name="viewport" id="metaViewport" content="width=device-width, initial-scale=1, minimum-scale=0.2, maximum-scale=10, user-scalable=yes, viewport-fit=cover">
+<script>/* vista de escritorio en el celular: la pagina se arma a 1280 px y se aleja para verla completa; luego se acerca con los dedos */
+try{if(localStorage.getItem("db_vistaPC")==="1"&&screen.width<900){document.getElementById("metaViewport").setAttribute("content","width=1280, minimum-scale=0.1, maximum-scale=10, user-scalable=yes, viewport-fit=cover");document.documentElement.classList.add("vpc");}}catch(e){}</script>
 <title>CRM Doblaser</title>
 <!-- Icono de marca: pestaña del navegador y pantalla de inicio del celular -->
 <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -362,6 +364,9 @@ select.filter{border:1px solid var(--line);border-radius:8px;padding:8px 11px;ba
 .inv-click{cursor:pointer}.inv-click:hover td{background:var(--bg)}
 .inv-sinmed{font-size:10.5px;font-weight:700;color:#b45309;background:#fbedd8;border-radius:5px;padding:1px 6px;margin-left:4px}
 .inv-reffil{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--wine-soft);border:1px solid var(--wine-line);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px}
+.vista-pc-btn{display:none;cursor:pointer;margin-bottom:6px}
+@media(max-width:900px){.vista-pc-btn{display:flex}}
+html.vpc .vista-pc-btn{display:flex}
 .rop-sec{border:1px solid var(--line);border-radius:12px;padding:14px 16px 16px;background:#fcfbfa}
 .rop-sec-h{display:flex;align-items:center;gap:10px;margin:-2px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-2)}
 .rop-sec-h b{display:block;font-family:'Archivo';font-size:14.5px;font-weight:600;color:var(--ink)}
@@ -1600,6 +1605,7 @@ td.c,th.c{text-align:center}
     </nav>
     <div class="side-foot">
       <div class="user-badge" id="userBadge"></div>
+      <div class="db-state vista-pc-btn" onclick="toggleVistaPC()" title="Ver el CRM como en el computador y hacer zoom con los dedos"><span id="vistaPcLbl">🖥 Vista de computador</span></div>
       <div class="db-state" id="dbState" onclick="openConfig()"><span class="db-dot" id="dbDot"></span><span id="dbLabel">Modo local</span></div>
     </div>
   </aside>
@@ -1992,6 +1998,11 @@ function initSupabase(){
   }
   paintDbState();
 }
+function toggleVistaPC(){
+  let on=false;try{on=localStorage.getItem('db_vistaPC')==='1';localStorage.setItem('db_vistaPC',on?'0':'1');}catch(e){}
+  location.reload();
+}
+(function(){try{const on=localStorage.getItem('db_vistaPC')==='1';document.addEventListener('DOMContentLoaded',()=>{const l=document.getElementById('vistaPcLbl');if(l)l.textContent=on?'📱 Volver a vista de celular':'🖥 Vista de computador';});}catch(e){}})();
 function paintDbState(){document.getElementById('dbDot').classList.toggle('on',USING_SB);document.getElementById('dbLabel').textContent=USING_SB?'Conectado a Supabase':'Modo local';avisoCarga();}
 const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem('db_'+k))??d}catch(e){return d}},set:(k,v)=>localStorage.setItem('db_'+k,JSON.stringify(v))};
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
