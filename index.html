@@ -740,9 +740,10 @@ html.side-off .menu-btn{display:grid !important}
 @media(max-width:760px){.side-ocultar{display:none}}
 /* zoom propio con dos dedos (el del navegador no deja alejar una pagina que ya cabe en la pantalla) */
 #content{transform-origin:0 0}
-.zoom-chip{position:fixed;right:14px;bottom:96px;z-index:150;background:var(--side);color:#fff;border-radius:20px;padding:7px 12px;font-size:12.5px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);display:none;gap:8px;align-items:center}
+.zoom-chip{flex-shrink:0;background:var(--side);color:#fff;border-radius:16px;padding:4px 8px;font-size:12px;white-space:nowrap;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);display:none;gap:8px;align-items:center}
 .zoom-chip.show{display:flex}
 .zoom-chip button{color:#fff;font-weight:700;padding:0 4px;font-size:15px}
+@media(max-width:760px){.zoom-chip{gap:4px;padding:3px 6px;font-size:11px}.zoom-chip button{padding:0 3px;font-size:14px}}
 /* =======================================================
    MÓVIL — navegación inferior, modales a pantalla completa
    y tablas que se leen sin hacer zoom
@@ -10572,7 +10573,7 @@ function toggleSide(){
 const ZOOM={z:1,min:0.35,max:3};
 function zoomAplicar(){const c=document.getElementById('content');if(!c)return;c.style.transform='';c.style.zoom=ZOOM.z===1?'':ZOOM.z;
   let ch=document.getElementById('zoomChip');
-  if(!ch){ch=document.createElement('div');ch.id='zoomChip';ch.className='zoom-chip';document.body.appendChild(ch);}
+  if(!ch){ch=document.createElement('div');ch.id='zoomChip';ch.className='zoom-chip';const sp=document.querySelector('.topbar .spacer');if(sp)sp.after(ch);else document.body.appendChild(ch);}
   ch.innerHTML=`<button type="button" onclick="zoomPaso(-0.1)">−</button><span>${Math.round(ZOOM.z*100)}%</span><button type="button" onclick="zoomPaso(0.1)">+</button><button type="button" style="font-size:12px" onclick="ZOOM.z=1;zoomAplicar();zoomGuardar()">100%</button>`;
   ch.classList.toggle('show',ZOOM.z!==1);}
 function zoomGuardar(){try{localStorage.setItem('db_zoom',String(ZOOM.z));}catch(e){}}
