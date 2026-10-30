@@ -3523,12 +3523,27 @@ function pgTramosTurno(t,c){
    esa persona, aporta 0. Si sí se trabajó el festivo (hay turno puesto para
    esa semana), no aporta nada aparte: cuentan las horas de verdad.
    ========================================================= */
+/* Cuánto aporta un festivo: la **jornada ordinaria de un día**, no el turno
+   completo. Daniel, 30/10/2026: *"los lunes festivos debería asumirse como 8
+   horas y media laboradas"*.
+
+   Por qué no el turno entero: un turno de 6 a.m. a 6 p.m. son 11 horas, pero
+   de esas solo la jornada ordinaria es obligación; el resto ya son horas
+   extra, y las extras no se regalan por un día que no se trabajó. Si el turno
+   base de esa persona ese día es más corto que 8 h 30, se cuenta el turno: no
+   se le puede abonar más de lo que iba a trabajar.
+
+   Se puede cambiar sin tocar código con `festivoMin` en la configuración de
+   planta (minutos). */
+const PG_FESTIVO_MIN=510;                           /* 8 h 30 */
 function pgAporteFestivo(e,f){
   if(!e||!pgFestivo(f))return 0;
   if(pgTurnoEmp(e,f))return 0;                      /* lo trabajó: ya se cuentan sus horas */
   const o=((pgCfg().horarios||{})[pgLunes(f)]||{})[e.id]||{};
   if(o[pgDiaSem(f)])return 0;                       /* se le marcó descanso a mano esa semana */
-  return (e.dias||[]).includes(pgDiaSem(f))?pgDurTurno({ini:e.ini,fin:e.fin}):0;
+  if(!(e.dias||[]).includes(pgDiaSem(f)))return 0;  /* ese día no era laboral para esa persona */
+  const tope=+pgCfg().festivoMin||PG_FESTIVO_MIN;
+  return Math.min(pgDurTurno({ini:e.ini,fin:e.fin}),tope);
 }
 /* minutos de la semana de una persona: turnos trabajados + festivos de ley */
 function pgMinSemana(e,fechas){
@@ -4359,25 +4374,23 @@ const PG_DSEM=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
    sea m\u00e1s f\u00e1cil de entender"*. Con diez personas en la tabla, todas las filas
    se ve\u00edan iguales y tocaba leer el nombre para saber en qu\u00e9 rengl\u00f3n iba uno.
 
-   El color se saca del **nombre** (no de la posici\u00f3n en la lista), as\u00ed que a
-   cada quien le queda siempre el mismo aunque se agregue o se quite gente. Si
-   a dos personas les toca el mismo, el segundo corre al siguiente libre: en
-   una misma pantalla no hay dos colores repetidos.
+   Primero el color sal\u00eda de un hash del nombre y quedaban dos verdes o dos
+   azules pegados. Daniel: *"los colores deber\u00edan ser m\u00e1s diferentes para que
+   no queden colores similares juntos"*. Ahora se reparten **en orden de la
+   lista** sobre una paleta ordenada a saltos de 150\u00b0 de tono: dos filas
+   vecinas nunca pueden caer en colores parecidos.
    ========================================================= */
 const PG_PAL=[
-  {b:'#b91c1c',f:'#fef2f2'},{b:'#c2410c',f:'#fff7ed'},{b:'#a16207',f:'#fefce8'},
-  {b:'#15803d',f:'#f0fdf4'},{b:'#0f766e',f:'#f0fdfa'},{b:'#0369a1',f:'#f0f9ff'},
-  {b:'#4338ca',f:'#eef2ff'},{b:'#7e22ce',f:'#faf5ff'},{b:'#be185d',f:'#fdf2f8'},
-  {b:'#4d7c0f',f:'#f7fee7'},{b:'#1d4ed8',f:'#eff6ff'},{b:'#92400e',f:'#fffbeb'}
+  {b:'#b91c1c',f:'#fef2f2'},  /* rojo     */ {b:'#0f766e',f:'#f0fdfa'},  /* verde azulado */
+  {b:'#a21caf',f:'#fdf4ff'},  /* magenta  */ {b:'#4d7c0f',f:'#f7fee7'},  /* oliva   */
+  {b:'#1d4ed8',f:'#eff6ff'},  /* azul     */ {b:'#c2410c',f:'#fff7ed'},  /* naranja */
+  {b:'#0891b2',f:'#ecfeff'},  /* cian     */ {b:'#be185d',f:'#fdf2f8'},  /* rosa    */
+  {b:'#15803d',f:'#f0fdf4'},  /* verde    */ {b:'#7e22ce',f:'#faf5ff'},  /* morado  */
+  {b:'#a16207',f:'#fefce8'},  /* mostaza  */ {b:'#0369a1',f:'#f0f9ff'}   /* azul acero */
 ];
-function pgHashTxt(t){let h=0;t=String(t||'');for(let i=0;i<t.length;i++)h=((h<<5)-h+t.charCodeAt(i))|0;return Math.abs(h);}
 function pgColoresEmp(pers){
-  const usados={},mapa={};
-  (pers||[]).forEach(e=>{
-    let i=pgHashTxt((e.nombre||'').trim().toLowerCase())%PG_PAL.length,n=0;
-    while(usados[i]&&n<PG_PAL.length){i=(i+1)%PG_PAL.length;n++;}
-    usados[i]=1;mapa[e.id||e.nombre]=PG_PAL[i];
-  });
+  const mapa={};
+  (pers||[]).forEach((e,i)=>{mapa[e.id||e.nombre]=PG_PAL[i%PG_PAL.length];});
   return mapa;
 }
 const PG_JORNADA=42;   /* horas ordinarias a la semana; lo que pase son horas extra */
@@ -4465,7 +4478,7 @@ function horarioDocHTML(lunes){
   ${pers.length?`<table><thead><tr><th class="emp">Empleado</th>
     ${fechas.map(f=>`<th><div class="d">${PG_DSEM[pgDiaSem(f)]} ${+String(f).slice(8)}</div>${pgFestivo(f)?`<div class="fs">${esc(pgFestivo(f))}</div>`:''}</th>`).join('')}
     <th style="width:92px">Horas</th></tr></thead><tbody>${filas}</tbody></table>
-  <div class="nota">Las horas se cuentan <b>sin almuerzo ni descansos</b>. Un turno marcado <b>+1 día</b> entra un día y sale al siguiente.${hayFest?' El <b>festivo</b> no se trabaja pero cuenta como jornada laborada: por ley la semana se reduce en las horas de ese día.':''} Lo que pase de ${PG_JORNADA} h es <b>hora extra</b>.</div>`
+  <div class="nota">Las horas se cuentan <b>sin almuerzo ni descansos</b>. Un turno marcado <b>+1 día</b> entra un día y sale al siguiente.${hayFest?' El <b>festivo</b> no se trabaja pero cuenta como '+pgHc(+c.festivoMin||PG_FESTIVO_MIN)+' de jornada laborada: por ley la semana se reduce en las horas de ese día.':''} Lo que pase de ${PG_JORNADA} h es <b>hora extra</b>.</div>`
   :'<div class="vacio">Todavía no hay empleados en el horario.</div>'}
   <div class="foot">DOBLASER S.A.S. · ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} · Generado ${fmtDate(today())}${(currentUser()&&currentUser().name)?' por '+esc(currentUser().name):''}</div>
 </div></body></html>`;
@@ -4511,7 +4524,7 @@ function pgPersonalHTML(){
       ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
       <button type="button" class="btn ghost sm" onclick="pgHorLimpiar()">Volver todo al horario base</button>
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
-    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos. <b>El festivo que no se trabaja cuenta como laborado</b>: por ley la jornada de la semana se reduce en las horas de ese día, así que no hay que reponerlo.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:pgMinSemana(e,fechas)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
+    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos. <b>El festivo que no se trabaja cuenta como laborado</b> (${pgHc(+c.festivoMin||PG_FESTIVO_MIN)} de jornada ordinaria): por ley la semana se reduce en las horas de ese día, así que no hay que reponerlo ni aparece como horas faltantes.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:pgMinSemana(e,fechas)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fechas.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
