@@ -4298,7 +4298,16 @@ function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(
   const f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f)||{ini:e.ini,fin:e.fin};
   const n={ini:t.ini,fin:t.fin,[k]:pgMin(v)};
   if(n.fin===n.ini){toast('La entrada y la salida no pueden ser la misma hora');render();return;}
-  pgHorSem(id,true)[dw]=n;pgGuardarCfg();render();
+  const h=pgHorSem(id,true);h[dw]=n;
+  /* el primer día que trabaja de lunes a viernes manda: el mismo turno pasa a los
+     días siguientes hasta el viernes que trabaja (no a festivos ni a los que descansa).
+     Cambiar un día de la mitad de la semana cambia solo ese día. (Daniel, 30/10/2026.) */
+  const fd=d=>pgSumar(pgLunes(PG.fecha),d-1);
+  let cop=0;
+  if(dw>=1&&dw<=5&&![1,2,3,4,5].some(d=>d<dw&&pgTurnoEmp(e,fd(d))))
+    for(let d=dw+1;d<=5;d++)if(pgTurnoEmp(e,fd(d))){h[d]={ini:n.ini,fin:n.fin};cop++;}
+  pgGuardarCfg();render();
+  if(cop)toast('Mismo horario puesto hasta el viernes ('+cop+' día'+(cop>1?'s':'')+' más)');
   if(pgCruza(n))toast('Turno de noche: entra '+pgHora(n.ini)+' y sale '+pgHora(n.fin)+' del día siguiente · '+pgHc(pgDurTurno(n)));}
 function pgHorLibre(id,dw,libre){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   pgHorSem(id,true)[dw]=libre?{libre:1}:{ini:e.ini,fin:e.fin};pgGuardarCfg();render();}
