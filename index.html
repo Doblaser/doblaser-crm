@@ -1157,6 +1157,7 @@ html.side-off .menu-btn{display:grid !important}
 .pg-hor td.pg-hc.cambio{background:#fffbeb}
 .pg-hor td.pg-hc.libre{background:#f5f3f0}
 .pg-hor /* turno que sale al día siguiente */
+.pg-fest{font-size:10.5px;font-weight:700;color:#b45309;margin-top:2px}
 .pg-noche{font-size:10.5px;font-weight:700;color:#6d28d9;background:#f3e8ff;
   border-radius:5px;padding:1px 5px;margin-top:2px;display:inline-block}
 .pg-hl{color:var(--ink-3);font-weight:600;padding:6px 0}
@@ -1279,7 +1280,24 @@ html.side-off .menu-btn{display:grid !important}
 .rc-add:hover{border-color:var(--brand,#7b1e2b);color:var(--brand,#7b1e2b)}
 .rc-ok b{color:inherit}
 .firma-title{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--ink-2)}
-.firma-canvas-wrap{border:2px dashed var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.firma-canvas-wrap{border:2px dashed var(--line);border-radius:10px;overflow:hidden;background:#fff;position:relative}
+/* botón para firmar a pantalla completa */
+.firma-exp{position:absolute;top:6px;right:7px;font:inherit;font-size:11px;font-weight:600;
+  padding:5px 10px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.92);
+  color:var(--ink-2);cursor:pointer;z-index:2}
+.firma-exp.sal{display:none;background:var(--wine,#7b1e2b);color:#fff;border-color:var(--wine,#7b1e2b)}
+.firma-max .firma-exp{display:none}
+.firma-max .firma-exp.sal{display:block}
+/* en pantalla completa solo quedan el lienzo y el botón de salir */
+.firma-max .firma-box{padding:0;gap:0}
+.firma-max .firma-title,.firma-max #firmaResumen,.firma-max .firma-quien,
+.firma-max .firma-obs,.firma-max .firma-actions{display:none}
+/* la raya y el "firme aquí" van encima del lienzo para que no quede en blanco */
+.firma-max .firma-box{position:relative}
+.firma-max .firma-hint{position:absolute;left:0;right:0;bottom:14px;margin:0;text-align:center;pointer-events:none;opacity:.55}
+.firma-max .firma-canvas-wrap::after{content:'';position:absolute;left:28px;right:28px;bottom:44px;border-top:1px solid var(--line);pointer-events:none}
+.firma-max .firma-canvas-wrap{flex:1;border:0;border-radius:0;margin:0}
+.firma-max .firma-canvas-wrap canvas{height:100%}
 .firma-canvas-wrap canvas{display:block;width:100%;height:220px;touch-action:none;cursor:crosshair}
 .firma-hint{font-size:11px;color:var(--ink-3);margin:8px 0 12px}
 .firma-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -1544,7 +1562,11 @@ td.c,th.c{text-align:center}
   .ne-d{font-size:13.5px}
   /* --- firma del cliente: el lienzo es lo que importa --- */
   .firma-box{display:flex;flex-direction:column;padding:16px;overflow:hidden}
-  .firma-entrega{max-height:26vh;flex-shrink:1}
+  /* el lienzo se queda con todo el espacio que sobre: es lo que se usa */
+  .firma-entrega{max-height:18vh;flex-shrink:1}
+  .firma-canvas-wrap{flex:1;min-height:170px;display:flex}
+  .firma-canvas-wrap canvas{flex:1;height:auto!important}
+  .firma-obs textarea{min-height:34px}
   .firma-quien>div{min-width:0;flex:1 1 100%}
   .firma-actions{flex-shrink:0}
   .firma-actions .btn{flex:1 1 46%;min-width:0;padding:12px 10px}
@@ -3441,6 +3463,37 @@ function pgTramosTurno(t,c){
   const rec=(a,b)=>{const x=Math.max(c.inicio,a),y=Math.min(c.fin,b);return y>x?[{ini:x,fin:y}]:[];};
   return pgCruza(t)?rec(t.ini,1440):rec(t.ini,t.fin);
 }
+/* =========================================================
+   EL FESTIVO CUENTA COMO JORNADA  (30/10/2026)
+
+   Ley 2101 de 2021: la jornada ordinaria es de 42 h a la semana. Cuando cae un
+   festivo esa jornada **se reduce** en las horas que tocaba trabajar ese día y
+   el festivo "no se repone ni se compensa": con 6 días de 7 h quedan 35 h
+   obligatorias, con 5 días de 8,4 h quedan 33,6 h, y si ese día estaba pactado
+   en 10 h quedan 32 h. Las extras se cuentan sobre esa cifra reducida.
+   (gerencie.com, "Reducción de la jornada laboral cuando hay festivos".)
+
+   Es lo mismo que decirlo al revés, como lo dice Daniel: el festivo, aunque no
+   se trabaje, **cuenta como horas laboradas** contra las 42. Así lo hacemos,
+   porque así se lee la tabla: si alguien hizo su semana normal con un festivo
+   en medio, la columna de horas marca 42 y no "faltan 7".
+
+   `pgAporteFestivo` son los minutos que aporta un festivo que NO se trabajó:
+   el turno base de ese día de la semana. Si ese día igual no era laboral para
+   esa persona, aporta 0. Si sí se trabajó el festivo (hay turno puesto para
+   esa semana), no aporta nada aparte: cuentan las horas de verdad.
+   ========================================================= */
+function pgAporteFestivo(e,f){
+  if(!e||!pgFestivo(f))return 0;
+  if(pgTurnoEmp(e,f))return 0;                      /* lo trabajó: ya se cuentan sus horas */
+  const o=((pgCfg().horarios||{})[pgLunes(f)]||{})[e.id]||{};
+  if(o[pgDiaSem(f)])return 0;                       /* se le marcó descanso a mano esa semana */
+  return (e.dias||[]).includes(pgDiaSem(f))?pgDurTurno({ini:e.ini,fin:e.fin}):0;
+}
+/* minutos de la semana de una persona: turnos trabajados + festivos de ley */
+function pgMinSemana(e,fechas){
+  return fechas.reduce((a,f)=>a+pgDurTurno(pgTurnoEmp(e,f))+pgAporteFestivo(e,f),0);
+}
 function pgColaTurno(t,c){   /* lo que el turno de AYER deja en la madrugada de hoy */
   if(!t||!pgCruza(t))return [];
   const y=Math.min(c.fin,t.fin);
@@ -4274,9 +4327,11 @@ function pgPersonalHTML(){
   const filas=(c.personal||[]).map((e,i)=>{
     let tot=0;
     const celdas=fechas.map(f=>{const dw=pgDiaSem(f),t=pgTurnoEmp(e,f),cambio=!!(sem[e.id]&&sem[e.id][dw]);
+      const fest=pgAporteFestivo(e,f);
       if(t)tot+=pgDurTurno(t);
+      tot+=fest;
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
-        ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:'<div class="pg-hl">No trabaja</div>'}
+        ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
         ${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>${cambio?` · <button type="button" class="lnk" onclick="pgHorBase('${e.id}',${dw})" title="Volver al horario base">base</button>`:''}`:''}</td>`;}).join('');
     return `<tr><td><b>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
@@ -4288,7 +4343,7 @@ function pgPersonalHTML(){
       ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
       <button type="button" class="btn ghost sm" onclick="pgHorLimpiar()">Volver todo al horario base</button>
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
-    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:fechas.reduce((a,f)=>a+pgDurTurno(pgTurnoEmp(e,f)),0)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
+    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos. <b>El festivo que no se trabaja cuenta como laborado</b>: por ley la jornada de la semana se reduce en las horas de ese día, así que no hay que reponerlo.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:pgMinSemana(e,fechas)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fechas.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
@@ -10288,8 +10343,10 @@ function abrirFirma(titulo,resumen,onListo,opts){
         <div><label>Nombre de quien recibe</label><input id="firmaNombre" type="text" autocomplete="off" placeholder="Nombre y apellido"></div>
         <div><label>Cédula</label><input id="firmaCedula" type="text" inputmode="numeric" autocomplete="off" placeholder="Opcional"></div>
       </div>
-      <div class="firma-canvas-wrap"><canvas id="firmaCanvas"></canvas></div>
-      <div class="firma-hint">El cliente firma aquí con el dedo o el lápiz de la tablet</div>
+      <div class="firma-canvas-wrap"><canvas id="firmaCanvas"></canvas>
+        <button type="button" class="firma-exp" id="firmaExp" onclick="firmaMax()" title="Firmar a pantalla completa">⤢ Pantalla completa</button>
+        <button type="button" class="firma-exp sal" id="firmaSal" onclick="firmaMax(false)">Listo ✓</button></div>
+      <div class="firma-hint" id="firmaHint">El cliente firma aquí con el dedo o el lápiz de la tablet</div>
       <div class="firma-obs"><label>Observaciones (opcional)</label><textarea id="firmaObs" rows="2" placeholder="Ej: se entrega además 40 kg de lámina sobrante del corte"></textarea></div>
       <div class="firma-actions">
         <button type="button" class="btn ghost" onclick="firmaCancelar()">Cancelar</button>
@@ -10317,17 +10374,46 @@ function abrirFirma(titulo,resumen,onListo,opts){
   if(bOk)bOk.textContent=opts.textoOk||'Confirmar y compartir';
   FIRMA.sinQuien=!!opts.sinQuien;
   FIRMA.onListo=onListo;
+  c.classList.remove('firma-max');
   c.classList.add('show');
   setTimeout(firmaInitCanvas,30);
+  /* si gira el teléfono mientras firma, el lienzo se reajusta sin perder el trazo */
+  clearTimeout(FIRMA._rt);
+  if(FIRMA._onResize)removeEventListener('resize',FIRMA._onResize);
+  FIRMA._onResize=()=>{clearTimeout(FIRMA._rt);FIRMA._rt=setTimeout(()=>{
+    const l=document.getElementById('firmaLayer');
+    if(l&&l.classList.contains('show'))firmaMax(l.classList.contains('firma-max'));},200);};
+  addEventListener('resize',FIRMA._onResize);
+}
+/* Pantalla completa para firmar: en el celular el recuadro quedaba muy chico
+   para una firma de verdad. Esconde el resumen, los campos y las observaciones
+   y deja el lienzo ocupando todo. (Daniel, 30/10/2026.)
+   Lo ya dibujado se conserva: se copia el lienzo, se cambia de tamaño y se
+   vuelve a pintar escalado — si no, al agrandar se perdía la firma. */
+function firmaMax(on){
+  const c=document.getElementById('firmaLayer');if(!c)return;
+  const cv=document.getElementById('firmaCanvas');
+  const prev=(FIRMA.hasStroke&&cv)?(()=>{const o=document.createElement('canvas');
+    o.width=cv.width;o.height=cv.height;o.getContext('2d').drawImage(cv,0,0);return o;})():null;
+  const poner=(on===undefined)?!c.classList.contains('firma-max'):!!on;
+  c.classList.toggle('firma-max',poner);
+  firmaInitCanvas();
+  if(prev&&FIRMA.ctx){
+    const cvn=document.getElementById('firmaCanvas');
+    FIRMA.ctx.drawImage(prev,0,0,prev.width,prev.height,0,0,FIRMA.w,FIRMA.h);
+    FIRMA.hasStroke=true;
+  }
 }
 function firmaInitCanvas(){
   const cv=document.getElementById('firmaCanvas');if(!cv)return;
   const wrap=cv.parentElement;
   const dpr=window.devicePixelRatio||1;
+  const max=!!(document.getElementById('firmaLayer')||{classList:{contains:()=>false}}).classList.contains('firma-max');
   /* en el teléfono y la tablet el lienzo se hace más alto: es donde de verdad
      se firma, y 220 px fijos dejaban media pantalla vacía debajo */
   const w=wrap.clientWidth||420;
-  const h=innerWidth<=620?Math.round(Math.min(300,Math.max(200,innerHeight*0.32))):220;
+  const h=max?Math.max(220,wrap.clientHeight||Math.round(innerHeight*0.72))
+    :(innerWidth<=620?Math.round(Math.min(300,Math.max(200,innerHeight*0.32))):220);
   cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';
   const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
@@ -10345,7 +10431,11 @@ function firmaLimpiar(){
   ctx.fillStyle='#fff';ctx.fillRect(0,0,FIRMA.w,FIRMA.h);
   FIRMA.hasStroke=false;
 }
-function cerrarFirma(){const c=document.getElementById('firmaLayer');if(c)c.classList.remove('show');}
+function cerrarFirma(){
+  const c=document.getElementById('firmaLayer');
+  if(c){c.classList.remove('show');c.classList.remove('firma-max');}
+  if(FIRMA._onResize){removeEventListener('resize',FIRMA._onResize);FIRMA._onResize=null;}
+}
 function firmaOmitir(){const d=firmaDatosQuien();cerrarFirma();if(FIRMA.onListo)FIRMA.onListo(null,d);}
 /* salir sin firmar y sin imprimir — antes la única salida era imprimir igual */
 function firmaCancelar(){FIRMA.onListo=null;cerrarFirma();}
