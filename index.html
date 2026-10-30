@@ -849,7 +849,20 @@ html.side-off .menu-btn{display:grid !important}
 .remi-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:start}
 .remi-box:has(.remi-resumen) .remi-grid{grid-template-columns:minmax(300px,1fr) minmax(0,1.25fr)}
 .remi-resumen{border-left:1px solid var(--line);padding-left:22px;min-width:0}
-.remi-resumen .rs-t{font-size:16px;font-weight:800;margin-bottom:14px}
+.remi-resumen .rs-t{font-size:16px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* los dos documentos de la orden, uno al lado del otro: lo que falta y lo
+   que ya se entregó con sus firmas */
+.rs-acts{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.rs-acts .btn{white-space:nowrap}
+.rs-ayuda{font-size:11.5px;color:var(--ink-3);line-height:1.5;margin-bottom:14px}
+.rs-ayuda b{color:var(--ink-2)}
+/* rótulos que separan "elegir una entrega" de los documentos de toda la orden */
+.remi-gt{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 1px}
+.remi-gt:first-child{margin-top:0}
+@media(max-width:760px){
+  .rs-acts{margin-left:0;width:100%}
+  .rs-acts .btn{flex:1 1 46%;justify-content:center;min-width:0;white-space:normal}
+}
 .remi-resumen .rs-charts{display:flex;gap:18px;margin-bottom:16px;align-items:center}
 .rs-dona{flex:0 0 160px;height:160px;position:relative}
 .rs-dona .rs-dona-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none}
@@ -1155,6 +1168,11 @@ html.side-off .menu-btn{display:grid !important}
 .pg-hor td.pg-hc{min-width:118px;font-size:11.5px}
 .pg-hor td.pg-hc input{width:100%;padding:3px 5px;border:1px solid var(--line);border-radius:5px;font-size:12px;margin-bottom:3px;background:#fff}
 .pg-hor td.pg-hc.cambio{background:#fffbeb}
+/* cada empleado con su color: la franja, el punto y el nombre */
+.pg-hor td.pg-emp{border-left:5px solid var(--ec)}
+.pg-hor td.pg-emp b{color:var(--ec)}
+.pg-punto{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ec);
+  margin-right:6px;vertical-align:1px;flex:0 0 auto}
 .pg-hor td.pg-hc.libre{background:#f5f3f0}
 .pg-hor /* turno que sale al día siguiente */
 .pg-fest{font-size:10.5px;font-weight:700;color:#b45309;margin-top:2px}
@@ -1336,7 +1354,8 @@ html.side-off .menu-btn{display:grid !important}
 .vp-x:hover{background:var(--line)}
 .vp-body{flex:1;overflow:auto;background:#eceae8;padding:14px;display:flex;justify-content:center;align-items:flex-start;
   overscroll-behavior:contain}
-.vp-img{max-width:100%;height:auto;display:block;box-shadow:0 2px 14px rgba(0,0,0,.18);background:#fff}
+.vp-img{max-width:100%;height:auto;display:block;box-shadow:0 2px 14px rgba(0,0,0,.18);background:#fff;cursor:zoom-in}
+.vp-img.zoom{max-width:none;cursor:zoom-out}
 .vp-esc{box-shadow:0 2px 14px rgba(0,0,0,.18);background:#fff;overflow:hidden;cursor:zoom-in}
 .vp-acc{display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--line);background:var(--card)}
 .vp-acc .btn{flex:1;justify-content:center;min-height:44px}
@@ -4333,6 +4352,34 @@ function pgAjustesHTML(){
   </div>`;
 }
 const PG_DSEM=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+/* =========================================================
+   UN COLOR PARA CADA EMPLEADO  (30/10/2026)
+
+   Daniel: *"quiero que los empleados salgan con colores para que visualmente
+   sea m\u00e1s f\u00e1cil de entender"*. Con diez personas en la tabla, todas las filas
+   se ve\u00edan iguales y tocaba leer el nombre para saber en qu\u00e9 rengl\u00f3n iba uno.
+
+   El color se saca del **nombre** (no de la posici\u00f3n en la lista), as\u00ed que a
+   cada quien le queda siempre el mismo aunque se agregue o se quite gente. Si
+   a dos personas les toca el mismo, el segundo corre al siguiente libre: en
+   una misma pantalla no hay dos colores repetidos.
+   ========================================================= */
+const PG_PAL=[
+  {b:'#b91c1c',f:'#fef2f2'},{b:'#c2410c',f:'#fff7ed'},{b:'#a16207',f:'#fefce8'},
+  {b:'#15803d',f:'#f0fdf4'},{b:'#0f766e',f:'#f0fdfa'},{b:'#0369a1',f:'#f0f9ff'},
+  {b:'#4338ca',f:'#eef2ff'},{b:'#7e22ce',f:'#faf5ff'},{b:'#be185d',f:'#fdf2f8'},
+  {b:'#4d7c0f',f:'#f7fee7'},{b:'#1d4ed8',f:'#eff6ff'},{b:'#92400e',f:'#fffbeb'}
+];
+function pgHashTxt(t){let h=0;t=String(t||'');for(let i=0;i<t.length;i++)h=((h<<5)-h+t.charCodeAt(i))|0;return Math.abs(h);}
+function pgColoresEmp(pers){
+  const usados={},mapa={};
+  (pers||[]).forEach(e=>{
+    let i=pgHashTxt((e.nombre||'').trim().toLowerCase())%PG_PAL.length,n=0;
+    while(usados[i]&&n<PG_PAL.length){i=(i+1)%PG_PAL.length;n++;}
+    usados[i]=1;mapa[e.id||e.nombre]=PG_PAL[i];
+  });
+  return mapa;
+}
 const PG_JORNADA=42;   /* horas ordinarias a la semana; lo que pase son horas extra */
 function pgHorasSemTxt(min){
   const j=PG_JORNADA*60;
@@ -4361,10 +4408,11 @@ function horarioDocHTML(lunes){
     if(fest)return `<div class="hf">Festivo</div><div class="hd">cuenta ${pgHc(fest)}</div>`;
     return '<div class="hl">Descansa</div>';
   };
+  const col=pgColoresEmp(pers);
   const filas=pers.map(e=>{
     const tot=pgMinSemana(e,fechas),j=PG_JORNADA*60;
-    const maq=enMaq(e);
-    return `<tr><td class="emp"><b>${esc(e.nombre)}</b>${maq?`<div class="sub">${esc(maq)}</div>`:''}</td>`
+    const maq=enMaq(e),cl=col[e.id||e.nombre]||PG_PAL[0];
+    return `<tr><td class="emp" style="border-left:6px solid ${cl.b};background:${cl.f}"><b style="color:${cl.b}">${esc(e.nombre)}</b>${maq?`<div class="sub">${esc(maq)}</div>`:''}</td>`
       +fechas.map(f=>{const t=pgTurnoEmp(e,f),fe=pgAporteFestivo(e,f);
         return `<td class="c${t?'':(fe?' fest':' libre')}">${celda(e,f)}</td>`;}).join('')
       +`<td class="c tot"><b>${pgHc(tot)}</b>${tot>j?`<div class="ex">+${pgHc(tot-j)} extra</div>`:(tot<j?`<div class="fa">faltan ${pgHc(j-tot)}</div>`:'<div class="ok">completa</div>')}</td></tr>`;
@@ -4441,7 +4489,9 @@ function pgPersonalHTML(){
   const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
   const sem=(c.horarios||{})[lunes]||{};
   const enMaq=e=>c.maquinas.filter(m=>(m.operario||'').trim().toLowerCase()===e.nombre.toLowerCase()).map(m=>m.nombre).join(', ');
+  const col=pgColoresEmp(c.personal);
   const filas=(c.personal||[]).map((e,i)=>{
+    const cl=col[e.id||e.nombre]||PG_PAL[0];
     let tot=0;
     const celdas=fechas.map(f=>{const dw=pgDiaSem(f),t=pgTurnoEmp(e,f),cambio=!!(sem[e.id]&&sem[e.id][dw]);
       const fest=pgAporteFestivo(e,f);
@@ -4450,7 +4500,7 @@ function pgPersonalHTML(){
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
         ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
         ${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>${cambio?` · <button type="button" class="lnk" onclick="pgHorBase('${e.id}',${dw})" title="Volver al horario base">base</button>`:''}`:''}</td>`;}).join('');
-    return `<tr><td><b>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
+    return `<tr><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b><i class="pg-punto"></i>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
   return `<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
       <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,-7);render()">◀ Anterior</button>
@@ -6729,7 +6779,7 @@ function vpAbrir(o){
       <div class="vp-ht"><div class="vp-t">${esc(o.titulo||'Vista previa')}</div>${o.sub?`<div class="vp-s">${esc(o.sub)}</div>`:''}</div>
       <button type="button" class="vp-x" onclick="vpCerrar()" title="Salir">✕</button>
     </div>
-    <div class="vp-body">${esImg?`<img class="vp-img" src="${o.img}" alt="Vista previa">`:'<div class="vp-esc" id="vpEsc"></div>'}</div>
+    <div class="vp-body">${esImg?`<img class="vp-img" src="${o.img}" alt="Vista previa" title="Toca para verla a tama\u00f1o real" onclick="this.classList.toggle('zoom')">`:'<div class="vp-esc" id="vpEsc"></div>'}</div>
     <div class="vp-acc">
       <button type="button" class="btn ghost" onclick="vpCerrar()">Salir</button>
       <button type="button" class="btn ghost" onclick="vpImprimir()">Imprimir</button>
@@ -6957,11 +7007,13 @@ function vistaRemFirmada(id){
    SOLO lo que se entreg\u00f3 ese d\u00eda: si sale todo, el cliente termina firmando
    piezas que ya hab\u00eda recibido antes, o que todav\u00eda no le han llegado.
    Por eso, si la orden ya tiene entregas registradas, primero se elige cu\u00e1l. */
-function printRemision(id){
+async function printRemision(id){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r){toast('Orden no encontrada');return}
-  const gs=entregasDe(r);
-  if(!gs.length){_remisionImprimir(r,null);return}   /* sin entregas: va la orden completa */
-  _elegirEntrega(r,gs);
+  if(!entregasDe(r).length){_remisionImprimir(r,null);return}   /* sin entregas: va la orden completa */
+  /* las firmas se traen aparte porque pesan; sin esperarlas, el cuadro
+     marcaba "Sin firmar" entregas que s\u00ed estaban firmadas */
+  await ropConFirma(r);
+  _elegirEntrega(r,entregasDe(r));
 }
 function _remisionImprimir(r,fecha){
   abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||'')+(fecha?' \u00b7 entrega del '+fmtDate(fecha):''),
@@ -7039,8 +7091,13 @@ function panelResumenEntrega(r){
   }).join('');
   const pctTot=totTot>0?Math.round(totEnt/totTot*100):0;
   return `<div class="remi-resumen">
-    <div class="rs-t" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Resumen de entregas \u2014 ${pctTot}% completado
-      ${totTot>totEnt?`<button type="button" class="btn ghost sm" style="margin-left:auto" onclick="imprimirPendiente('${r.id}')">Imprimir lo pendiente</button>`:''}</div>
+    <div class="rs-t">Resumen de entregas \u2014 ${pctTot}% completado
+      <div class="rs-acts">
+        ${totTot>totEnt?`<button type="button" class="btn ghost sm" onclick="imprimirPendiente('${r.id}')" title="Hoja con lo que falta por despachar de esta orden">Lo que falta</button>`:''}
+        <button type="button" class="btn sm" onclick="verAcumuladaDe('${r.id}')" title="Una sola hoja con el estado de la orden y cada entrega con su fecha, qui\u00e9n recibi\u00f3 y su firma">Lo entregado + firmas</button>
+      </div>
+    </div>
+    <div class="rs-ayuda"><b>Lo que falta</b> es el listado de lo que sigue pendiente por despachar. <b>Lo entregado + firmas</b> es la remisi\u00f3n acumulada: el estado de la orden m\u00e1s cada entrega con su fecha, qui\u00e9n recibi\u00f3 y su firma.</div>
     <div class="rs-charts">
       <div class="rs-dona"><canvas id="remiDona"></canvas>
         <div class="rs-dona-txt"><b>${pctTot}%</b><span class="muted">entregado</span></div>
@@ -7157,14 +7214,18 @@ function _elegirEntrega(r,gs){
   const opcion=(onclick,titulo,detalle,chip)=>`<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px;height:auto;padding:9px 12px" onclick="${onclick}"><span style="display:flex;align-items:center;gap:8px;width:100%"><span style="font-weight:700">${titulo}</span>${chip||''}<span class="spacer"></span></span><span class="muted" style="font-size:11.5px;font-weight:400;white-space:normal">${detalle}</span></button>`;
   const chipFirma=firmada=>`<span class="tag" style="font-size:10px;background:${firmada?'#f0fdf4':'#fef2f2'};border-color:${firmada?'#bbf7d0':'#fecaca'};color:${firmada?'#166534':'#b91c1c'}">${firmada?'\u2713 Firmada':'Sin firmar'}</span>`;
   document.getElementById('remiOpts').innerHTML=
+    '<div class="remi-gt">Remisi\u00f3n de una entrega</div>'+
     gs.slice().reverse().map(g=>{
       const det=g.items.map(b=>b.piezaDesc?(b.piezaDesc+': '+(b.cantEntregada||0)):'toda la orden').join(' \u00b7 ');
       const quien=(g.recibeNombre?' \u00b7 recibi\u00f3 '+g.recibeNombre:'');
       return opcion(`imprimirEntrega('${idr}','${esc(g.id)}')`,'Entrega '+g.n+' \u00b7 '+fmtDate(g.fecha),
         esc((det.length>95?det.slice(0,95)+'\u2026':det)+quien),chipFirma(!!firmaDeEntrega(r,g,gs)));
     }).join('')+
-    opcion(`verAcumuladaDe('${idr}')`,'Todo lo entregado a la fecha',
-      'Una sola hoja con el estado de la orden y cada entrega con su fecha, qui\u00e9n recibi\u00f3 y su firma')+
+    '<div class="remi-gt">La orden completa</div>'+
+    /* con el panel al lado, la acumulada vive en su encabezado \u2014 ah\u00ed se
+       entiende como el par de "lo que falta"; sin panel no hay d\u00f3nde m\u00e1s */
+    (panel?'':opcion(`verAcumuladaDe('${idr}')`,'Lo entregado + firmas',
+      'Una sola hoja con el estado de la orden y cada entrega con su fecha, qui\u00e9n recibi\u00f3 y su firma'))+
     opcion(`imprimirEntrega('${idr}','')`,'Toda la orden','Todas las piezas juntas, sin separar por entrega');
   capa.classList.add('show');
 }
