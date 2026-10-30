@@ -1325,6 +1325,27 @@ html.side-off .menu-btn{display:grid !important}
 .sh-spin{width:30px;height:30px;margin:2px auto 16px;border:3px solid var(--line);border-top-color:#7b1e2b;border-radius:50%;animation:shgira .8s linear infinite}
 @keyframes shgira{to{transform:rotate(360deg)}}
 .sh-nota{font-size:12px;color:var(--ink-3);margin-bottom:12px}
+/* ---- Vista previa de un documento (remisión, horario...) ---- */
+.vp-box{padding:0;width:min(960px,96vw);max-width:min(960px,96vw);max-height:94vh;display:flex;flex-direction:column;text-align:left;overflow:hidden}
+.vp-h{display:flex;align-items:flex-start;gap:12px;padding:15px 16px 12px;border-bottom:1px solid var(--line)}
+.vp-ht{min-width:0;flex:1}
+.vp-t{font-weight:800;font-size:15px;line-height:1.3}
+.vp-s{font-size:12px;color:var(--ink-3);margin-top:2px}
+.vp-x{flex:0 0 auto;width:34px;height:34px;border:1px solid var(--line);background:var(--bg);border-radius:9px;
+  font-size:15px;line-height:1;color:var(--ink-2);cursor:pointer}
+.vp-x:hover{background:var(--line)}
+.vp-body{flex:1;overflow:auto;background:#eceae8;padding:14px;display:flex;justify-content:center;align-items:flex-start;
+  overscroll-behavior:contain}
+.vp-img{max-width:100%;height:auto;display:block;box-shadow:0 2px 14px rgba(0,0,0,.18);background:#fff}
+.vp-esc{box-shadow:0 2px 14px rgba(0,0,0,.18);background:#fff;overflow:hidden;cursor:zoom-in}
+.vp-acc{display:flex;gap:9px;padding:12px 14px;border-top:1px solid var(--line);background:var(--card)}
+.vp-acc .btn{flex:1;justify-content:center;min-height:44px}
+@media(max-width:620px){
+  .vp-box{width:100%;max-width:100%;height:94dvh;max-height:94dvh}
+  .vp-body{padding:8px}
+  .vp-acc{flex-wrap:wrap;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  .vp-acc .btn{flex:1 1 46%;min-width:0;padding:12px 8px}
+}
 .ic-btn.pagar{color:#16a34a}
 .ic-btn.pagar:hover{background:#dcfce7}
 .ic-btn.venta-link{color:#1d4ed8}
@@ -4319,6 +4340,102 @@ function pgHorasSemTxt(min){
   if(min<j)return `<b>${pgHc(min)}</b><div class="fc-sub" style="color:#b45309">faltan ${pgHc(j-min)} para ${PG_JORNADA} h</div>`;
   return `<b>${pgHc(min)}</b><div class="fc-sub" style="color:#15803d">jornada completa ✓</div>`;
 }
+/* =========================================================
+   EL HORARIO DE LA SEMANA COMO IMAGEN  (30/10/2026)
+
+   Daniel: *"quiero que el horario se pueda ver en formato de imagen con una
+   vista previa y luego compartirlo"*. La tabla de la pantalla tiene campos de
+   hora, botones y enlaces: no sirve para mandar por WhatsApp. Esto arma una
+   hoja limpia con la misma información, la pasa a PNG y la abre en la vista
+   previa, desde donde se comparte, se descarga o se imprime.
+   ========================================================= */
+function horarioDocHTML(lunes){
+  const c=pgCfg();
+  const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
+  const pers=(c.personal||[]);
+  const enMaq=e=>(c.maquinas||[]).filter(m=>(m.operario||'').trim().toLowerCase()===e.nombre.toLowerCase()).map(m=>m.nombre).join(', ');
+  const celda=(e,f)=>{
+    const t=pgTurnoEmp(e,f),fest=pgAporteFestivo(e,f);
+    if(t)return `<div class="hh">${pgHora2(t.ini)} – ${pgHora2(t.fin)}</div>
+      <div class="hd">${pgCruza(t)?'+1 día · ':''}${pgHc(pgDurTurno(t))}</div>`;
+    if(fest)return `<div class="hf">Festivo</div><div class="hd">cuenta ${pgHc(fest)}</div>`;
+    return '<div class="hl">Descansa</div>';
+  };
+  const filas=pers.map(e=>{
+    const tot=pgMinSemana(e,fechas),j=PG_JORNADA*60;
+    const maq=enMaq(e);
+    return `<tr><td class="emp"><b>${esc(e.nombre)}</b>${maq?`<div class="sub">${esc(maq)}</div>`:''}</td>`
+      +fechas.map(f=>{const t=pgTurnoEmp(e,f),fe=pgAporteFestivo(e,f);
+        return `<td class="c${t?'':(fe?' fest':' libre')}">${celda(e,f)}</td>`;}).join('')
+      +`<td class="c tot"><b>${pgHc(tot)}</b>${tot>j?`<div class="ex">+${pgHc(tot-j)} extra</div>`:(tot<j?`<div class="fa">faltan ${pgHc(j-tot)}</div>`:'<div class="ok">completa</div>')}</td></tr>`;
+  }).join('');
+  const hayFest=fechas.some(f=>pgFestivo(f));
+  const dom=pgSumar(lunes,6);
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc('Horarios semana del '+lunes)}</title>
+<style>
+  @page{size:Letter landscape;margin:0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#222;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .hoja{padding:26px 30px;width:100%}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #7b1e2b;padding-bottom:12px}
+  .brand img{height:50px;display:block;margin-bottom:5px}
+  .brand .co{font-size:10px;color:#666;line-height:1.5}
+  .doc{text-align:right}
+  .doc .lbl{font-size:10px;letter-spacing:.14em;color:#999}
+  .doc .num{font-size:21px;font-weight:800;color:#7b1e2b;margin:1px 0 4px}
+  .doc .row{font-size:11px;color:#555}
+  table{width:100%;border-collapse:collapse;margin-top:14px;table-layout:fixed}
+  th{background:#1d1d1d;color:#fff;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:7px 5px;text-align:center}
+  th.emp{text-align:left;width:150px}
+  th .d{font-size:13px;letter-spacing:0;text-transform:none;font-weight:800}
+  th .fs{color:#ffb4b4;font-size:8.5px;letter-spacing:0;text-transform:none}
+  td{border-bottom:1px solid #eee;border-right:1px solid #f2f2f2;padding:8px 5px;vertical-align:middle;font-size:11px}
+  td.c{text-align:center}
+  td.emp .sub{font-size:9px;color:#999;margin-top:1px}
+  td.libre{background:#fafafa}
+  td.fest{background:#fff7ed}
+  td.tot{background:#f7f5f5}
+  .hh{font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
+  .hd{font-size:9px;color:#888;margin-top:1px}
+  .hf{font-weight:700;color:#b45309;font-size:11px}
+  .hl{color:#bbb;font-size:10.5px}
+  .ex{font-size:9px;color:#b91c1c;font-weight:700}
+  .fa{font-size:9px;color:#b45309}
+  .ok{font-size:9px;color:#15803d}
+  .nota{margin-top:11px;font-size:10px;color:#666;line-height:1.6}
+  .nota b{color:#222}
+  .foot{margin-top:14px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:7px;text-align:center}
+  .vacio{margin-top:26px;text-align:center;color:#999;font-size:13px}
+</style></head><body><div class="hoja">
+  <div class="top">
+    <div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><strong>DOBLASER S.A.S.</strong> · Nit 901682190-5<br>${esc(EMPRESA.dir)}<br>${esc(EMPRESA.ciudad)} · ${esc(EMPRESA.web)}</div></div>
+    <div class="doc"><div class="lbl">HORARIOS DE PLANTA</div>
+      <div class="num">${fmtDate(lunes)} – ${fmtDate(dom)}</div>
+      <div class="row">Jornada ordinaria: <b>${PG_JORNADA} horas</b> a la semana</div>
+      <div class="row">${pers.length} ${pers.length===1?'empleado':'empleados'}</div></div>
+  </div>
+  ${pers.length?`<table><thead><tr><th class="emp">Empleado</th>
+    ${fechas.map(f=>`<th><div class="d">${PG_DSEM[pgDiaSem(f)]} ${+String(f).slice(8)}</div>${pgFestivo(f)?`<div class="fs">${esc(pgFestivo(f))}</div>`:''}</th>`).join('')}
+    <th style="width:92px">Horas</th></tr></thead><tbody>${filas}</tbody></table>
+  <div class="nota">Las horas se cuentan <b>sin almuerzo ni descansos</b>. Un turno marcado <b>+1 día</b> entra un día y sale al siguiente.${hayFest?' El <b>festivo</b> no se trabaja pero cuenta como jornada laborada: por ley la semana se reduce en las horas de ese día.':''} Lo que pase de ${PG_JORNADA} h es <b>hora extra</b>.</div>`
+  :'<div class="vacio">Todavía no hay empleados en el horario.</div>'}
+  <div class="foot">DOBLASER S.A.S. · ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} · Generado ${fmtDate(today())}${(currentUser()&&currentUser().name)?' por '+esc(currentUser().name):''}</div>
+</div></body></html>`;
+}
+async function verHorarioImagen(){
+  const lunes=pgLunes(PG.fecha),dom=pgSumar(lunes,6);
+  const html=horarioDocHTML(lunes);
+  toast('Armando la imagen del horario…');
+  let img=null;
+  try{img=await docPNG(html,1180);}catch(e){}
+  if(!img||!img.dataUrl){toast('No se pudo armar la imagen — se abre la vista previa normal');
+    vpAbrir({tipo:'doc',html,titulo:'Horarios de planta',sub:fmtDate(lunes)+' – '+fmtDate(dom),
+      nombre:cleanFileName('Horarios '+lunes)});return;}
+  vpAbrir({tipo:'img',html,img:img.dataUrl,blob:img.blob,
+    titulo:'Horarios de planta · Doblaser S.A.S.',
+    sub:'Semana del '+fmtDate(lunes)+' al '+fmtDate(dom),
+    nombre:cleanFileName('Horarios '+lunes)});
+}
 function pgPersonalHTML(){
   const c=pgCfg(),ed=pgPuede(),dis=ed?'':'disabled',lunes=pgLunes(PG.fecha),hoy=pgHoy();
   const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
@@ -4339,6 +4456,7 @@ function pgPersonalHTML(){
       <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,-7);render()">◀ Anterior</button>
       <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,7);render()">Siguiente ▶</button>
       ${fechas.includes(hoy)?'':`<button type="button" class="btn ghost sm" onclick="PG.fecha=pgHoy();render()">Esta semana</button>`}
+      <button type="button" class="btn ghost sm" onclick="verHorarioImagen()" title="Ver el horario de la semana como imagen y compartirlo">🖼 Ver como imagen</button>
       <div class="spacer"></div>
       ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
       <button type="button" class="btn ghost sm" onclick="pgHorLimpiar()">Volver todo al horario base</button>
@@ -6524,11 +6642,15 @@ function printDoc(html,fname){
 /* PDF de una remisión — mismo motor que el de las cotizaciones: se pinta el
    documento en una hoja de 794 px, se pasa a lienzo y se corta por páginas. */
 async function remisionPDF(r,fecha,firma,recibe){
+  return docPDF(remisionHTML(r,fecha,firma,recibe));
+}
+/* el mismo motor, pero para CUALQUIER documento: lo usan la remisión, la
+   remisión acumulada y la vista previa */
+async function docPDF(html){
   await Promise.all([
     cargarLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'),
     cargarLib('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
   ]);
-  const html=remisionHTML(r,fecha,firma,recibe);
   const cont=document.createElement('div');
   cont.style.cssText='position:absolute;left:0;top:0;width:794px;background:#fff;z-index:-9999';
   cont.innerHTML=html.replace(/^[\s\S]*?<body[^>]*>/i,'').replace(/<\/body>[\s\S]*$/i,'');
@@ -6559,6 +6681,129 @@ async function remisionPDF(r,fecha,firma,recibe){
     return pdf.output('blob');
   }finally{cont.remove()}
 }
+/* el documento convertido en imagen PNG, para mandarlo por WhatsApp sin que
+   nadie tenga que abrir un PDF (el horario de la semana se usa así) */
+async function docPNG(html,ancho){
+  await cargarLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');
+  const cont=document.createElement('div');
+  cont.style.cssText='position:absolute;left:0;top:0;width:'+(ancho||1100)+'px;background:#fff;z-index:-9999';
+  cont.innerHTML=html.replace(/^[\s\S]*?<body[^>]*>/i,'').replace(/<\/body>[\s\S]*$/i,'');
+  const m=/<style[^>]*>([\s\S]*?)<\/style>/i.exec(html);
+  if(m){const est=document.createElement('style');est.textContent=m[1];cont.appendChild(est);}
+  document.body.appendChild(cont);
+  try{
+    await new Promise(x=>setTimeout(x,140));
+    const canvas=await html2canvas(cont,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+    const blob=await new Promise(ok=>canvas.toBlob(ok,'image/png'));
+    return {dataUrl:canvas.toDataURL('image/png'),blob,w:canvas.width,h:canvas.height};
+  }finally{cont.remove()}
+}
+
+/* =========================================================
+   VISTA PREVIA DE DOCUMENTOS  (30/10/2026)
+
+   Daniel: *"quiero que las remisiones tengan un botón de salir normal y una
+   vista previa que no tenga que necesariamente ser para compartir o
+   descargar"*.
+
+   Antes, para ver una remisión había que mandarla a imprimir o armar el PDF
+   para compartirlo: no existía el simple "déjame verla". Ahora cualquier
+   documento se abre aquí tal como va a quedar, con cuatro botones claros:
+   **Salir**, Imprimir, Descargar y Compartir. Ninguno es obligatorio.
+
+   Sirve para cualquier documento, no solo la remisión:
+     - `tipo:'doc'` pinta el HTML en un marco a escala (hoja carta de 794 px
+       reducida a lo que quepa en la pantalla) y el archivo sale en PDF;
+     - `tipo:'img'` muestra el PNG ya armado y el archivo sale en PNG.
+   ========================================================= */
+let VP={};
+function vpAbrir(o){
+  if(VP._onResize){removeEventListener('resize',VP._onResize);}
+  VP=Object.assign({},o);
+  let c=document.getElementById('vpLayer');
+  if(!c){c=document.createElement('div');c.id='vpLayer';c.className='confirm-layer';document.body.appendChild(c);
+    c.addEventListener('click',e=>{if(e.target===c)vpCerrar();});}
+  const esImg=o.tipo==='img';
+  c.innerHTML=`<div class="confirm-box vp-box">
+    <div class="vp-h">
+      <div class="vp-ht"><div class="vp-t">${esc(o.titulo||'Vista previa')}</div>${o.sub?`<div class="vp-s">${esc(o.sub)}</div>`:''}</div>
+      <button type="button" class="vp-x" onclick="vpCerrar()" title="Salir">✕</button>
+    </div>
+    <div class="vp-body">${esImg?`<img class="vp-img" src="${o.img}" alt="Vista previa">`:'<div class="vp-esc" id="vpEsc"></div>'}</div>
+    <div class="vp-acc">
+      <button type="button" class="btn ghost" onclick="vpCerrar()">Salir</button>
+      <button type="button" class="btn ghost" onclick="vpImprimir()">Imprimir</button>
+      <button type="button" class="btn ghost" onclick="vpGuardar()">${esImg?'Descargar imagen':'Descargar PDF'}</button>
+      <button type="button" class="btn" onclick="vpCompartir()">Compartir</button>
+    </div>
+  </div>`;
+  c.classList.add('show');
+  if(!esImg)vpPintarDoc();
+}
+function vpPintarDoc(){
+  const cont=document.getElementById('vpEsc');if(!cont)return;
+  const f=document.createElement('iframe');
+  f.setAttribute('scrolling','no');
+  f.style.cssText='width:794px;border:0;display:block;background:#fff;transform-origin:top left;pointer-events:none';
+  cont.innerHTML='';cont.appendChild(f);
+  cont.title='Toca para ver la hoja a tama\u00f1o real';
+  cont.onclick=()=>{VP._zoom=!VP._zoom;if(VP._ajustar)VP._ajustar();};
+  const d=f.contentWindow.document;d.open();d.write(VP.html);d.close();
+  /* el documento está pensado para una hoja de 794 px de ancho; en el teléfono
+     se reduce con transform para que se vea completo y no toque deslizar */
+  const ajustar=()=>{
+    try{
+      const alto=Math.max(380,d.body.scrollHeight+10);
+      f.style.height=alto+'px';
+      cont.style.width='100%';                 /* se mide el hueco de verdad */
+      const disp=Math.max(200,cont.clientWidth);
+      /* por defecto la hoja entra completa; con un toque se ve a tama\u00f1o real
+         (en el tel\u00e9fono la letra chica no se alcanza a leer de otra forma) */
+      const k=VP._zoom?1:Math.min(1,disp/794);
+      f.style.transform='scale('+k+')';
+      cont.style.width=Math.round(794*k)+'px';
+      cont.style.height=Math.round(alto*k)+'px';
+    }catch(e){}
+  };
+  VP._zoom=false;VP._ajustar=ajustar;
+  setTimeout(ajustar,90);setTimeout(ajustar,450);setTimeout(ajustar,1200);
+  clearTimeout(VP._rt);
+  VP._onResize=()=>{clearTimeout(VP._rt);VP._rt=setTimeout(ajustar,180);};
+  addEventListener('resize',VP._onResize);
+}
+function vpCerrar(){
+  const c=document.getElementById('vpLayer');if(c)c.classList.remove('show');
+  if(VP._onResize){removeEventListener('resize',VP._onResize);VP._onResize=null;}
+}
+function vpImprimir(){if(VP.html)printDoc(VP.html,VP.nombre||'Documento');}
+async function vpArchivo(){
+  if(VP.tipo==='img')return {blob:VP.blob,nombre:(VP.nombre||'documento')+'.png',mime:'image/png'};
+  if(!VP._pdf)VP._pdf=await docPDF(VP.html);
+  return {blob:VP._pdf,nombre:(VP.nombre||'documento')+'.pdf',mime:'application/pdf'};
+}
+async function vpGuardar(){
+  let a;
+  try{toast('Preparando el archivo…');a=await vpArchivo();}catch(e){toast('No se pudo armar el archivo');return;}
+  if(!a.blob){toast('No se pudo armar el archivo');return;}
+  descargarBlob(a.blob,a.nombre);toast(VP.tipo==='img'?'Imagen descargada':'PDF descargado');
+}
+async function vpCompartir(){
+  let a;
+  try{toast('Preparando el archivo…');a=await vpArchivo();}catch(e){toast('No se pudo armar el archivo');return;}
+  if(!a.blob){toast('No se pudo armar el archivo');return;}
+  const file=new File([a.blob],a.nombre,{type:a.mime});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({title:VP.titulo||'Doblaser S.A.S.',files:[file]});}
+    catch(e){if(e&&e.name!=='AbortError')toast('No se pudo compartir. Descárgalo y adjúntalo.');}
+    return;
+  }
+  /* en el computador no existe el menú de compartir del celular: se baja el
+     archivo y se abre WhatsApp para arrastrarlo al chat */
+  descargarBlob(a.blob,a.nombre);
+  try{window.open('https://wa.me/?text='+encodeURIComponent(VP.titulo||'Doblaser S.A.S.'),'_blank','noopener');}catch(e){}
+  toast('El archivo se descargó — adjúntalo en el chat');
+}
+
 /* resumen en texto, por si el PDF no se puede armar en ese equipo */
 function remisionTexto(r,fecha){
   const res=resumenEntrega(r,fecha||null);
@@ -6688,6 +6933,7 @@ async function verRemisionFirmada(id){
       ${res.pend>0?`<div class="rf-pend">Quedan ${res.pend} unidades pendientes de esta orden</div>`:''}</div>`:''}
     <div class="rf-acc">
       <button type="button" class="btn ghost" onclick="cerrarRemFirmada()">Cerrar</button>
+      <button type="button" class="btn ghost" onclick="vistaRemFirmada('${r.id}')">Vista previa</button>
       <button type="button" class="btn ghost" onclick="imprimirRemFirmada('${r.id}')">Imprimir</button>
       <button type="button" class="btn" onclick="enviarRemFirmada('${r.id}')">Enviar</button>
     </div>
@@ -6702,6 +6948,11 @@ function imprimirRemFirmada(id){
     cleanFileName('Remisi\u00f3n firmada '+(r.rop||'')+' - '+(r.cliente||'cliente')));
 }
 function enviarRemFirmada(id){cerrarRemFirmada();compartirRemision(id);}
+function vistaRemFirmada(id){
+  const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
+  cerrarRemFirmada();
+  vpRemisionDoc(r,null,r.firmaCliente,{nombre:r.firmaClienteNombre||'',cedula:r.firmaClienteCedula||''});
+}
 /* Una orden puede despacharse en varias remisiones. Cada remisi\u00f3n debe llevar
    SOLO lo que se entreg\u00f3 ese d\u00eda: si sale todo, el cliente termina firmando
    piezas que ya hab\u00eda recibido antes, o que todav\u00eda no le han llegado.
@@ -6723,9 +6974,9 @@ function _remisionImprimir(r,fecha){
     if(quien&&quien.obs)cambios.bitacora=[...(Array.isArray(r.bitacora)?r.bitacora:[]),
       {tipo:'nota',fecha:fecha||today(),texto:quien.obs,autor:currentUser()?currentUser().name:null}];
     if(Object.keys(cambios).length)saveRow('rop',{...r,...cambios});
-    /* en vez de mandar directo a imprimir: desde el celular no hace falta
-       imprimir, con "Compartir" se manda por WhatsApp de una vez */
-    _compartirRemisionDoc({...r,...cambios},fecha,firma,quien);
+    /* en vez de mandar directo a imprimir: se abre la vista previa, donde
+       est\u00e1n Compartir, Imprimir, Descargar y Salir */
+    vpRemisionDoc({...r,...cambios},fecha,firma,quien);
   });
 }
 /* Resumen profesional de avance, al costado del cuadro de la remision: dos
@@ -6912,6 +7163,8 @@ function _elegirEntrega(r,gs){
       return opcion(`imprimirEntrega('${idr}','${esc(g.id)}')`,'Entrega '+g.n+' \u00b7 '+fmtDate(g.fecha),
         esc((det.length>95?det.slice(0,95)+'\u2026':det)+quien),chipFirma(!!firmaDeEntrega(r,g,gs)));
     }).join('')+
+    opcion(`verAcumuladaDe('${idr}')`,'Todo lo entregado a la fecha',
+      'Una sola hoja con el estado de la orden y cada entrega con su fecha, qui\u00e9n recibi\u00f3 y su firma')+
     opcion(`imprimirEntrega('${idr}','')`,'Toda la orden','Todas las piezas juntas, sin separar por entrega');
   capa.classList.add('show');
 }
@@ -6919,6 +7172,46 @@ function cerrarElegirEntrega(){const c=document.getElementById('remiLayer');if(c
   if(window._remiResize)window.removeEventListener('resize',window._remiResize);
   clearTimeout(window._remiRedibujo);
   (window._remiCharts||[]).forEach(ch=>{try{ch.destroy();}catch(e){}});window._remiCharts=[];}
+/* ---- vista previa de las remisiones (sin firmar, sin compartir) ---- */
+function vpRemisionDoc(r,fecha,firma,recibe){
+  const _n=(fecha&&typeof fecha==='object')?fecha.n:null;
+  vpAbrir({tipo:'doc',html:remisionHTML(r,fecha,firma,recibe),
+    titulo:'Remisi\u00f3n '+(r.rop||'')+(_n?' \u00b7 entrega '+_n:''),
+    sub:(r.cliente||'')+(firma?' \u00b7 firmada':' \u00b7 sin firma del cliente'),
+    nombre:cleanFileName('Remision '+(r.rop||'')+(_n?' entrega '+_n:'')+' - '+(r.cliente||'cliente'))});
+}
+function vpRemisionAcum(r){
+  const gs=entregasDe(r);
+  vpAbrir({tipo:'doc',html:remisionAcumHTML(r),
+    titulo:'Remisi\u00f3n acumulada \u00b7 '+(r.rop||''),
+    sub:(r.cliente||'')+' \u00b7 '+gs.length+' entrega'+(gs.length===1?'':'s')+' hasta el '+fmtDate(today()),
+    nombre:cleanFileName('Remision acumulada '+(r.rop||'')+' - '+(r.cliente||'cliente'))});
+}
+async function verAcumuladaDe(id){
+  const r=CACHE.rop.find(x=>String(x.id)===String(id));
+  if(!r){toast('Orden no encontrada');return;}
+  cerrarElegirEntrega();
+  await ropConFirma(r);
+  vpRemisionAcum(r);
+}
+/* las dos de abajo salen del formulario de la orden abierto, donde las
+   entregas pueden estar sin guardar todav\u00eda */
+async function _ropFormConFirmas(){
+  const {base,r}=ropEditActual();
+  if(base.id){
+    await ropConFirma(base);
+    r.firmaCliente=base.firmaCliente;
+    if(base.entregasFirmas)r.entregasFirmas=Object.assign({},base.entregasFirmas,ropEntregasFirmas||{});
+  }
+  return r;
+}
+async function vistaRemisionAcum(){vpRemisionAcum(await _ropFormConFirmas());}
+async function vistaRemisionDeEntrega(entregaId){
+  const r=await _ropFormConFirmas();
+  const gs=entregasDe(r),g=gs.find(x=>x.id===entregaId);
+  if(!g){toast('Entrega no encontrada');return;}
+  vpRemisionDoc(r,g,firmaDeEntrega(r,g,gs),recibeDeEntrega(r,g,gs));
+}
 async function imprimirEntrega(id,entregaId){
   const r=CACHE.rop.find(x=>String(x.id)===String(id));if(!r)return;
   cerrarElegirEntrega();
@@ -7132,6 +7425,151 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
   <div class="foot">DOBLASER S.A.S. \u00b7 Nit 901682190-5 \u00b7 ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} \u00b7 ${esc(EMPRESA.web)} \u00b7 Generado ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''}</div>
 </body></html>`;
 }
+/* =========================================================
+   REMISIÓN ACUMULADA — todo lo entregado hasta hoy  (30/10/2026)
+
+   Daniel: *"quiero que las remisiones se puedan imprimir con lo entregado a
+   la fecha con sus diferentes entregas y fechas en las que se hizo con su
+   firma y todo"*.
+
+   La remisión normal es de UNA entrega: lo que salió ese día, para que el
+   cliente firme solo eso. Esta es la otra mitad: **el estado de cuenta de la
+   orden**. Arriba, el mismo cuadro de piezas con semáforo que se usa para ver
+   lo que falta (total, entregado, pendiente, con sus colores); abajo, una
+   tarjeta por cada entrega con su consecutivo, su fecha, quién entregó, quién
+   recibió con cédula, el detalle de lo que salió ese viaje, la observación y
+   **la firma de esa entrega**. Sirve para cerrar una orden o para un reclamo:
+   en una sola hoja está todo lo que se despachó y quién firmó cada vez.
+   ========================================================= */
+function remisionAcumHTML(r){
+  const c=ropCotOf(r);
+  const gs=entregasDe(r);
+  const bit=Array.isArray(r.bitacora)?r.bitacora:[];
+  const piezas=(Array.isArray(r.piezas)?r.piezas:[]).filter(p=>(p.desc||'').trim()||+p.cant>0);
+  const colorFila={verde:'#f0fdf4',amarillo:'#fffbeb',rojo:'#fef2f2'};
+  let totPend=0,totEnt=0,totCant=0;
+  const rows=piezas.map((p,i)=>{
+    const tot=+p.cant||0,ent=_entregadoDe(bit,p.desc,tot),pend=Math.max(0,tot-ent);
+    totPend+=pend;totEnt+=Math.min(ent,tot);totCant+=tot;
+    const est=estadoEntregaPieza(ent,tot),bg=est?colorFila[est]:'';
+    return `<tr${bg?` style="background:${bg}"`:''}><td class="c">${i+1}</td><td>${esc(p.desc)||'—'}${p.mat?`<div class="sub">${esc(p.mat)}</div>`:''}</td><td class="c">${tot}</td><td class="c"><b>${ent}</b></td><td class="c">${pend}</td></tr>`;
+  }).join('');
+  const matDe=d=>{const p=piezas.find(x=>(x.desc||'').trim()===(d||'').trim());return (p&&(p.mat||'').trim())||'';};
+  const bloques=gs.map(g=>{
+    const firma=firmaDeEntrega(r,g,gs),rec=recibeDeEntrega(r,g,gs);
+    const det=g.items.map(b=>{
+      if(!b.piezaDesc)return '<div class="eg-l"><span><b>Toda la orden</b></span></div>';
+      const m=matDe(b.piezaDesc);
+      return `<div class="eg-l"><span>${esc(b.piezaDesc)}${m?`<i>${esc(m)}</i>`:''}</span><b>${+b.cantEntregada||0}${b.piezaTotal?` <u>de ${b.piezaTotal}</u>`:''}</b></div>`;
+    }).join('');
+    const tot=g.items.reduce((a,b)=>a+(+b.cantEntregada||0),0);
+    const cuando=(g.firmaTs||'').slice(0,10);
+    return `<div class="eg">
+      <div class="eg-h"><span class="eg-n">Entrega ${g.n}</span><span class="eg-f">${fmtDate(g.fecha)}</span>
+        <span class="eg-c ${firma?'ok':'no'}">${firma?'Firmada':'Sin firma'}</span>
+        <span class="eg-t">${tot?tot+' unidad'+(tot===1?'':'es'):''}</span></div>
+      <div class="eg-b">
+        <div class="eg-items">${det||'<div class="eg-l"><span>—</span></div>'}
+          ${g.obs?`<div class="eg-obs"><b>Observaciones:</b> ${esc(g.obs)}</div>`:''}</div>
+        <div class="eg-firma">
+          <div class="eg-q"><span>Entregó</span><b>${esc(g.entrego)||'—'}</b></div>
+          <div class="eg-q"><span>Recibió</span><b>${esc(rec&&rec.nombre)||'—'}</b></div>
+          ${(rec&&rec.cedula)?`<div class="eg-q"><span>Cédula</span><b>${esc(rec.cedula)}</b></div>`:''}
+          ${firma?`<div class="eg-img"><img src="${firma}" alt="Firma"></div>${cuando?`<div class="eg-ts">Firmado el ${fmtDate(cuando)}</div>`:''}`
+                 :'<div class="eg-sin">Esta entrega quedó sin firma del cliente</div>'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const _firmaEmpresa=currentUser()?profFirma(currentUser().name):'';
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(cleanFileName('Remisión acumulada '+(r.rop||'')+' - '+(r.cliente||'')))}</title>
+<style>
+  @page{size:Letter;margin:0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#222;font-size:11.5px;line-height:1.5;padding:13mm 14mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #7b1e2b;padding-bottom:12px}
+  .brand img{height:52px;display:block;margin-bottom:6px}
+  .brand .co{font-size:10px;color:#666;line-height:1.5}
+  .doc{text-align:right}.doc .lbl{font-size:9.5px;letter-spacing:.14em;color:#999}
+  .doc .num{font-size:22px;font-weight:800;color:#7b1e2b;margin:1px 0 6px}
+  .doc .row{font-size:10.5px;color:#555}.doc .row b{color:#222}
+  .cli{background:#faf7f7;border:1px solid #eee;border-radius:8px;padding:10px 14px;margin:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:3px 20px;font-size:11px}
+  .cli span{color:#8a8a8a}
+  h2{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#7b1e2b;margin:16px 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}
+  table.items{width:100%;border-collapse:collapse}
+  table.items th{background:#1d1d1d;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:7px 8px;text-align:left}
+  table.items td{padding:8px;border-bottom:1px solid #eee;vertical-align:top}
+  td.c,th.c{text-align:center}
+  tr.tt td{background:#f4f1f1;font-weight:800;border-top:2px solid #ddd}
+  .sub{font-size:9.5px;color:#888;margin-top:1px}
+  .leyenda{display:flex;gap:16px;margin-top:8px;font-size:9.5px;color:#555}
+  .leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid rgba(0,0,0,.08)}
+  .pend-note{margin-top:8px;font-size:10.5px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:7px;padding:8px 11px}
+  .ok-note{margin-top:8px;font-size:10.5px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:7px;padding:8px 11px}
+  .eg{border:1px solid #e6e2e2;border-radius:9px;margin-top:9px;overflow:hidden;page-break-inside:avoid}
+  .eg-h{display:flex;align-items:center;gap:9px;background:#faf7f7;border-bottom:1px solid #eee;padding:7px 11px}
+  .eg-n{font-weight:800;color:#7b1e2b;font-size:11.5px}
+  .eg-f{font-size:10.5px;color:#555}
+  .eg-c{font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+  .eg-c.ok{background:#dcfce7;color:#166534}
+  .eg-c.no{background:#fee2e2;color:#991b1b}
+  .eg-t{margin-left:auto;font-size:10px;color:#888}
+  .eg-b{display:flex;gap:0}
+  .eg-items{flex:1;padding:8px 11px}
+  .eg-l{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px dotted #eee;font-size:10.5px}
+  .eg-l:last-child{border-bottom:none}
+  .eg-l i{font-style:normal;color:#999;font-size:9px;display:block}
+  .eg-l u{text-decoration:none;color:#999;font-weight:400;font-size:9.5px}
+  .eg-obs{margin-top:6px;font-size:10px;background:#f0f7ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:6px;padding:5px 8px}
+  .eg-firma{width:208px;border-left:1px solid #eee;padding:8px 11px;text-align:center}
+  .eg-q{font-size:10px;text-align:left;line-height:1.35;margin-bottom:2px}
+  .eg-q span{color:#9a9a9a;display:inline-block;width:52px}
+  .eg-img{border-top:1px solid #999;margin-top:7px;padding-top:4px}
+  .eg-img img{max-height:46px;max-width:100%;display:block;margin:0 auto}
+  .eg-ts{font-size:8.5px;color:#999}
+  .eg-sin{margin-top:9px;font-size:9.5px;color:#b91c1c;border-top:1px dashed #ddd;padding-top:6px}
+  .note{font-size:9.5px;color:#777;margin-top:12px;font-style:italic}
+  .cierre{display:flex;gap:24px;margin-top:20px}
+  .firma{flex:1;border:1px solid #ddd;border-radius:8px;padding:12px 14px;min-height:96px}
+  .firma .t{font-weight:800;color:#7b1e2b;font-size:10px;letter-spacing:.06em;margin-bottom:10px}
+  .firma .l{margin-top:16px;border-top:1px solid #999;padding-top:3px;font-size:10px;color:#666}
+  .firma img{max-height:44px;display:block;margin-top:6px}
+  .foot{margin-top:16px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:7px;text-align:center}
+</style></head><body>
+  <div class="top">
+    <div class="brand"><img src="${LOGO_POS}" alt="Doblaser"><div class="co"><strong>DOBLASER S.A.S.</strong> · Nit 901682190-5<br>${esc(EMPRESA.dir)}<br>${esc(EMPRESA.ciudad)} · ${esc(EMPRESA.web)}</div></div>
+    <div class="doc"><div class="lbl">REMISIÓN ACUMULADA</div><div class="num">${esc(r.rop)}</div>
+      <div class="row"><span>Entregas realizadas:</span> <b>${gs.length}</b></div>
+      <div class="row"><span>Estado a:</span> <b>${fmtDate(today())}</b></div>
+      ${(c&&c.numero)||r.aprobacion?`<div class="row"><span>Cotización / OC:</span> <b>${esc((c&&c.numero)||r.aprobacion)}</b></div>`:''}
+      <div class="row"><span>Asesor:</span> <b>${esc(r.asesor)||'—'}</b></div></div>
+  </div>
+  <div class="cli">
+    <div><span>Cliente:</span> <b>${esc(r.cliente)}</b></div><div><span>NIT:</span> ${esc(c&&c.nit)||'—'}</div>
+    ${c&&c.obra?`<div><span>Obra / proyecto:</span> <b>${esc(c.obra)}</b></div><div><span>Ubicación:</span> ${esc(c.ubicacion)||'—'}</div>`:''}
+  </div>
+  ${piezas.length?`<h2>Estado de la orden</h2>
+  <table class="items"><thead><tr><th class="c" style="width:26px">#</th><th>Descripción</th><th class="c" style="width:60px">Pedido</th><th class="c" style="width:70px">Entregado</th><th class="c" style="width:70px">Pendiente</th></tr></thead>
+    <tbody>${rows}<tr class="tt"><td class="c"></td><td>TOTAL</td><td class="c">${totCant}</td><td class="c">${totEnt}</td><td class="c">${totPend}</td></tr></tbody></table>
+  <div class="leyenda">
+      <span><i style="background:${colorFila.verde}"></i> Entregado completo</span>
+      <span><i style="background:${colorFila.amarillo}"></i> Entrega parcial</span>
+      <span><i style="background:${colorFila.rojo}"></i> Sin entregar</span>
+  </div>
+  ${totPend>0?`<div class="pend-note">Quedan <b>${totPend}</b> unidad${totPend===1?'':'es'} pendientes de entregar en esta orden.</div>`
+             :'<div class="ok-note">Esta orden quedó <b>entregada completa</b>.</div>'}`
+  :`<div class="pend-note">Esta orden no tiene lista de piezas: ${esc(r.observaciones)||'material / trabajo según la orden'}.</div>`}
+  <h2>Entregas realizadas${gs.length?' ('+gs.length+')':''}</h2>
+  ${bloques||'<div class="pend-note">Todavía no se ha registrado ninguna entrega de esta orden.</div>'}
+  <div class="note">Este documento resume todas las entregas hechas hasta la fecha con las firmas recibidas en cada una. Documento de entrega — no constituye factura.</div>
+  <div class="cierre">
+    <div class="firma"><div class="t">POR DOBLASER S.A.S.</div>${_firmaEmpresa?`<img src="${_firmaEmpresa}" alt="Firma">`:''}<div class="l">${esc(currentUser()?currentUser().name:'')||'Nombre y firma'}</div></div>
+    <div class="firma"><div class="t">RECIBIDO CONFORME — CLIENTE</div><div class="l">Nombre</div><div class="l">C.C.</div><div class="l">Firma y fecha</div></div>
+  </div>
+  <div class="foot">DOBLASER S.A.S. · Nit 901682190-5 · ${esc(EMPRESA.dir)}, ${esc(EMPRESA.ciudad)} · ${esc(EMPRESA.web)} · Generado ${fmtDate(today())}${currentUser()?' por '+esc(currentUser().name):''}</div>
+</body></html>`;
+}
+
 /* =========================================================
    Repetir una cotización cambiando la cantidad, sin que se
    dañe el precio unitario.
@@ -8150,14 +8588,16 @@ function renderRopEntregasHist(){
         <span class="he-fecha">${fmtDate(g.fecha)}</span>
         <span class="he-chip ${firmada?'ok':'no'}">${firmada?'Firmada':'Sin firmar'}</span>
         <span class="spacer"></span>
-        <button type="button" class="ic-btn" title="Imprimir / firmar la remisión de esta entrega" onclick="printRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button type="button" class="ic-btn" title="Enviar la remisión de esta entrega (PDF)" onclick="compartirRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+        <button type="button" class="ic-btn" title="Vista previa de la remisión de esta entrega" onclick="vistaRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button><button type="button" class="ic-btn" title="Imprimir / firmar la remisión de esta entrega" onclick="printRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button type="button" class="ic-btn" title="Enviar la remisión de esta entrega (PDF)" onclick="compartirRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
       </div>
       <div class="he-q">Entregó <b>${esc(g.entrego)||'—'}</b> · Recibió <b>${esc(rec&&rec.nombre)||'—'}</b>${(rec&&rec.cedula)?` <span class="muted">C.C. ${esc(rec.cedula)}</span>`:''}</div>
       <div class="he-det">${det}</div>
       ${g.obs?`<div class="he-obs">${esc(g.obs)}</div>`:''}
       <div class="he-tot">${tot?tot+' unidad'+(tot===1?'':'es'):'—'}${g.driveUrl?` · <a href="${esc(g.driveUrl)}" target="_blank" rel="noopener">PDF en el Drive</a>`:''}</div>
     </div>`;
-  }).join('')+`<div class="rp-tot">${gs.length} entrega${gs.length===1?'':'s'} registrada${gs.length===1?'':'s'}</div>`+boton;
+  }).join('')+`<div class="rp-tot">${gs.length} entrega${gs.length===1?'':'s'} registrada${gs.length===1?'':'s'}</div>`
+    +'<button type="button" class="btn ghost sm he-nueva" onclick="vistaRemisionAcum()" title="Una hoja con el estado de la orden y todas las entregas con su firma">Remisi\u00f3n acumulada</button>'
+    +boton;
 }
 
 /* ---- nueva entrega: varias piezas de una vez, con quién recibe ---- */
@@ -8377,7 +8817,10 @@ function printRemisionDeEntrega(entregaId){
     if(cambios.entregasFirmas)ropEntregasFirmas=cambios.entregasFirmas;
     if(base.id)saveRow('rop',Object.assign({},base,cambios));
     renderRopEntregasHist();
-    _compartirRemisionDoc(Object.assign({},r,cambios),g,firma,(quien&&(quien.nombre||quien.cedula))?quien:rec);
+    /* ya no se salta derecho al men\u00fa de compartir: primero se ve la remisi\u00f3n
+       tal como queda, y desde ah\u00ed se decide si se comparte, se imprime o se
+       sale sin m\u00e1s */
+    vpRemisionDoc(Object.assign({},r,cambios),g,firma,(quien&&(quien.nombre||quien.cedula))?quien:rec);
   },{nombre:(rec&&rec.nombre)||'',cedula:(rec&&rec.cedula)||''});
 }
 function renderRopBitacora(){
