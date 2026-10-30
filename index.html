@@ -1156,7 +1156,10 @@ html.side-off .menu-btn{display:grid !important}
 .pg-hor td.pg-hc input{width:100%;padding:3px 5px;border:1px solid var(--line);border-radius:5px;font-size:12px;margin-bottom:3px;background:#fff}
 .pg-hor td.pg-hc.cambio{background:#fffbeb}
 .pg-hor td.pg-hc.libre{background:#f5f3f0}
-.pg-hor .pg-hl{color:var(--ink-3);font-weight:600;padding:6px 0}
+.pg-hor /* turno que sale al día siguiente */
+.pg-noche{font-size:10.5px;font-weight:700;color:#6d28d9;background:#f3e8ff;
+  border-radius:5px;padding:1px 5px;margin-top:2px;display:inline-block}
+.pg-hl{color:var(--ink-3);font-weight:600;padding:6px 0}
 .pg-hor .lnk{background:none;border:0;padding:0;font:inherit;font-size:11px;color:var(--wine);text-decoration:underline;cursor:pointer}
 .pg-sem td .lnk{background:none;border:0;padding:0;font:inherit;color:var(--wine);text-decoration:underline;cursor:pointer}
 .pg-42{border:1px solid #e5d3a8;background:#fffbeb;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:10px;line-height:1.5}
@@ -3414,24 +3417,59 @@ function pgTurnoEmp(e,f){
   if(pgFestivo(f))return null;   /* festivo: descansa, salvo que se le ponga turno esa semana */
   return (e.dias||[]).includes(pgDiaSem(f))?{ini:e.ini,fin:e.fin}:null;
 }
+/* =========================================================
+   TURNOS QUE CRUZAN LA MEDIANOCHE  (30/10/2026)
+
+   Con la planta a 24 horas hay gente que entra a las 6 p.m. del martes y sale
+   a las 6 a.m. del miércoles. El modelo guardaba `ini` y `fin` como minutos del
+   mismo día y exigía `fin > ini`, así que ese turno no se podía ni escribir.
+   (Daniel, 30/10/2026.)
+
+   Convención: **`fin <= ini` quiere decir que sale al día siguiente**. No hubo
+   que migrar nada — todos los turnos de antes tienen `fin > ini`.
+   ========================================================= */
+const pgCruza=t=>!!(t&&+t.fin<=+t.ini);
+/* minutos trabajados de un turno, con los descansos descontados, parta o no el día */
+function pgDurTurno(t){
+  if(!t)return 0;
+  return pgCruza(t)?(pgTrabajo(t.ini,1440)+pgTrabajo(0,t.fin)):pgTrabajo(t.ini,t.fin);
+}
+/* el turno de ese día partido en tramos DENTRO del día, más lo que deja para el
+   siguiente. Devuelve [{ini,fin}] ya recortado a la jornada de la planta. */
+function pgTramosTurno(t,c){
+  if(!t)return [];
+  const rec=(a,b)=>{const x=Math.max(c.inicio,a),y=Math.min(c.fin,b);return y>x?[{ini:x,fin:y}]:[];};
+  return pgCruza(t)?rec(t.ini,1440):rec(t.ini,t.fin);
+}
+function pgColaTurno(t,c){   /* lo que el turno de AYER deja en la madrugada de hoy */
+  if(!t||!pgCruza(t))return [];
+  const y=Math.min(c.fin,t.fin);
+  return y>c.inicio?[{ini:c.inicio,fin:y}]:[];
+}
 function pgVentana(f,maq){
   const c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);
   const d=pgDia(f),ops=m?pgOperarios(d,m):[],op=ops.join(', ');
   if(!ops.length)return {ini:c.inicio,fin:c.fin,op:'',sin:true};
   /* la máquina está viva desde que entra el primero hasta que sale el último */
-  let ini=null,fin=null,alguienSinTurno=false,todosLibres=true;
+  let alguienSinTurno=false,todosLibres=true;
+  const tramos=[],ayer=pgSumar(f,-1);
   ops.forEach(n=>{
-    const t=pgTurnoEmp(pgEmpleado(n),f);
+    const e=pgEmpleado(n),t=pgTurnoEmp(e,f);
     if(t===undefined){alguienSinTurno=true;todosLibres=false;return;}
-    if(t===null)return;                       /* ese no trabaja hoy */
-    todosLibres=false;
-    ini=(ini==null)?t.ini:Math.min(ini,t.ini);
-    fin=(fin==null)?t.fin:Math.max(fin,t.fin);
+    if(t!==null){todosLibres=false;pgTramosTurno(t,c).forEach(x=>tramos.push(x));}
+    /* y lo que su turno de ayer dejó en la madrugada de hoy */
+    const ta=pgTurnoEmp(e,ayer);
+    if(ta)pgColaTurno(ta,c).forEach(x=>tramos.push(x));
   });
   if(alguienSinTurno)return {ini:c.inicio,fin:c.fin,op,sin:true};
-  if(todosLibres||ini==null)return pgFestivo(f)?{ini:c.inicio,fin:c.inicio,op,libre:true,fest:true}:{ini:c.inicio,fin:c.inicio,op,libre:true};
-  const a=Math.max(c.inicio,ini),b=Math.min(c.fin,fin);
-  return {ini:a,fin:Math.max(a,b),op,ops};
+  if(todosLibres&&!tramos.length)return pgFestivo(f)?{ini:c.inicio,fin:c.inicio,op,libre:true,fest:true}:{ini:c.inicio,fin:c.inicio,op,libre:true};
+  if(!tramos.length)return {ini:c.inicio,fin:c.inicio,op,libre:true};
+  /* la máquina vive desde el primer tramo hasta el último. Con turnos que
+     cruzan la medianoche, los tramos pueden ser la madrugada (cola del turno de
+     ayer) y la noche (turno de hoy); se devuelve el envolvente, que con la
+     planta a 24 h es justo lo que se quiere. */
+  const a=Math.min(...tramos.map(x=>x.ini)),b=Math.max(...tramos.map(x=>x.fin));
+  return {ini:a,fin:Math.max(a,b),op,ops,tramos};
 }
 function pgCapacidad(f,maq){const c=pgCfg();if(f&&maq){const v=pgVentana(f,maq);return pgTrabajo(v.ini,v.fin);}return pgTrabajo(c.inicio,c.fin);}
 function pgCapDia(f){return pgCfg().maquinas.reduce((a,m)=>a+pgCapacidad(f,m.id),0);}
@@ -4236,9 +4274,9 @@ function pgPersonalHTML(){
   const filas=(c.personal||[]).map((e,i)=>{
     let tot=0;
     const celdas=fechas.map(f=>{const dw=pgDiaSem(f),t=pgTurnoEmp(e,f),cambio=!!(sem[e.id]&&sem[e.id][dw]);
-      if(t)tot+=pgTrabajo(t.ini,t.fin);
+      if(t)tot+=pgDurTurno(t);
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
-        ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">`:'<div class="pg-hl">No trabaja</div>'}
+        ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)"><input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:'<div class="pg-hl">No trabaja</div>'}
         ${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>${cambio?` · <button type="button" class="lnk" onclick="pgHorBase('${e.id}',${dw})" title="Volver al horario base">base</button>`:''}`:''}</td>`;}).join('');
     return `<tr><td><b>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpBase(${i})">horario base</button> · <button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
@@ -4250,7 +4288,7 @@ function pgPersonalHTML(){
       ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
       <button type="button" class="btn ghost sm" onclick="pgHorLimpiar()">Volver todo al horario base</button>
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
-    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:fechas.reduce((a,f)=>{const t=pgTurnoEmp(e,f);return a+(t?pgTrabajo(t.ini,t.fin):0);},0)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
+    <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:fechas.reduce((a,f)=>a+pgDurTurno(pgTurnoEmp(e,f)),0)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fechas.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
@@ -4258,8 +4296,10 @@ function pgPersonalHTML(){
 function pgHorSem(id,crear){const c=pgCfg(),l=pgLunes(PG.fecha);c.horarios=c.horarios||{};if(crear){c.horarios[l]=c.horarios[l]||{};c.horarios[l][id]=c.horarios[l][id]||{};}return ((c.horarios[l]||{})[id])||{};}
 function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   const f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f)||{ini:e.ini,fin:e.fin};
-  const n={ini:t.ini,fin:t.fin,[k]:pgMin(v)};if(!(n.fin>n.ini)){toast('La salida tiene que ser después de la entrada');render();return;}
-  pgHorSem(id,true)[dw]=n;pgGuardarCfg();render();}
+  const n={ini:t.ini,fin:t.fin,[k]:pgMin(v)};
+  if(n.fin===n.ini){toast('La entrada y la salida no pueden ser la misma hora');render();return;}
+  pgHorSem(id,true)[dw]=n;pgGuardarCfg();render();
+  if(pgCruza(n))toast('Turno de noche: entra '+pgHora(n.ini)+' y sale '+pgHora(n.fin)+' del día siguiente · '+pgHc(pgDurTurno(n)));}
 function pgHorLibre(id,dw,libre){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   pgHorSem(id,true)[dw]=libre?{libre:1}:{ini:e.ini,fin:e.fin};pgGuardarCfg();render();}
 function pgHorBase(id,dw){if(!pgPuede())return;const h=pgHorSem(id,true);h[dw]=null;   /* null y no delete: así no revive al juntar con otro equipo */pgGuardarCfg();render();}
@@ -4292,16 +4332,20 @@ function pgEmpGuardar(){
   if(PG._emp>=0)Object.assign(c.personal[PG._emp],{nombre,ini,fin,dias});
   else c.personal.push({id:'e'+Date.now().toString(36),nombre,ini,fin,dias});
   pgCerrar();pgGuardarCfg();render();
-  const sem=pgTrabajo(ini,fin)*dias.length,j=PG_JORNADA*60;
+  const sem=pgDurTurno({ini,fin})*dias.length,j=PG_JORNADA*60;
   toast('Horario base de '+nombre+': '+pgHc(sem)+' a la semana'+(sem>j?' · '+pgHc(sem-j)+' son horas extra':sem<j?' · faltan '+pgHc(j-sem)+' para '+PG_JORNADA+' h':' · jornada completa'));
 }
 function pgEmpQuitar(i){if(!pgPuede())return;const c=pgCfg(),e=c.personal[i];if(!e)return;PG_EMP_BORR.add(e.id);
   pedirConfirmacion('¿Quitar a '+e.nombre+'?','Sus máquinas vuelven a tomar el horario general de la planta.',()=>{c.personal.splice(i,1);Object.values(c.horarios||{}).forEach(w=>delete w[e.id]);pgGuardarCfg();render();},'Quitar');}
 function pgCfgSet(k,v){
   if(!pgPuede())return;const c=pgCfg();
-  if(!(+v>0)){toast('Valor no válido');render();return;}
+  /* la planta puede arrancar a las 00:00: el 0 es una hora válida, no un vacío */
+  const horaDeDia=(k==='inicio'||k==='fin');
+  if(horaDeDia?!(+v>=0):!(+v>0)){toast('Valor no válido');render();return;}
   const nuevo={...c,[k]:+v};
-  if((k==='inicio'||k==='fin')&&!(nuevo.fin>nuevo.inicio)){toast('La salida tiene que ser después de la entrada');render();return;}
+  if(k==='fin'&&+v===0)nuevo.fin=1440;        /* 00:00 como salida = medianoche del final */
+  if(horaDeDia&&!(nuevo.fin>nuevo.inicio)){toast('La salida tiene que ser después de la entrada');render();return;}
+  if(k==='fin'&&+v===0){c.fin=1440;pgGuardarCfg();render();return;}
   c[k]=+v;pgGuardarCfg();render();
 }
 function pgCfgMaq(i,k,v){if(!pgPuede())return;const m=pgCfg().maquinas[i];if(!m)return;m[k]=k==='nombre'?((v||'').trim()||'Máquina'):(v||'').trim();pgGuardarCfg();render();}
