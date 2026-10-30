@@ -3536,14 +3536,33 @@ function pgTramosTurno(t,c){
    Se puede cambiar sin tocar código con `festivoMin` en la configuración de
    planta (minutos). */
 const PG_FESTIVO_MIN=510;                           /* 8 h 30 */
+/* El turno de esa persona en esa misma semana, sin contar el d\u00eda del festivo:
+   el m\u00e1s largo de los d\u00edas que s\u00ed tiene turno. Es lo que dice si trabaja esa
+   semana y cu\u00e1nto dura su d\u00eda, **mirando la semana de verdad** y no el horario
+   base \u2014 que en Doblaser est\u00e1 en martes a s\u00e1bado mientras en la pr\u00e1ctica se
+   trabaja de lunes a viernes con los cambios de cada semana. */
+function pgTurnoTipico(e,f){
+  const lunes=pgLunes(f);let mejor=0;
+  for(let i=0;i<7;i++){
+    const d=pgSumar(lunes,i);
+    if(d===f)continue;
+    const t=pgTurnoEmp(e,d);
+    if(t)mejor=Math.max(mejor,pgDurTurno(t));
+  }
+  return mejor;
+}
 function pgAporteFestivo(e,f){
   if(!e||!pgFestivo(f))return 0;
   if(pgTurnoEmp(e,f))return 0;                      /* lo trabajó: ya se cuentan sus horas */
-  const o=((pgCfg().horarios||{})[pgLunes(f)]||{})[e.id]||{};
-  if(o[pgDiaSem(f)])return 0;                       /* se le marcó descanso a mano esa semana */
-  if(!(e.dias||[]).includes(pgDiaSem(f)))return 0;  /* ese día no era laboral para esa persona */
-  const tope=+pgCfg().festivoMin||PG_FESTIVO_MIN;
-  return Math.min(pgDurTurno({ini:e.ini,fin:e.fin}),tope);
+  /* Antes esto ped\u00eda que el d\u00eda estuviera en el horario base y que nadie
+     hubiera marcado "descansa" ese d\u00eda. Las dos condiciones estaban mal:
+     el lunes no est\u00e1 en el horario base de nadie (el base qued\u00f3 en martes a
+     s\u00e1bado) y marcar "descansa" en un festivo es justo lo que se hace. Por eso
+     la columna segu\u00eda diciendo "faltan 8h" en la semana de un lunes festivo.
+     (Daniel, 30/10/2026.) */
+  const tip=pgTurnoTipico(e,f);
+  if(!tip)return 0;                                 /* no trabaja esa semana: nada que abonar */
+  return Math.min(tip,+pgCfg().festivoMin||PG_FESTIVO_MIN);
 }
 /* minutos de la semana de una persona: turnos trabajados + festivos de ley */
 function pgMinSemana(e,fechas){
@@ -4396,6 +4415,9 @@ function pgColoresEmp(pers){
 const PG_JORNADA=42;   /* horas ordinarias a la semana; lo que pase son horas extra */
 function pgHorasSemTxt(min){
   const j=PG_JORNADA*60;
+  /* sin un solo turno en la semana no tiene sentido decir "faltan 42h": esa
+     persona no est\u00e1 programada (vacaciones, incapacidad, o todav\u00eda sin asignar) */
+  if(!min)return '<b>\u2014</b><div class="fc-sub">Sin turnos esta semana</div>';
   if(min>j)return `<b>${pgHc(min)}</b><div class="pg-ext">+${pgHc(min-j)} extra</div>`;
   if(min<j)return `<b>${pgHc(min)}</b><div class="fc-sub" style="color:#b45309">faltan ${pgHc(j-min)} para ${PG_JORNADA} h</div>`;
   return `<b>${pgHc(min)}</b><div class="fc-sub" style="color:#15803d">jornada completa ✓</div>`;
@@ -4428,7 +4450,7 @@ function horarioDocHTML(lunes){
     return `<tr><td class="emp" style="border-left:6px solid ${cl.b};background:${cl.f}"><b style="color:${cl.b}">${esc(e.nombre)}</b>${maq?`<div class="sub">${esc(maq)}</div>`:''}</td>`
       +fechas.map(f=>{const t=pgTurnoEmp(e,f),fe=pgAporteFestivo(e,f);
         return `<td class="c${t?'':(fe?' fest':' libre')}">${celda(e,f)}</td>`;}).join('')
-      +`<td class="c tot"><b>${pgHc(tot)}</b>${tot>j?`<div class="ex">+${pgHc(tot-j)} extra</div>`:(tot<j?`<div class="fa">faltan ${pgHc(j-tot)}</div>`:'<div class="ok">completa</div>')}</td></tr>`;
+      +`<td class="c tot">${!tot?'<b>\u2014</b><div class="hd">sin turnos</div>':`<b>${pgHc(tot)}</b>${tot>j?`<div class="ex">+${pgHc(tot-j)} extra</div>`:(tot<j?`<div class="fa">faltan ${pgHc(j-tot)}</div>`:'<div class="ok">completa</div>')}`}</td></tr>`;
   }).join('');
   const hayFest=fechas.some(f=>pgFestivo(f));
   const dom=pgSumar(lunes,6);
