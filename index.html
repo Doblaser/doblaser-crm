@@ -483,6 +483,9 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .he-p i{font-style:normal;color:var(--ink-3)}
 .he-p u{text-decoration:none;color:var(--ink-3);font-size:11px;margin-left:4px}
 .he-p u:before{content:"\00b7 "}
+/* entrega firmada a la que le falta el detalle de las piezas */
+.he-falta{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:5px 8px;line-height:1.5}
+.he-falta .lnk{color:#991b1b;font-weight:700}
 .he-obs{margin-top:5px;background:#f0f7ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:6px;padding:5px 8px}
 .he-tot{margin-top:5px;font-size:11px;color:var(--ink-3)}
 .he-nueva{margin-top:4px}
@@ -2260,9 +2263,44 @@ function canonCliente(nombre){
   const formas=Object.entries(cuenta).sort((a,b)=>b[1]-a[1]);
   return formas.length?formas[0][0]:n;
 }
+/* =========================================================
+   Una orden NUNCA pierde entregas al guardar.
+   Guardar escribe bitacora/entregas/firmas completas, as\u00ed que un formulario
+   o una cach\u00e9 desactualizados borraban lo que otro hab\u00eda registrado, y un
+   formulario abierto antes de que llegaran las firmas las dejaba en {}.
+   Ahora, justo antes de escribir, se lee la nube y se conserva todo lo que est\u00e9
+   all\u00e1 y este guardado no conoc\u00eda. Lo que S\u00cd conoc\u00eda y ya no trae se
+   borr\u00f3 a prop\u00f3sito (correcci\u00f3n de entrega) y sigue borrado.
+   ========================================================= */
+let ropVistoAlAbrir=null;   /* {id,lineas:Set,entregas:Set} del formulario abierto */
+let ropEntregaSinGuardar=false;
+function _claveLinea(b){return (b&&b.id)||JSON.stringify([b&&b.tipo,b&&b.fecha,b&&b.quien,b&&b.piezaDesc,b&&b.cantEntregada,b&&b.texto]);}
+function fusionarEntregasRop(row,nube,visto){
+  const bit=Array.isArray(row.bitacora)?row.bitacora:[],ent=Array.isArray(row.entregas)?row.entregas:[];
+  const vL=visto?visto.lineas:new Set(bit.map(_claveLinea)),vE=visto?visto.entregas:new Set(ent.map(e=>e&&e.id));
+  const tieneL=new Set(bit.map(_claveLinea)),tieneE=new Set(ent.map(e=>e&&e.id));
+  const nb=(Array.isArray(nube.bitacora)?nube.bitacora:[]).filter(b=>{const k=_claveLinea(b);return !tieneL.has(k)&&!vL.has(k);});
+  const ne=(Array.isArray(nube.entregas)?nube.entregas:[]).filter(e=>e&&!tieneE.has(e.id)&&!vE.has(e.id));
+  const entregas=[...ent,...ne],ids=new Set(entregas.map(e=>e&&e.id));
+  const firmas=Object.assign({},(row.entregasFirmas&&typeof row.entregasFirmas==='object')?row.entregasFirmas:{});
+  Object.entries((nube.entregasFirmas&&typeof nube.entregasFirmas==='object')?nube.entregasFirmas:{}).forEach(([k,v])=>{
+    if(!firmas[k]&&(ids.has(k)||!vE.has(k)))firmas[k]=v;});
+  return {bitacora:[...nb,...bit],entregas,entregasFirmas:firmas,recuperadas:nb.length+ne.length};
+}
 async function saveRow(t,row){
   if(row&&['cotizaciones','rop','ventas'].includes(t)&&row.cliente){const c=canonCliente(row.cliente);if(c&&c!==row.cliente){toast('El cliente ya existe como «'+c+'»; se usó ese nombre');row.cliente=c;}}
   if(USING_SB){
+    if(t==='rop'&&row.id&&!isLocalId(row.id)&&('bitacora' in row||'entregas' in row)){
+      const{data:nube,error:eN}=await sb.from('rop').select('bitacora,entregas,entregasFirmas').eq('id',row.id).maybeSingle();
+      if(eN){toast('No se guard\u00f3: no se pudo comparar con la nube ('+eN.message+'). Intenta de nuevo.');return false;}
+      if(nube){
+        const visto=(ropVistoAlAbrir&&String(ropVistoAlAbrir.id)===String(row.id))?ropVistoAlAbrir:null;
+        const f=fusionarEntregasRop(row,nube,visto);
+        row.bitacora=f.bitacora;row.entregas=f.entregas;row.entregasFirmas=f.entregasFirmas;
+        if(f.recuperadas)toast('Otra persona registr\u00f3 entregas en esta orden: se conservaron');
+        if(visto){row.bitacora.forEach(b=>visto.lineas.add(_claveLinea(b)));row.entregas.forEach(e=>visto.entregas.add(e&&e.id));}
+      }
+    }
     const r=sbClean(row);
     const omitidas=[];
     for(let intento=0;intento<8;intento++){
@@ -2277,6 +2315,7 @@ async function saveRow(t,row){
       if(!res||!res.error){
         const real=res&&res.data&&(Array.isArray(res.data)?res.data[0]:res.data);
         if(real&&real.id!==undefined&&real.id!==null)row.id=real.id;
+        if(t==='rop')ropEntregaSinGuardar=false;
         if(omitidas.length)avisarMigracion(omitidas);return true}
       /* PGRST204: la columna no existe todavía en la base */
       const m=/Could not find the '([^']+)' column/.exec(res.error.message||'');
@@ -6372,6 +6411,8 @@ function openForm(t,id,plantilla){
     ropTiemposVal=Object.assign({},(row&&row.tiempos&&typeof row.tiempos==='object')?row.tiempos:{});
     ropEntregas=(row&&Array.isArray(row.entregas))?row.entregas.map(e=>Object.assign({},e)):[];
     ropEntregasFirmas=(row&&row.entregasFirmas&&typeof row.entregasFirmas==='object')?Object.assign({},row.entregasFirmas):{};
+    ropEntregaSinGuardar=false;
+    ropVistoAlAbrir=(row&&row.id)?{id:row.id,lineas:new Set(ropBitacora.map(_claveLinea)),entregas:new Set(ropEntregas.map(e=>e&&e.id))}:null;
     if(row&&row.id)ropConFirma(row).then(()=>{if(editing.t==='rop'&&editing.id===row.id&&row.entregasFirmas){ropEntregasFirmas=Object.assign({},row.entregasFirmas,ropEntregasFirmas);renderRopEntregasHist();}});
     renderRopMat();renderRopPz();renderRopBitacora();renderRopAvance();ropCostCompare();
   }
@@ -6731,6 +6772,36 @@ async function remisionPDF(r,fecha,firma,recibe){
 }
 /* el mismo motor, pero para CUALQUIER documento: lo usan la remisión, la
    remisión acumulada y la vista previa */
+/* El PDF se arma como foto de la hoja: por eso no se pod\u00eda seleccionar ni copiar
+   el texto. Encima de cada foto se escribe el mismo texto invisible en su sitio
+   (como un PDF escaneado con OCR): se ve igual y se puede copiar y buscar. */
+function pdfCapaTexto(pdf,cont,A4W,A4H){
+  const mm=A4W/cont.offsetWidth,altoHoja=A4H/mm,caja=cont.getBoundingClientRect(),pags=pdf.getNumberOfPages();
+  const limpio=t=>t.replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/\u2022/g,'\u00b7').replace(/[^\x20-\x7e\u00a0-\u00ff]/g,'');
+  const w=document.createTreeWalker(cont,NodeFilter.SHOW_TEXT);
+  pdf.setFont('helvetica','normal');
+  for(let n;(n=w.nextNode());){
+    const pa=n.parentElement;
+    if(!n.nodeValue.trim()||!pa||/^(STYLE|SCRIPT)$/.test(pa.tagName))continue;
+    const est=getComputedStyle(pa);if(est.visibility==='hidden'||est.display==='none')continue;
+    const lineas=[],re=/\S+/g,rg=document.createRange();
+    for(let m;(m=re.exec(n.nodeValue));){
+      rg.setStart(n,m.index);rg.setEnd(n,m.index+m[0].length);
+      const c=rg.getBoundingClientRect();if(!c.width)continue;
+      const u=lineas[lineas.length-1];
+      if(u&&Math.abs(u.top-c.top)<2)u.txt+=' '+m[0];
+      else lineas.push({txt:m[0],left:c.left,top:c.top,bottom:c.bottom});
+    }
+    const pt=parseFloat(est.fontSize)*mm*72/25.4;
+    lineas.forEach(l=>{
+      let t=limpio(l.txt);if(!t.trim())return;
+      if(est.textTransform==='uppercase')t=t.toUpperCase();
+      const y=l.bottom-caja.top,p=Math.min(pags-1,Math.floor((l.top-caja.top)/altoHoja));
+      pdf.setPage(p+1);pdf.setFontSize(pt);
+      pdf.text(t,(l.left-caja.left)*mm,(y-altoHoja*p)*mm,{baseline:'bottom',renderingMode:'invisible'});
+    });
+  }
+}
 async function docPDF(html){
   await Promise.all([
     cargarLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'),
@@ -6763,6 +6834,7 @@ async function docPDF(html){
       pdf.addImage(trozo.toDataURL('image/jpeg',0.95),'JPEG',0,0,A4W,h/pxPorMm);
       primera=false;y+=h;
     }
+    pdfCapaTexto(pdf,cont,A4W,A4H);
     return pdf.output('blob');
   }finally{cont.remove()}
 }
@@ -7565,7 +7637,7 @@ function remisionAcumHTML(r){
         <span class="eg-c ${firma?'ok':'no'}">${firma?'Firmada':'Sin firma'}</span>
         <span class="eg-t">${tot?tot+' unidad'+(tot===1?'':'es'):''}</span></div>
       <div class="eg-b">
-        <div class="eg-items">${det||'<div class="eg-l"><span>—</span></div>'}
+        <div class="eg-items">${det||'<div class="eg-l"><span>'+(g.sinDetalle?'<b>Sin detalle registrado</b> de las piezas de esta entrega':'—')+'</span></div>'}
           ${g.obs?`<div class="eg-obs"><b>Observaciones:</b> ${esc(g.obs)}</div>`:''}</div>
         <div class="eg-firma">
           <div class="eg-q"><span>Entregó</span><b>${esc(g.entrego)||'—'}</b></div>
@@ -8586,6 +8658,15 @@ function entregasDe(r){
     if(b.ts&&b.ts>g.ts)g.ts=b.ts;
     if(b.quien&&g.quienes.indexOf(b.quien)<0)g.quienes.push(b.quien);
   });
+  /* Entregas que est\u00e1n en `entregas` pero no tienen ni una l\u00ednea en la
+     bit\u00e1cora. Antes no se mostraban \u2014 la entrega exist\u00eda, el cliente la hab\u00eda
+     firmado, y en la pantalla no aparec\u00eda por ninguna parte. Ahora salen
+     marcadas como **sin detalle** para que se vean y se puedan completar. */
+  meta.forEach(m=>{
+    if(!m||!m.id||mapa[m.id])return;
+    const g={id:m.id,fecha:m.fecha||'',ts:m.firmaTs||'',items:[],quienes:[],_i:orden.length,sinDetalle:true};
+    mapa[m.id]=g;orden.push(g);
+  });
   /* Dentro de un mismo día hay que saber cuál entrega fue primero. Las nuevas
      traen la hora exacta (ts); las viejas no, y ahí vale la convención de la
      bitácora: se guarda de lo más nuevo a lo más viejo, así que la que aparece
@@ -8687,7 +8768,9 @@ function renderRopEntregasHist(){
         <button type="button" class="ic-btn" title="Vista previa de la remisión de esta entrega" onclick="vistaRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button><button type="button" class="ic-btn" title="Imprimir / firmar la remisión de esta entrega" onclick="printRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></button><button type="button" class="ic-btn" title="Enviar la remisión de esta entrega (PDF)" onclick="compartirRemisionDeEntrega('${esc(g.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
       </div>
       <div class="he-q">Entregó <b>${esc(g.entrego)||'—'}</b> · Recibió <b>${esc(rec&&rec.nombre)||'—'}</b>${(rec&&rec.cedula)?` <span class="muted">C.C. ${esc(rec.cedula)}</span>`:''}</div>
-      <div class="he-det">${det}</div>
+      <div class="he-det">${g.sinDetalle
+        ?`<span class="he-falta">No qued\u00f3 registrado qu\u00e9 piezas salieron en esta entrega. <button type="button" class="lnk" onclick="neAbrir('${esc(g.id)}')">Completarla</button></span>`
+        :det}</div>
       ${g.obs?`<div class="he-obs">${esc(g.obs)}</div>`:''}
       <div class="he-tot">${tot?tot+' unidad'+(tot===1?'':'es'):'—'}${g.driveUrl?` · <a href="${esc(g.driveUrl)}" target="_blank" rel="noopener">PDF en el Drive</a>`:''}</div>
     </div>`;
@@ -8697,8 +8780,14 @@ function renderRopEntregasHist(){
 }
 
 /* ---- nueva entrega: varias piezas de una vez, con quién recibe ---- */
-function neAbrir(){
+let NE_COMPLETAR='';
+function neAbrir(completarId){
   const conNombre=ropPiezas.filter(p=>(p.desc||'').trim()&&+p.cant>0);
+  /* completar una entrega que se qued\u00f3 sin detalle: se le pegan las l\u00edneas a
+     ESA entrega, as\u00ed que conserva su consecutivo, su fecha y su firma */
+  NE_COMPLETAR=completarId||'';
+  const mCompl=NE_COMPLETAR?(ropEntregas||[]).find(x=>x&&x.id===NE_COMPLETAR)||null:null;
+  const gCompl=NE_COMPLETAR?entregaPorId(ropEditActual().r,NE_COMPLETAR):null;
   let c=document.getElementById('neLayer');
   if(!c){c=document.createElement('div');c.id='neLayer';c.className='confirm-layer';document.body.appendChild(c);
     c.addEventListener('click',e=>{if(e.target===c)neCerrar();});}
@@ -8716,11 +8805,13 @@ function neAbrir(){
     </label>`;
   }).join('');
   c.innerHTML=`<div class="confirm-box ne-box">
-    <h3>Nueva entrega</h3>
-    <div class="muted ne-sub">Marca <b>solo lo que de verdad sale en este viaje</b>. Queda como una sola entrega con su consecutivo, para imprimir y firmar su remisión aparte.</div>
+    <h3>${mCompl?('Completar la entrega '+(gCompl?gCompl.n:'')):'Nueva entrega'}</h3>
+    <div class="muted ne-sub">${mCompl
+      ?'Esta entrega qued\u00f3 <b>sin detalle</b>: tiene fecha, qui\u00e9n recibi\u00f3 y hasta la firma, pero no qued\u00f3 registrado qu\u00e9 piezas salieron. Marca lo que sali\u00f3 en ESE viaje \u2014 la entrega conserva su n\u00famero y su firma.'
+      :'Marca <b>solo lo que de verdad sale en este viaje</b>. Queda como una sola entrega con su consecutivo, para imprimir y firmar su remisión aparte.'}</div>
     <div class="ne-g2">
-      <div><label class="rbc-l">Fecha</label><input type="date" id="neFecha" value="${today()}"></div>
-      <div><label class="rbc-l">Quién entrega</label><input type="text" id="neEntrego" value="${esc(u?u.name:'')}"></div>
+      <div><label class="rbc-l">Fecha</label><input type="date" id="neFecha" value="${esc((mCompl&&mCompl.fecha)||today())}"></div>
+      <div><label class="rbc-l">Quién entrega</label><input type="text" id="neEntrego" value="${esc((mCompl&&mCompl.entrego)||(u?u.name:''))}"></div>
     </div>
     ${conNombre.length?`<label class="rbc-l">Piezas que salen</label>
       ${conNombre.length>6?`<input type="search" id="neBuscar" placeholder="🔍 Buscar pieza por código o nombre…" oninput="neFiltrar(this.value)" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:15px;margin-bottom:8px">
@@ -8729,15 +8820,15 @@ function neAbrir(){
       <div class="ne-list">${filas}</div>`
       :'<div class="ne-vacio">Esta orden no tiene piezas en la lista: se registra como entrega de toda la orden.</div>'}
     <div class="ne-g2">
-      <div><label class="rbc-l">Quién recibe</label><input type="text" id="neRecibe" placeholder="Nombre y apellido"></div>
-      <div><label class="rbc-l">Cédula</label><input type="text" id="neCedula" inputmode="numeric" placeholder="Opcional"></div>
+      <div><label class="rbc-l">Quién recibe</label><input type="text" id="neRecibe" placeholder="Nombre y apellido" value="${esc((mCompl&&mCompl.recibeNombre)||'')}"></div>
+      <div><label class="rbc-l">Cédula</label><input type="text" id="neCedula" inputmode="numeric" placeholder="Opcional" value="${esc((mCompl&&mCompl.recibeCedula)||'')}"></div>
     </div>
     <label class="rbc-l">Observaciones (opcional)</label>
-    <textarea id="neObs" rows="2" placeholder="Ej: se entrega además 40 kg de lámina sobrante"></textarea>
+    <textarea id="neObs" rows="2" placeholder="Ej: se entrega además 40 kg de lámina sobrante">${esc((mCompl&&mCompl.obs)||'')}</textarea>
     <div class="ne-tot" id="neTotTxt"></div>
     <div class="confirm-btns">
       <button type="button" class="btn ghost" onclick="neCerrar()">Cancelar</button>
-      <button type="button" class="btn confirm-si" onclick="neGuardar()">Registrar entrega</button>
+      <button type="button" class="btn confirm-si" onclick="neGuardar()">${mCompl?'Guardar el detalle':'Registrar entrega'}</button>
     </div></div>`;
   c.classList.add('show');
   neTot();
@@ -8766,7 +8857,7 @@ function neMarcarTodo(si){
   });
   neTot();
 }
-function neCerrar(){const c=document.getElementById('neLayer');if(c)c.classList.remove('show');NE_RAPIDA=false;}
+function neCerrar(){const c=document.getElementById('neLayer');if(c)c.classList.remove('show');NE_RAPIDA=false;NE_COMPLETAR='';}
 
 /* =========================================================
    ENTREGA DESDE EL INICIO
@@ -8867,14 +8958,20 @@ function neGuardar(){
     return;
   }
   if(conNombre.length&&!lineas.length){toast('Marca las piezas que salen en esta entrega');return;}
-  const id='e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const completando=NE_COMPLETAR;
+  const id=completando||('e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
   const nuevas=lineas.length
     ?lineas.map(l=>({tipo:'parcial',piezaDesc:l.desc,piezaTotal:l.tot,cantEntregada:l.cant,cantidad:'',
         texto:'',fecha,quien:entrego,resuelta:null,entregaId:id,id:uid(),ts:new Date().toISOString()}))
     :[{tipo:'total',piezaDesc:'',piezaTotal:0,cantEntregada:null,cantidad:'',texto:obs,fecha,quien:entrego,
         resuelta:null,entregaId:id,id:uid(),ts:new Date().toISOString()}];
   ropBitacora=[...nuevas,...ropBitacora];
-  ropEntregas=[...ropEntregas,{id,fecha,entrego,recibeNombre:recibe,recibeCedula:cedula,obs}];
+  ropEntregaSinGuardar=true;
+  /* al completar no se crea otra entrega: se actualiza la que ya estaba, para
+     no perder su firma ni su consecutivo */
+  ropEntregas=completando
+    ?ropEntregas.map(x=>(x&&x.id===completando)?Object.assign({},x,{fecha,entrego,recibeNombre:recibe||x.recibeNombre,recibeCedula:cedula||x.recibeCedula,obs:obs||x.obs}):x)
+    :[...ropEntregas,{id,fecha,entrego,recibeNombre:recibe,recibeCedula:cedula,obs}];
   const rapida=NE_RAPIDA;          /* neCerrar() apaga la bandera: hay que leerla antes */
   neCerrar();
   renderRopBitacora();renderRopPz();
@@ -8887,7 +8984,7 @@ function neGuardar(){
       .catch(()=>toast('Entrega '+n+' registrada — revisa la orden, no se pudo guardar sola'));
     return;
   }
-  toast('Entrega '+(g?g.n:'')+' registrada — recuerda Guardar la orden');
+  toast('Entrega '+(g?g.n:'')+(completando?' completada':' registrada')+' — recuerda Guardar la orden');
 }
 
 /* ---- remisión de UNA entrega ---- */
@@ -8911,7 +9008,16 @@ function printRemisionDeEntrega(entregaId){
     const cambios=cambiosFirmaEntrega(r,g,firma,quien);
     ropEntregas=cambios.entregas;
     if(cambios.entregasFirmas)ropEntregasFirmas=cambios.entregasFirmas;
-    if(base.id)saveRow('rop',Object.assign({},base,cambios));
+    /* \u00a1OJO! `base` es la fila como est\u00e1 guardada en la nube. Guardar
+       `base + cambios` a secas **borraba lo que el formulario todav\u00eda no hab\u00eda
+       guardado**: si alguien registraba una entrega y de una tocaba firmar sin
+       darle Guardar, se escrib\u00eda la bit\u00e1cora vieja (sin las l\u00edneas de esa
+       entrega) junto con la entrega nueva. Resultado: la entrega quedaba
+       firmada pero sin detalle, y desaparec\u00eda de la lista.
+       Pas\u00f3 de verdad en ROP-2720, ROP-2696, ROP-2728 y ROP-2733.
+       (Daniel, 05/11/2026.) */
+    if(base.id)saveRow('rop',Object.assign({},base,
+      {piezas:ropPiezas,bitacora:ropBitacora,entregas:ropEntregas,entregasFirmas:ropEntregasFirmas},cambios));
     renderRopEntregasHist();
     /* ya no se salta derecho al men\u00fa de compartir: primero se ve la remisi\u00f3n
        tal como queda, y desde ah\u00ed se decide si se comparte, se imprime o se
@@ -9762,7 +9868,10 @@ async function duplicarRop(){
   openForm('rop',null,copia);
   toast('Copia lista como '+num+' — revisa y dale Guardar');
 }
-function closeModal(){clearTimeout(DRAFT_TIMER);if(editing.t==='cotizaciones'&&!editing.id){try{saveCotDraft();}catch(e){}}document.getElementById('overlay').classList.remove('show');editing={t:null,id:null};}
+function closeModal(){
+  if(editing.t==='rop'&&ropEntregaSinGuardar&&!confirm('Registraste una entrega que todav\u00eda no est\u00e1 guardada. Si cierras se pierde.\n\nAceptar = cerrar sin guardar \u00b7 Cancelar = seguir en la orden'))return;
+  ropEntregaSinGuardar=false;
+  clearTimeout(DRAFT_TIMER);if(editing.t==='cotizaciones'&&!editing.id){try{saveCotDraft();}catch(e){}}document.getElementById('overlay').classList.remove('show');editing={t:null,id:null};}
 /* Clic afuera del modal: antes solo proteg\u00eda las cotizaciones y cualquier
    otro formulario (ROP, ventas, clientes, inventario...) se cerraba de una
    sin avisar, perdiendo lo que se llevaba escrito. Ahora ning\u00fan formulario
@@ -10033,6 +10142,7 @@ async function cotPDF(c){
       pdf.addImage(trozo.toDataURL('image/jpeg',0.95),'JPEG',0,0,A4W,h/pxPorMm);
       primera=false;y+=h;
     }
+    pdfCapaTexto(pdf,cont,A4W,A4H);
     return pdf.output('blob');
   }finally{cont.remove()}
 }
