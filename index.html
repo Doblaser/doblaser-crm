@@ -2287,6 +2287,21 @@ function fusionarEntregasRop(row,nube,visto){
     if(!firmas[k]&&(ids.has(k)||!vE.has(k)))firmas[k]=v;});
   return {bitacora:[...nb,...bit],entregas,entregasFirmas:firmas,recuperadas:nb.length+ne.length};
 }
+/* Firmar = la entrega queda guardada YA, con sus piezas y su firma, sin depender
+   de darle Guardar a la orden. Si la nube falla se reintenta y, si sigue fallando,
+   se avisa con un mensaje que no se puede pasar por alto. (Daniel, 05/11/2026.) */
+async function guardarFirmaYa(row,base){
+  let ok=false;
+  for(let i=0;i<3&&!ok;i++){
+    if(i)await new Promise(x=>setTimeout(x,1500));
+    try{ok=(await saveRow('rop',row))!==false;}catch(e){ok=false;}
+  }
+  if(ok){
+    if(base)['bitacora','entregas','entregasFirmas','piezas','firmaCliente','firmaClienteFecha','firmaClienteNombre','firmaClienteCedula'].forEach(k=>{if(k in row)base[k]=row[k];});
+    toast('Entrega firmada y guardada');
+  }else alert('\u26a0 LA FIRMA NO SE GUARD\u00d3 EN LA NUBE.\n\nRevisa la conexi\u00f3n y, sin cerrar la orden, dale Guardar. Si cierras, esta entrega se pierde.');
+  return ok;
+}
 async function saveRow(t,row){
   if(row&&['cotizaciones','rop','ventas'].includes(t)&&row.cliente){const c=canonCliente(row.cliente);if(c&&c!==row.cliente){toast('El cliente ya existe como «'+c+'»; se usó ese nombre');row.cliente=c;}}
   if(USING_SB){
@@ -7392,7 +7407,7 @@ async function imprimirEntrega(id,entregaId){
   abrirFirma('Firma de recibido \u2014 '+(r.rop||'')+' \u00b7 '+(r.cliente||'')+' \u00b7 entrega '+g.n+' del '+fmtDate(g.fecha),
     resumenEntrega(r,g),(firma,quien)=>{
     const cambios=cambiosFirmaEntrega(r,g,firma,quien);
-    saveRow('rop',Object.assign({},r,cambios));
+    guardarFirmaYa(Object.assign({},r,cambios),r);
     _compartirRemisionDoc(Object.assign({},r,cambios),g,firma,(quien&&(quien.nombre||quien.cedula))?quien:rec);
   },{nombre:(rec&&rec.nombre)||'',cedula:(rec&&rec.cedula)||''});
 }
@@ -9016,8 +9031,9 @@ function printRemisionDeEntrega(entregaId){
        firmada pero sin detalle, y desaparec\u00eda de la lista.
        Pas\u00f3 de verdad en ROP-2720, ROP-2696, ROP-2728 y ROP-2733.
        (Daniel, 05/11/2026.) */
-    if(base.id)saveRow('rop',Object.assign({},base,
-      {piezas:ropPiezas,bitacora:ropBitacora,entregas:ropEntregas,entregasFirmas:ropEntregasFirmas},cambios));
+    if(base.id)guardarFirmaYa(Object.assign({},base,
+      {piezas:ropPiezas,bitacora:ropBitacora,entregas:ropEntregas,entregasFirmas:ropEntregasFirmas},cambios),base);
+    else alert('Esta orden es nueva y a\u00fan no existe en la nube: dale Guardar ahora para que la entrega y la firma queden registradas.');
     renderRopEntregasHist();
     /* ya no se salta derecho al men\u00fa de compartir: primero se ve la remisi\u00f3n
        tal como queda, y desde ah\u00ed se decide si se comparte, se imprime o se
