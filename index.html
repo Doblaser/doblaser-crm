@@ -6386,8 +6386,11 @@ function atlasBoton(){
   if(!esDev()){if(b)b.remove();if(atlasVisible())atlasCerrar();atlasWakePausa();return;}
   if(!ATLAS.ini){
     ATLAS.ini=true;ATLAS.wake=atlasPref('wake',false);
-    ATLAS.vozSel=atlasPrefS('vozsel','piper:es_MX-ald-medium');ATLAS.voz=ATLAS.vozSel!=='off';
-    ATLAS.tono=+atlasPrefS('tono','0.92')||1;
+    /* claves "2": al llegar Kokoro (15/11/2026) se parte de la voz nueva, no de lo que se probó antes */
+    ATLAS.vozSel=atlasPrefS('vozsel2','kokoro:em_alex');ATLAS.voz=ATLAS.vozSel!=='off';
+    ATLAS.tono=+atlasPrefS('tono2','0.9')||1;ATLAS.muletillas={};
+    /* si este equipo ya tiene la voz Alex descargada, se va cargando sola (~20 s) */
+    if(atlasPrefS('kokoro_ok','')==='1')setTimeout(()=>{atlasKokoroPrep();atlasPiperPrep();},5000);
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')atlasWakeReanuda();else atlasWakePausa();});
     try{if('speechSynthesis' in window)speechSynthesis.getVoices();}catch(e){}
     atlasWakeReanuda();
@@ -6444,14 +6447,15 @@ function atlasAbrir(){
       </div>
       <div class="atlas-vozcfg">
         <label>Voz <select id="atlasVozSel" onchange="atlasCambiaVoz(this.value)">
-          <option value="piper:es_MX-ald-medium">Hombre · México</option>
-          <option value="piper:es_ES-davefx-medium">Hombre · España</option>
+          <option value="kokoro:em_alex">Alex (la de Atlas)</option>
+          <option value="piper:es_MX-ald-medium">Liviana · México</option>
+          <option value="piper:es_ES-davefx-medium">Liviana · España</option>
           <option value="nav">La del navegador</option>
           <option value="off">Sin voz</option></select></label>
         <label>Tono <select id="atlasTono" onchange="atlasCambiaTono(this.value)">
           <option value="1">Normal</option>
-          <option value="0.92">Grave</option>
-          <option value="0.85">Muy grave</option></select></label>
+          <option value="0.9">Grave</option>
+          <option value="0.84">Muy grave</option></select></label>
       </div>
       <div class="atlas-vozest" id="atlasVozEst" aria-live="polite"></div>`;
     document.body.appendChild(p);
@@ -6460,7 +6464,7 @@ function atlasAbrir(){
   document.getElementById('atlasVozSel').value=ATLAS.vozSel;
   document.getElementById('atlasTono').value=String(ATLAS.tono);
   document.getElementById('atlasWake').checked=ATLAS.wake;
-  atlasPiperPrep();
+  atlasKokoroPrep();atlasPiperPrep();
   atlasEst('');atlasDicho('');
   p.classList.add('show');
   const bt=document.getElementById('atlasBtn');if(bt)bt.classList.add('oculto');
@@ -6614,10 +6618,10 @@ async function atlasEnviar(texto){
   const espera=setTimeout(()=>{
     try{
       if(ATLAS.estado!=='pensando'||!ATLAS.voz||!atlasVisible())return;
-      const pv=atlasPiperVoz();
-      if(pv&&ATLAS.piperLista===pv&&!ATLAS.piperLento){
+      const mo=atlasMotorListo();
+      if(mo){
         /* con la voz propia, el "déjame revisar" ya está grabado (misma voz) */
-        if(ATLAS.muletilla&&ATLAS.muletilla.v===pv)atlasSonar(ATLAS.muletilla.w).catch(()=>{});
+        if(ATLAS.muletillas[mo])atlasSonar(ATLAS.muletillas[mo]).catch(()=>{});
       }else if('speechSynthesis' in window){
         const u=new SpeechSynthesisUtterance('Déjame revisar.');const v=atlasVozEs();u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;speechSynthesis.speak(u);
       }
@@ -6723,7 +6727,8 @@ function atlasFrasesCortas(txt){
   });
   return out.map(s=>s.trim()).filter(Boolean);
 }
-function atlasPiperVoz(){const s=ATLAS.vozSel||'';return s.indexOf('piper:')===0?s.slice(6):'';}
+/* con Alex elegida, la voz liviana de México queda de respaldo (celular, o mientras Alex carga) */
+function atlasPiperVoz(){const s=ATLAS.vozSel||'';return s.indexOf('piper:')===0?s.slice(6):(s.indexOf('kokoro:')===0?'es_MX-ald-medium':'');}
 function atlasPiperLib(){
   if(!ATLAS._plib)ATLAS._plib=import(ATLAS_PIPER_URL).catch(e=>{ATLAS._plib=null;throw e;});
   return ATLAS._plib;
@@ -6745,7 +6750,7 @@ async function atlasPiperPrep(){
     if(atlasPiperVoz()===v){
       ATLAS.piperLista=v;ATLAS.piperLento=false;atlasVozEst('');
       /* se deja el modelo cargado y el "déjame revisar" grabado con la misma voz */
-      atlasPiperSesion(v).then(s=>s.predict('Déjame revisar.')).then(w=>{ATLAS.muletilla={v,w};}).catch(()=>{});
+      atlasPiperSesion(v).then(s=>s.predict('Déjame revisar.')).then(w=>{ATLAS.muletillas['piper:'+v]=w;}).catch(()=>{});
     }
   }catch(e){atlasVozEst('No se pudo cargar la voz de Atlas; por ahora uso la del navegador.');}
   if(ATLAS._pprep===v)ATLAS._pprep='';
@@ -6801,6 +6806,242 @@ async function atlasDecirPiper(frases,v,id,fin,txt){
     atlasDecirNav(frases.slice(i),txt,id,fin);
   }
 }
+/* Español → fonemas para Kokoro. COPIA de atlas/g2p-es.mjs: si se cambia una, cambiar la otra. */
+const atlasFonemasEs=(()=>{
+const UNI = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
+const DEC = ["", "", "", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+const CEN = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+function n999(n) {
+  if (n === 100) return "cien";
+  const p = [];
+  if (n >= 100) { p.push(CEN[Math.floor(n / 100)]); n %= 100; }
+  if (n >= 30) p.push(DEC[Math.floor(n / 10)] + (n % 10 ? " y " + UNI[n % 10] : ""));
+  else if (n > 0) p.push(UNI[n]);
+  return p.join(" ");
+}
+const apoc = (s) => s.replace(/veintiuno$/, "veintiún").replace(/uno$/, "un");
+function numeroEnLetras(n) {
+  n = Math.floor(Math.abs(n));
+  if (n === 0) return "cero";
+  if (n >= 1e12) return String(n).split("").map((d) => UNI[+d]).join(" ");
+  const p = [];
+  const milM = Math.floor(n / 1e9), mill = Math.floor((n % 1e9) / 1e6), mil = Math.floor((n % 1e6) / 1e3), r = n % 1e3;
+  if (milM) p.push((milM === 1 ? "" : apoc(n999(milM)) + " ") + "mil" + (mill ? "" : " millones"));
+  if (mill) p.push(mill === 1 && !milM ? "un millón" : apoc(n999(mill)) + " millones");
+  if (mil) p.push(mil === 1 ? "mil" : apoc(n999(mil)) + " mil");
+  if (r) p.push(n999(r));
+  return p.join(" ");
+}
+
+const LETRAS = { a: "a", b: "be", c: "ce", d: "de", e: "e", f: "efe", g: "ge", h: "hache", i: "i", j: "jota", k: "ka", l: "ele", m: "eme", n: "ene", ñ: "eñe", o: "o", p: "pe", q: "cu", r: "erre", s: "ese", t: "te", u: "u", v: "uve", w: "doble uve", x: "equis", y: "ye", z: "zeta" };
+
+// números, horas, símbolos y siglas sin vocales pasan a palabras
+function normalizarEs(t) {
+  return String(t)
+    .replace(/(\d{1,2}):(\d{2})\b/g, (m, h, mi) => numeroEnLetras(+h) + (+mi ? " y " + numeroEnLetras(+mi) : ""))
+    .replace(/\d{1,3}(?:\.\d{3})+(?!\d)/g, (m) => m.replace(/\./g, ""))
+    .replace(/(\d+),(\d+)/g, (m, a, b) => numeroEnLetras(+a) + " coma " + (b.length > 2 || b[0] === "0" ? b.split("").map((d) => UNI[+d]).join(" ") : numeroEnLetras(+b)))
+    .replace(/\d+/g, (m) => " " + numeroEnLetras(+m) + " ")
+    .replace(/%/g, " por ciento ").replace(/&/g, " y ").replace(/\+/g, " más ").replace(/=/g, " igual a ").replace(/[$#*_~^|\\/<>]/g, " ")
+    .replace(/\bM[ée]xic/g, (m) => m.replace("x", "j")).replace(/\bm[ée]xic/g, (m) => m.replace("x", "j"))
+    // siglas: se deletrean si no se pueden leer como palabra (EYD, CRM, DB); ROP, IVA o SEB sí se leen
+    .replace(/\b[A-ZÑ]{2,5}\b/g, (m) => (m.length === 2 || !/[AEIOU]/.test(m) || /[^AEIOU]{2}/.test(m)
+      ? m.toLowerCase().split("").map((c) => LETRAS[c] || c).join(" ") : m))
+    .replace(/\b(millón|millones) pesos\b/g, "$1 de pesos")
+    .replace(/\s+/g, " ").trim();
+}
+
+const ATONAS = new Set("el la los las un una unos unas de del al a en con por para sin sobre tras y e o u ni que como si mi tu su mis tus sus me te se lo le les nos pero aunque porque pues desde hasta entre".split(" "));
+const FUERTE = "aeoáéó", DEBIL = "iuü", ACENT = "áéíóú";
+const SIN = { á: "a", é: "e", í: "i", ó: "o", ú: "u" };
+
+function palabra(w) {
+  // 1) letras → segmentos {f: fonema, v: es vocal, d: vocal débil, a: lleva tilde}
+  const s = [];
+  const esV = (c) => c !== undefined && (FUERTE + DEBIL + "íú").includes(c);
+  for (let i = 0; i < w.length; i++) {
+    const c = w[i], n = w[i + 1], prev = s[s.length - 1];
+    const trasNasal = prev && "mnɲ".includes(prev.f), ini = s.length === 0;
+    if (FUERTE.includes(c)) { s.push({ f: SIN[c] || c, v: 1, d: 0, a: ACENT.includes(c) }); continue; }
+    if (c === "í" || c === "ú") { s.push({ f: SIN[c], v: 1, d: 0, a: true }); continue; }
+    if (c === "i" || c === "u") { s.push({ f: c, v: 1, d: 1, a: false }); continue; }
+    if (c === "ü") { s.push({ f: "u", v: 1, d: 1, a: false }); continue; }
+    if (c === "y") { if (esV(n)) s.push({ f: "ʝ" }); else s.push({ f: "i", v: 1, d: 1, a: false }); continue; }
+    if (c === "c" && n === "h") { s.push({ f: "ʧ" }); i++; continue; }
+    if (c === "l" && n === "l") { s.push({ f: "ʝ" }); i++; continue; }
+    if (c === "r" && n === "r") { s.push({ f: "r" }); i++; continue; }
+    if (c === "q") { s.push({ f: "k" }); if (n === "u") i++; continue; }
+    if (c === "g") {
+      if (n && "eiéí".includes(n)) { s.push({ f: "x" }); continue; }
+      if (n === "u" && w[i + 2] && "eiéí".includes(w[i + 2])) i++;
+      s.push({ f: ini || trasNasal ? "ɡ" : "ɣ" }); continue;
+    }
+    if (c === "c") { s.push({ f: n && "eiéí".includes(n) ? "s" : "k" }); continue; }
+    if (c === "z") { s.push({ f: "s" }); continue; }
+    if (c === "j") { s.push({ f: "x" }); continue; }
+    if (c === "h") continue;
+    if (c === "b" || c === "v") { s.push({ f: ini || trasNasal ? "b" : "β" }); continue; }
+    if (c === "d") { s.push({ f: ini || trasNasal || (prev && prev.f === "l") ? "d" : "ð" }); continue; }
+    if (c === "ñ") { s.push({ f: "ɲ" }); continue; }
+    if (c === "x") { s.push({ f: "k" }, { f: "s" }); continue; }
+    if (c === "r") { s.push({ f: ini || (prev && "nls".includes(prev.f)) ? "r" : "ɾ" }); continue; }
+    if ("fklmnpstw".includes(c)) { s.push({ f: c }); continue; }
+  }
+  // 2) núcleos silábicos: fuerte+fuerte = hiato; con una débil = diptongo
+  const nuc = []; // cada núcleo: índice del pico
+  for (let i = 0; i < s.length; i++) {
+    if (!s[i].v) continue;
+    let j = i; while (j + 1 < s.length && s[j + 1].v) j++;
+    let k = i;
+    while (k <= j) {
+      // tomar un núcleo: [débiles]* fuerte [débil]?  — o débiles solas
+      let p = k;
+      while (p <= j && s[p].d) p++;
+      if (p > j) { // solo débiles: la última es el pico (ui → wi, iu → ju)
+        for (let q = k; q < j; q++) s[q].g = "pre";
+        nuc.push(j); k = j + 1; break;
+      }
+      for (let q = k; q < p; q++) s[q].g = "pre";
+      nuc.push(p);
+      // una débil detrás se pega como cierre del diptongo, salvo que le siga otra vocal fuerte
+      if (p + 1 <= j && s[p + 1].d && !(p + 2 <= j && !s[p + 2].d)) { s[p + 1].g = "post"; k = p + 2; }
+      else k = p + 1;
+    }
+    i = j;
+  }
+  // 3) acento
+  let t = -1;
+  const conTilde = nuc.findIndex((p) => s[p].a);
+  if (conTilde >= 0) t = conTilde;
+  else if (nuc.length) t = /[aeiouáéíóúns]$/.test(w) && !/[^aeiou]s$/.test(w) ? Math.max(0, nuc.length - 2) : nuc.length - 1;
+  if (nuc.length === 1 && ATONAS.has(w)) t = -1;
+  if (nuc.length > 1 && ATONAS.has(w)) t = -1;
+  // 4) salida
+  let out = "";
+  s.forEach((x, i) => {
+    if (t >= 0 && i === nuc[t]) out += "ˈ";
+    if (x.g === "pre") out += x.f === "i" ? "j" : "w";
+    else if (x.g === "post") out += x.f === "i" ? "ɪ" : "ʊ";
+    else out += x.f;
+  });
+  // diptongos decrecientes a un solo símbolo, como los aprendió Kokoro
+  return out.replace(/(ˈ?)aɪ/g, "$1I").replace(/(ˈ?)aʊ/g, "$1W").replace(/(ˈ?)eɪ/g, "$1A").replace(/(ˈ?)oɪ/g, "$1Y").replace(/(ˈ?)oʊ/g, "$1O")
+    .replace(/ɪ/g, "i").replace(/ʊ/g, "u");
+}
+
+function fonemasEs(texto) {
+  const t = normalizarEs(texto).toLowerCase();
+  let out = "";
+  for (const m of t.matchAll(/[a-záéíóúüñ]+|[^a-záéíóúüñ]+/g)) {
+    const x = m[0];
+    if (/[a-záéíóúüñ]/.test(x)) out += palabra(x);
+    else out += x.replace(/[^\s,.;:!?—…"()-]/g, "").replace(/[()"]/g, ",").replace(/-/g, " "); // ¿ y ¡ no existen en Kokoro
+  }
+  return out.replace(/\s+/g, " ").replace(/\s+([,.;:!?…])/g, "$1").trim();
+}
+return fonemasEs;
+})();
+/* ---- Alex: la voz de Atlas (Kokoro, código abierto) ----
+   Kokoro tiene voces nativas en español, pero su librería de JavaScript solo trae
+   las inglesas y convierte los sonidos a fonética inglesa (por eso sonaba con
+   acento americano). Aquí se usa la voz em_alex con fonemas españoles propios
+   (atlasFonemasEs). Corre en un Worker con la tarjeta gráfica (WebGPU): en el PC
+   genera unas 4 veces más rápido de lo que dura el audio; sin WebGPU tarda el
+   triple de lo que dura, así que en celular o sin tarjeta se usa la voz liviana.
+   El modelo (310 MB) se descarga una sola vez por equipo. */
+const ATLAS_KOKORO_SRC=`import {KokoroTTS} from 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
+let tts=null;
+self.onmessage=async e=>{const m=e.data;try{
+ if(m.t==='ini'){tts=await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'fp32',device:'webgpu',progress_callback:p=>{if(p&&p.status==='progress'&&String(p.file||'').indexOf('.onnx')>=0)self.postMessage({t:'prog',p:Math.round(p.progress||0)});}});self.postMessage({t:'listo'});return;}
+ if(m.t==='gen'){const {input_ids}=tts.tokenizer(m.ph,{truncation:true});const a=await tts.generate_from_ids(input_ids,{voice:m.voz,speed:m.vel});const d=a.audio;self.postMessage({t:'audio',id:m.id,d,hz:a.sampling_rate},[d.buffer]);}
+}catch(err){self.postMessage({t:'err',id:m.id,e:String(err&&err.message||err)});}};`;
+function atlasKokoroVoz(){
+  const s=ATLAS.vozSel||'';
+  if(s.indexOf('kokoro:')!==0||!navigator.gpu||innerWidth<=760||/Android|iPhone|iPad/i.test(navigator.userAgent))return '';
+  return s.slice(7);
+}
+/* qué voz propia está lista para hablar YA: 'kokoro', 'piper:<voz>' o '' (la del navegador) */
+function atlasMotorListo(){
+  if(atlasKokoroVoz()&&ATLAS.kokoroLista&&!ATLAS.kokoroMal)return 'kokoro';
+  const pv=atlasPiperVoz();
+  if(pv&&ATLAS.piperLista===pv&&!ATLAS.piperLento)return 'piper:'+pv;
+  return '';
+}
+/* el tono grave se logra reproduciendo más lento; se genera más rápido para que el ritmo quede igual */
+function atlasKokoroVel(){return (1/(ATLAS.tono||1))*0.97;}
+function atlasWav(d,hz){
+  const b=new DataView(new ArrayBuffer(44+d.length*2)),w=(o,s)=>{for(let i=0;i<s.length;i++)b.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF');b.setUint32(4,36+d.length*2,true);w(8,'WAVEfmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);
+  b.setUint32(24,hz,true);b.setUint32(28,hz*2,true);b.setUint16(32,2,true);b.setUint16(34,16,true);w(36,'data');b.setUint32(40,d.length*2,true);
+  for(let i=0;i<d.length;i++)b.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,d[i]))*32767),true);
+  return new Blob([b],{type:'audio/wav'});
+}
+function atlasKokoroGen(ph,vel){
+  return new Promise((ok,no)=>{
+    const id=++ATLAS._kid;ATLAS._kp[id]={ok,no};
+    ATLAS._kw.postMessage({t:'gen',id,ph,voz:atlasKokoroVoz()||'em_alex',vel});
+    setTimeout(()=>{if(ATLAS._kp[id]){delete ATLAS._kp[id];no(new Error('lento'));}},25000);
+  });
+}
+async function atlasKokoroPrep(){
+  if(!atlasKokoroVoz()||ATLAS.kokoroLista||ATLAS._kprep||ATLAS.kokoroMal)return;
+  ATLAS._kprep=true;ATLAS._kp={};ATLAS._kid=0;
+  try{
+    const w=new Worker(URL.createObjectURL(new Blob([ATLAS_KOKORO_SRC],{type:'text/javascript'})),{type:'module'});
+    ATLAS._kw=w;
+    await new Promise((ok,no)=>{
+      w.onerror=e=>no(new Error(e.message||'worker'));
+      w.onmessage=e=>{
+        const m=e.data;
+        if(m.t==='prog')atlasVozEst('Descargando la voz Alex (solo esta vez)… '+m.p+' %');
+        else if(m.t==='listo')ok();
+        else if(m.t==='err'&&m.id===undefined)no(new Error(m.e));
+        else if(m.t==='audio'||m.t==='err'){const p=ATLAS._kp[m.id];if(p){delete ATLAS._kp[m.id];if(m.t==='audio')p.ok(m);else p.no(new Error(m.e));}}
+      };
+      w.postMessage({t:'ini'});
+      setTimeout(()=>no(new Error('timeout')),900000);
+    });
+    atlasVozEst('Preparando la voz Alex…');
+    await atlasKokoroGen(atlasFonemasEs('Hola.'),1.08); /* la primera generación calienta la tarjeta gráfica */
+    const mu=await atlasKokoroGen(atlasFonemasEs('Déjame revisar.'),atlasKokoroVel());
+    ATLAS.muletillas.kokoro=atlasWav(mu.d,mu.hz);
+    ATLAS.kokoroLista=true;atlasVozEst('');atlasSetPrefS('kokoro_ok','1');
+  }catch(e){
+    ATLAS.kokoroMal=true;try{if(ATLAS._kw)ATLAS._kw.terminate();}catch(x){}
+    atlasVozEst('La voz Alex no pudo cargarse en este equipo; uso la voz liviana.');
+  }
+  ATLAS._kprep=false;
+}
+async function atlasDecirKokoro(frases,id,fin,txt){
+  const vivo=()=>id===ATLAS.hablaId;
+  let i=0;
+  try{
+    atlasEstado('hablando');
+    const cola=[];let err=null;
+    (async()=>{
+      for(const f of frases){
+        if(!vivo())return;
+        const ph=atlasFonemasEs(f);
+        if(!ph){cola.push(null);continue;}
+        const m=await atlasKokoroGen(ph,atlasKokoroVel());
+        cola.push(atlasWav(m.d,m.hz));
+      }
+    })().catch(e=>{err=e;});
+    for(;i<frases.length;i++){
+      while(cola.length<=i){
+        if(err)throw err;
+        if(!vivo())return;
+        await new Promise(r=>setTimeout(r,40));
+      }
+      if(cola[i]){await atlasSonar(cola[i]);if(!vivo())return;}
+    }
+    fin();
+  }catch(e){
+    if(!vivo())return;
+    ATLAS.kokoroMal=true;ATLAS.kokoroLista=false;
+    atlasDecirNav(atlasTrozos(frases.slice(i).join(' ')),txt,id,fin);
+  }
+}
 function atlasDecir(txt,alTerminar){
   const id=++ATLAS.hablaId;
   let hecho=false;
@@ -6808,9 +7049,10 @@ function atlasDecir(txt,alTerminar){
   if(!ATLAS.voz||!txt){fin();return;}
   const frases=atlasTrozos(atlasPronuncia(txt));
   if(!frases.length){fin();return;}
-  const pv=atlasPiperVoz();
-  if(pv&&ATLAS.piperLista===pv&&!ATLAS.piperLento){atlasDecirPiper(atlasFrasesCortas(atlasPronuncia(txt)),pv,id,fin,String(txt));return;}
-  if(pv)atlasPiperPrep();
+  const mo=atlasMotorListo();
+  atlasKokoroPrep();atlasPiperPrep();
+  if(mo==='kokoro'){atlasDecirKokoro(atlasFrasesCortas(atlasPronuncia(txt)),id,fin,String(txt));return;}
+  if(mo){atlasDecirPiper(atlasFrasesCortas(atlasPronuncia(txt)),mo.slice(6),id,fin,String(txt));return;}
   atlasDecirNav(frases,String(txt),id,fin);
 }
 function atlasDecirNav(frases,txt,id,finFuera){
@@ -6841,11 +7083,11 @@ function atlasDecirNav(frases,txt,id,finFuera){
   }catch(e){fin();}
 }
 function atlasCambiaVoz(v){
-  ATLAS.vozSel=v;atlasSetPrefS('vozsel',v);ATLAS.voz=v!=='off';
+  ATLAS.vozSel=v;atlasSetPrefS('vozsel2',v);ATLAS.voz=v!=='off';
   atlasCallar();atlasVozEst('');
-  if(atlasPiperVoz())atlasPiperPrep();
+  atlasKokoroPrep();atlasPiperPrep();
 }
-function atlasCambiaTono(v){ATLAS.tono=+v||1;atlasSetPrefS('tono',ATLAS.tono);}
+function atlasCambiaTono(v){ATLAS.tono=+v||1;atlasSetPrefS('tono2',ATLAS.tono);}
 async function atlasCambiaWake(on){
   ATLAS.wake=!!on;atlasSetPref('wake',ATLAS.wake);
   if(!on){atlasWakePausa();return;}
