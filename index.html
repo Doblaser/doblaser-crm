@@ -6398,7 +6398,8 @@ function atlasBoton(){
   if(!ATLAS.ini){
     ATLAS.ini=true;ATLAS.wake=atlasPref('wake',false);
     /* claves "2": al llegar Kokoro (15/11/2026) se parte de la voz nueva, no de lo que se probó antes */
-    ATLAS.vozSel=atlasPrefS('vozsel2','kokoro:em_alex');ATLAS.voz=ATLAS.vozSel!=='off';
+    /* claves "3" (16/11/2026): Daniel prefiere la voz del navegador; Alex queda como opción */
+    ATLAS.vozSel=atlasPrefS('vozsel3','nav');ATLAS.voz=ATLAS.vozSel!=='off';
     ATLAS.tono=+atlasPrefS('tono2','0.9')||1;ATLAS.muletillas={};
     /* si este equipo ya tiene la voz Alex descargada, se va cargando sola (~20 s) */
     if(atlasPrefS('kokoro_ok','')==='1')setTimeout(()=>{atlasKokoroPrep();atlasPiperPrep();},5000);
@@ -6657,7 +6658,7 @@ async function atlasEnviar(texto){
   const cuerpo={texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-4),voz:true};
   /* Con voz propia lista, la respuesta llega por partes y Alex empieza a hablar con
      la primera frase mientras el resto se sigue escribiendo (antes esperaba todo). */
-  if(ATLAS.voz&&atlasMotorListo()&&!ATLAS._sinFlujo&&window.fetch&&window.TextDecoder&&typeof SB_CFG!=='undefined'){
+  if(ATLAS.voz&&(atlasMotorListo()||('speechSynthesis' in window))&&!ATLAS._sinFlujo&&window.fetch&&window.TextDecoder&&typeof SB_CFG!=='undefined'){
     try{
       const r=await fetch(SB_CFG.url+'/functions/v1/atlas',{method:'POST',
         headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+SB_CFG.key},
@@ -6717,8 +6718,40 @@ async function atlasEnviar(texto){
 }
 /* Habla un texto que va llegando a pedazos: corta en finales de frase, dice la
    primera sola (para arrancar ya) y agrupa las siguientes como atlasTrozosKokoro. */
+/* Voz del navegador por partes: cada frase se encola en el navegador apenas llega
+   (en trozos de hasta ~180 letras, por el corte de Chrome a los ~15 s). */
+function atlasFlujoNav(id){
+  let buf='',cola=[],cerrado=false,fin=null,listo=false;
+  const v=atlasVozEs();
+  try{speechSynthesis.cancel();}catch(e){}
+  atlasEstado('hablando');
+  const decir=t=>{
+    const u=new SpeechSynthesisUtterance(atlasPronuncia(t));
+    u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
+    speechSynthesis.speak(u);
+  };
+  let quieto=0,t0=Date.now();
+  const iv=setInterval(()=>{
+    if(id!==ATLAS.hablaId){clearInterval(iv);return;}
+    let corte=-1;const re=/[.!?…](?=\s+[A-ZÁÉÍÓÚÑ¿¡])/g;let m;
+    while((m=re.exec(buf)))corte=m.index+1;
+    if(cerrado)corte=buf.length;
+    if(corte>0){cola.push(...atlasTrozos(buf.slice(0,corte)));buf=buf.slice(corte);}
+    while(cola.length)decir(cola.shift());
+    if(!cerrado)return;
+    /* terminó cuando el navegador de verdad dejó de hablar (si no, Atlas se oye a sí mismo) */
+    const activo=speechSynthesis.speaking||speechSynthesis.pending;
+    if(!activo){if(++quieto>=4&&!listo){listo=true;clearInterval(iv);if(fin)fin();}}else quieto=0;
+    if(Date.now()-t0>180000&&!listo){listo=true;clearInterval(iv);try{speechSynthesis.cancel();}catch(e){}if(fin)fin();}
+  },60);
+  return{
+    push(d){buf+=d;},
+    cerrar(extra,alTerminar){if(extra)buf+=extra;fin=alTerminar;cerrado=true;t0=Date.now();}
+  };
+}
 function atlasFlujo(){
   const id=++ATLAS.hablaId,mo=atlasMotorListo();
+  if(!mo)return atlasFlujoNav(id);
   let buf='',todo='',cola=[],cerrado=false,primera=true,fin=null,dichas=0;
   const gen=mo==='kokoro'
     ?(f=>{const ph=atlasFonemasEs(atlasPronuncia(f));return ph?atlasKokoroGen(ph,atlasKokoroVel()):null;})
@@ -7253,7 +7286,7 @@ function atlasDecirNav(frases,txt,id,finFuera){
   }catch(e){fin();}
 }
 function atlasCambiaVoz(v){
-  ATLAS.vozSel=v;atlasSetPrefS('vozsel2',v);ATLAS.voz=v!=='off';
+  ATLAS.vozSel=v;atlasSetPrefS('vozsel3',v);ATLAS.voz=v!=='off';
   atlasCallar();atlasVozEst('');
   atlasKokoroPrep();atlasPiperPrep();
 }
