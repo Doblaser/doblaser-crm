@@ -6481,7 +6481,7 @@ function atlasParar(){
 function atlasCallar(){
   ATLAS.hablaId++;
   try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
-  if(ATLAS.audio){try{ATLAS.audio.pause();}catch(e){}}
+  atlasSilenciar();
 }
 function atlasCerrar(){
   ATLAS.conv=false;atlasParar();atlasCallar();atlasEstado('idle');
@@ -6755,55 +6755,92 @@ async function atlasPiperPrep(){
   }catch(e){atlasVozEst('No se pudo cargar la voz de Atlas; por ahora uso la del navegador.');}
   if(ATLAS._pprep===v)ATLAS._pprep='';
 }
-/* reproduce un audio; el tono grave sale de bajarle la velocidad sin conservar el tono */
-function atlasSonar(wav){
-  return new Promise((ok,no)=>{
-    const a=new Audio(),url=URL.createObjectURL(wav);
-    let cerrado=false;
-    const lim=()=>{if(cerrado)return false;cerrado=true;try{URL.revokeObjectURL(url);}catch(e){}if(ATLAS.audio===a)ATLAS.audio=null;return true;};
-    if(ATLAS.audio){try{ATLAS.audio.pause();}catch(e){}}
-    a.src=url;
-    try{a.preservesPitch=false;a.mozPreservesPitch=false;a.webkitPreservesPitch=false;}catch(e){}
-    a.playbackRate=ATLAS.tono||1;
-    ATLAS.audio=a;
-    a.onended=()=>{if(lim())ok();};
-    a.onpause=()=>{if(!a.ended&&lim())ok();};
-    a.onerror=()=>{if(lim())no(new Error('audio'));};
-    a.play().catch(e=>{if(lim())no(e);});
-  });
+/* ---- Reproductor sin cortes (16/11/2026) ----
+   Antes cada frase era un <audio> aparte: arrancarlo tardaba, cada trozo traía
+   0,2-0,4 s de silencio propio al inicio y al final, y entre frase y frase se oía
+   un hueco o un "clic". Ahora todo va por Web Audio: se recorta el silencio de los
+   bordes, se suaviza el empalme y cada trozo se programa al milisegundo detrás del
+   anterior, con una pausa medida según la puntuación (como respira una persona).
+   El tono grave se conserva igual que antes (velocidad de reproducción). */
+function atlasAC(){
+  if(!ATLAS._ac||ATLAS._ac.state==='closed')ATLAS._ac=new (window.AudioContext||window.webkitAudioContext)();
+  if(ATLAS._ac.state==='suspended')ATLAS._ac.resume().catch(()=>{});
+  return ATLAS._ac;
+}
+function atlasRecorta(d,hz){
+  const u=0.01;let a=0,b=d.length-1;
+  while(a<b&&Math.abs(d[a])<u)a++;
+  while(b>a&&Math.abs(d[b])<u)b--;
+  a=Math.max(0,a-Math.round(hz*0.015));b=Math.min(d.length,b+Math.round(hz*0.05));
+  const x=new Float32Array(d.subarray(a,b));
+  const n=Math.min(Math.round(hz*0.008),x.length>>1);
+  for(let i=0;i<n;i++){const g=i/n;x[i]*=g;x[x.length-1-i]*=g;}
+  return x;
+}
+/* pausa natural después de cada trozo, según cómo termina */
+function atlasPausa(f){f=String(f).trim();return /[?!]$/.test(f)?0.30:/[.…]$/.test(f)?0.24:/[,;:]$/.test(f)?0.12:0.06;}
+/* programa un audio ({d,hz}) detrás de todo lo que ya suena; devuelve cuándo termina */
+function atlasProgramar(d,hz,pausa){
+  const ac=atlasAC(),x=atlasRecorta(d,hz);
+  if(!x.length)return ATLAS._tFin||0;
+  const r=ATLAS.tono||1,buf=ac.createBuffer(1,x.length,hz);
+  buf.copyToChannel(x,0);
+  const s=ac.createBufferSource();s.buffer=buf;s.playbackRate.value=r;s.connect(ac.destination);
+  const t=Math.max(ac.currentTime+0.04,ATLAS._tLibre||0);
+  s.start(t);
+  (ATLAS._fx=ATLAS._fx||new Set()).add(s);s.onended=()=>ATLAS._fx.delete(s);
+  ATLAS._tFin=t+buf.duration/r;ATLAS._tLibre=ATLAS._tFin+(pausa||0);
+  return ATLAS._tFin;
+}
+function atlasSilenciar(){
+  if(ATLAS._fx)ATLAS._fx.forEach(s=>{try{s.stop();}catch(e){}});
+  if(ATLAS._fx)ATLAS._fx.clear();ATLAS._tLibre=0;ATLAS._tFin=0;
+}
+/* espera a que de verdad termine de sonar (para no oírse a sí mismo al volver a escuchar) */
+function atlasEsperaFin(id){
+  return new Promise(ok=>{const ac=atlasAC();const c=()=>{if(id!==ATLAS.hablaId||ac.currentTime>=(ATLAS._tFin||0))ok();else setTimeout(c,50);};c();});
+}
+async function atlasAPcm(x){
+  if(x&&x.d)return x;
+  const ab=await atlasAC().decodeAudioData(await x.arrayBuffer());
+  return {d:ab.getChannelData(0),hz:ab.sampleRate};
+}
+/* suena un audio suelto (la muletilla "déjame revisar"); acepta Blob o {d,hz} */
+async function atlasSonar(x){const p=await atlasAPcm(x);atlasProgramar(p.d,p.hz,0.15);}
+/* Genera por delante y programa cada trozo apenas está listo: mientras suena uno,
+   el siguiente ya se está generando y entra pegado, sin hueco. */
+async function atlasDecirCola(frases,gen,id,fin){
+  const vivo=()=>id===ATLAS.hablaId;
+  let i=0;
+  atlasEstado('hablando');
+  for(;i<frases.length;i++){
+    if(!vivo())return i;
+    const p=await gen(frases[i]);
+    if(!vivo())return i;
+    if(p)atlasProgramar(p.d,p.hz,i<frases.length-1?atlasPausa(frases[i]):0);
+  }
+  await atlasEsperaFin(id);
+  if(vivo())fin();
+  return -1;
 }
 async function atlasDecirPiper(frases,v,id,fin,txt){
-  const vivo=()=>id===ATLAS.hablaId;
-  /* Se generan todas las frases seguidas, por delante de lo que va sonando:
-     mientras suena una, la siguiente ya está lista y no hay pausa entre ellas. */
-  let i=0;
+  let hechas=0;
   try{
     const s=await atlasPiperSesion(v);
-    if(!vivo())return;
-    atlasEstado('hablando');
-    const cola=[];let err=null;
-    (async()=>{
-      for(const f of frases){
-        if(!vivo())return;
-        const t0=performance.now();
-        cola.push(await Promise.race([s.predict(f),new Promise((_,no)=>setTimeout(()=>no(new Error('lento')),15000))]));
-        if(performance.now()-t0>9000)ATLAS.piperLento=true;
-      }
-    })().catch(e=>{err=e;});
-    for(;i<frases.length;i++){
-      while(cola.length<=i){
-        if(err)throw err;
-        if(!vivo())return;
-        await new Promise(r=>setTimeout(r,40));
-      }
-      await atlasSonar(cola[i]);if(!vivo())return;
-    }
-    fin();
+    if(id!==ATLAS.hablaId)return;
+    await atlasDecirCola(frases,async f=>{
+      const t0=performance.now();
+      const w=await Promise.race([s.predict(f),new Promise((_,no)=>setTimeout(()=>no(new Error('lento')),15000))]);
+      if(performance.now()-t0>9000)ATLAS.piperLento=true;
+      hechas++;
+      return atlasAPcm(w);
+    },id,fin);
   }catch(e){
-    if(!vivo())return;
+    if(id!==ATLAS.hablaId)return;
     if(String(e&&e.message)==='lento')ATLAS.piperLento=true;
     /* lo que faltaba por decir lo termina la voz del navegador */
-    atlasDecirNav(frases.slice(i),txt,id,fin);
+    await atlasEsperaFin(id);
+    atlasDecirNav(frases.slice(hechas),txt,id,fin);
   }
 }
 /* Español → fonemas para Kokoro. COPIA de atlas/g2p-es.mjs: si se cambia una, cambiar la otra. */
@@ -6855,13 +6892,15 @@ const ATONAS = new Set("el la los las un una unos unas de del al a en con por pa
 const FUERTE = "aeoáéó", DEBIL = "iuü", ACENT = "áéíóú";
 const SIN = { á: "a", é: "e", í: "i", ó: "o", ú: "u" };
 
-function palabra(w) {
+function palabra(w, ant) {
+  // adverbios en -mente llevan dos acentos (rápidamente = rápida + mente), como en espeak-ng
+  if (w.length > 7 && w.endsWith("mente")) return palabra(w.slice(0, -5), ant).replace(/ˈ/g, "ˌ") + palabra("mente", "x");
   // 1) letras → segmentos {f: fonema, v: es vocal, d: vocal débil, a: lleva tilde}
   const s = [];
   const esV = (c) => c !== undefined && (FUERTE + DEBIL + "íú").includes(c);
   for (let i = 0; i < w.length; i++) {
     const c = w[i], n = w[i + 1], prev = s[s.length - 1];
-    const trasNasal = prev && "mnɲ".includes(prev.f), ini = s.length === 0;
+    const trasNasal = prev && "mnɲ".includes(prev.f), ini0 = s.length === 0, ini = ini0 && (ant == null || "mnɲŋ".includes(ant) || (c === "d" && ant === "l"));
     if (FUERTE.includes(c)) { s.push({ f: SIN[c] || c, v: 1, d: 0, a: ACENT.includes(c) }); continue; }
     if (c === "í" || c === "ú") { s.push({ f: SIN[c], v: 1, d: 0, a: true }); continue; }
     if (c === "i" || c === "u") { s.push({ f: c, v: 1, d: 1, a: false }); continue; }
@@ -6884,7 +6923,7 @@ function palabra(w) {
     if (c === "d") { s.push({ f: ini || trasNasal || (prev && prev.f === "l") ? "d" : "ð" }); continue; }
     if (c === "ñ") { s.push({ f: "ɲ" }); continue; }
     if (c === "x") { s.push({ f: "k" }, { f: "s" }); continue; }
-    if (c === "r") { s.push({ f: ini || (prev && "nls".includes(prev.f)) ? "r" : "ɾ" }); continue; }
+    if (c === "r") { s.push({ f: ini0 || (prev && "nls".includes(prev.f)) ? "r" : "ɾ" }); continue; }
     if ("fklmnpstw".includes(c)) { s.push({ f: c }); continue; }
   }
   // 2) núcleos silábicos: fuerte+fuerte = hiato; con una débil = diptongo
@@ -6920,6 +6959,8 @@ function palabra(w) {
   let out = "";
   s.forEach((x, i) => {
     if (t >= 0 && i === nuc[t]) out += "ˈ";
+    // acento secundario alterno hacia atrás (ad-mi-nis-tra-ción → ˌad mi ˌnis tra ˈción), como en espeak-ng
+    else if (t >= 2 && nuc.indexOf(i) >= 0 && (t - nuc.indexOf(i)) % 2 === 0) out += "ˌ";
     if (x.g === "pre") out += x.f === "i" ? "j" : "w";
     else if (x.g === "post") out += x.f === "i" ? "ɪ" : "ʊ";
     else out += x.f;
@@ -6931,13 +6972,14 @@ function palabra(w) {
 
 function fonemasEs(texto) {
   const t = normalizarEs(texto).toLowerCase();
-  let out = "";
+  let out = "", ant = null;
   for (const m of t.matchAll(/[a-záéíóúüñ]+|[^a-záéíóúüñ]+/g)) {
     const x = m[0];
-    if (/[a-záéíóúüñ]/.test(x)) out += palabra(x);
-    else out += x.replace(/[^\s,.;:!?—…"()-]/g, "").replace(/[()"]/g, ",").replace(/-/g, " "); // ¿ y ¡ no existen en Kokoro
+    if (/[a-záéíóúüñ]/.test(x)) { const p = palabra(x, ant); out += p; ant = p.replace(/[ˈˌ]/g, "").slice(-1); continue; }
+    if (/[,.;:!?—…"()]/.test(x)) ant = null;
+    out += x.replace(/[^\s,.;:!?—…"()-]/g, "").replace(/[()"]/g, ",").replace(/-/g, " "); // ¿ y ¡ no existen en Kokoro
   }
-  return out.replace(/\s+/g, " ").replace(/\s+([,.;:!?…])/g, "$1").trim();
+  return out.replace(/\s+/g, " ").replace(/\s+([,.;:!?…])/g, "$1").replace(/n(?=( ?)[pbm])/g, "m").replace(/n(?=( ?)[kɡx])/g, "ŋ").trim();
 }
 return fonemasEs;
 })();
@@ -7004,7 +7046,7 @@ async function atlasKokoroPrep(){
     atlasVozEst('Preparando la voz Alex…');
     await atlasKokoroGen(atlasFonemasEs('Hola.'),1.08); /* la primera generación calienta la tarjeta gráfica */
     const mu=await atlasKokoroGen(atlasFonemasEs('Déjame revisar.'),atlasKokoroVel());
-    ATLAS.muletillas.kokoro=atlasWav(mu.d,mu.hz);
+    ATLAS.muletillas.kokoro={d:mu.d,hz:mu.hz};
     ATLAS.kokoroLista=true;atlasVozEst('');atlasSetPrefS('kokoro_ok','1');
   }catch(e){
     ATLAS.kokoroMal=true;try{if(ATLAS._kw)ATLAS._kw.terminate();}catch(x){}
@@ -7012,34 +7054,32 @@ async function atlasKokoroPrep(){
   }
   ATLAS._kprep=false;
 }
+/* Trozos para Alex: la primera frase sola (para que empiece a hablar ya) y el
+   resto agrupado en bloques de hasta ~260 letras. Kokoro entona cada trozo por
+   separado: frase por frase la voz "reiniciaba" la melodía y sonaba a lista
+   leída; en bloques la entonación fluye entre frases como al hablar. */
+function atlasTrozosKokoro(txt){
+  const fr=atlasFrasesCortas(txt),out=[];let a='';
+  fr.forEach((f,k)=>{
+    if(k===0){out.push(f);return;}
+    if(a&&a.length+f.length>260){out.push(a);a=f;}else a=a?a+' '+f:f;
+  });
+  if(a)out.push(a);
+  return out;
+}
 async function atlasDecirKokoro(frases,id,fin,txt){
-  const vivo=()=>id===ATLAS.hablaId;
-  let i=0;
+  let hechas=0;
   try{
-    atlasEstado('hablando');
-    const cola=[];let err=null;
-    (async()=>{
-      for(const f of frases){
-        if(!vivo())return;
-        const ph=atlasFonemasEs(f);
-        if(!ph){cola.push(null);continue;}
-        const m=await atlasKokoroGen(ph,atlasKokoroVel());
-        cola.push(atlasWav(m.d,m.hz));
-      }
-    })().catch(e=>{err=e;});
-    for(;i<frases.length;i++){
-      while(cola.length<=i){
-        if(err)throw err;
-        if(!vivo())return;
-        await new Promise(r=>setTimeout(r,40));
-      }
-      if(cola[i]){await atlasSonar(cola[i]);if(!vivo())return;}
-    }
-    fin();
+    await atlasDecirCola(frases,async f=>{
+      const ph=atlasFonemasEs(f);hechas++;
+      if(!ph)return null;
+      return atlasKokoroGen(ph,atlasKokoroVel());
+    },id,fin);
   }catch(e){
-    if(!vivo())return;
+    if(id!==ATLAS.hablaId)return;
     ATLAS.kokoroMal=true;ATLAS.kokoroLista=false;
-    atlasDecirNav(atlasTrozos(frases.slice(i).join(' ')),txt,id,fin);
+    await atlasEsperaFin(id);
+    atlasDecirNav(atlasTrozos(frases.slice(Math.max(0,hechas-1)).join(' ')),txt,id,fin);
   }
 }
 function atlasDecir(txt,alTerminar){
@@ -7051,7 +7091,7 @@ function atlasDecir(txt,alTerminar){
   if(!frases.length){fin();return;}
   const mo=atlasMotorListo();
   atlasKokoroPrep();atlasPiperPrep();
-  if(mo==='kokoro'){atlasDecirKokoro(atlasFrasesCortas(atlasPronuncia(txt)),id,fin,String(txt));return;}
+  if(mo==='kokoro'){atlasDecirKokoro(atlasTrozosKokoro(atlasPronuncia(txt)),id,fin,String(txt));return;}
   if(mo){atlasDecirPiper(atlasFrasesCortas(atlasPronuncia(txt)),mo.slice(6),id,fin,String(txt));return;}
   atlasDecirNav(frases,String(txt),id,fin);
 }
