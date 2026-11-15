@@ -1323,37 +1323,51 @@ html.side-off .menu-btn{display:grid !important}
 #atlasBtn{position:fixed;left:16px;bottom:16px;z-index:61;display:flex;align-items:center;gap:7px;padding:11px 16px;
   border-radius:999px;border:0;background:#1d2733;color:#fff;font:inherit;font-weight:600;font-size:13px;
   box-shadow:0 6px 18px rgba(0,0,0,.28);cursor:pointer}
-#atlasBtn svg,.atlas-mic svg{width:17px;height:17px;flex:0 0 auto}
+#atlasBtn svg{width:17px;height:17px;flex:0 0 auto}
 #atlasPanel{position:fixed;left:16px;bottom:16px;z-index:210;width:390px;max-width:calc(100vw - 32px);
+  max-height:calc(100vh - 32px);overflow-y:auto;
   background:var(--card,#fff);color:inherit;border:1px solid var(--line);border-radius:14px;
   box-shadow:0 18px 50px rgba(0,0,0,.3);padding:14px;display:none}
 #atlasPanel.show{display:block}
-.atlas-h{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.atlas-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
 .atlas-h b{font-size:16px}
 .atlas-fase{font-size:11px;color:var(--ink-3);flex:1}
 .atlas-x{border:0;background:none;font-size:22px;line-height:1;color:var(--ink-3);cursor:pointer;padding:2px 8px;align-self:center}
-.atlas-ctx{font-size:11.5px;color:var(--ink-3);margin-bottom:8px}
-#atlasTexto{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;
-  background:var(--card,#fff);color:inherit;resize:vertical;min-height:96px}
-.atlas-est{font-size:12px;color:var(--ink-3);min-height:17px;margin:6px 0 8px}
+.atlas-ctx{font-size:11.5px;color:var(--ink-3);margin-bottom:10px}
+/* el círculo es el único control de voz: muestra en qué va Atlas */
+.atlas-orb{display:flex;align-items:center;justify-content:center;width:84px;height:84px;margin:4px auto 8px;border-radius:50%;
+  border:0;background:#1d2733;color:#fff;cursor:pointer;position:relative;transition:background .2s,transform .2s}
+.atlas-orb svg{width:30px;height:30px}
+.atlas-orb::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:2px solid transparent;pointer-events:none}
+.atlas-orb.escuchando{background:var(--wine,#7b1e2b)}
+.atlas-orb.escuchando::after{border-color:var(--wine,#7b1e2b);animation:atlasOnda 1.3s ease-out infinite}
+.atlas-orb.pensando{background:#4a5563;cursor:default}
+.atlas-orb.pensando::after{border-color:#4a5563 transparent transparent transparent;animation:atlasGira .9s linear infinite}
+.atlas-orb.hablando{background:#1f6f54}
+.atlas-orb.hablando::after{border-color:#1f6f54;animation:atlasOnda 1.8s ease-out infinite}
+@keyframes atlasOnda{from{transform:scale(.92);opacity:.9}to{transform:scale(1.28);opacity:0}}
+@keyframes atlasGira{to{transform:rotate(360deg)}}
+.atlas-lbl{text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-2);min-height:18px}
+.atlas-dicho{text-align:center;font-size:14px;line-height:1.4;min-height:20px;margin:6px 4px 2px;overflow-wrap:anywhere}
+.atlas-est{font-size:12px;color:#b3261e;min-height:0;margin:4px 0 8px;text-align:center}
 .atlas-resp{border:1px solid var(--line);border-left:3px solid var(--wine,#7b1e2b);border-radius:9px;padding:10px 12px;
-  margin-bottom:10px;font-size:13.5px;line-height:1.45;max-height:34vh;overflow-y:auto}
+  margin-bottom:10px;font-size:13.5px;line-height:1.45;max-height:32vh;overflow-y:auto}
 .atlas-resp .ar-tipo{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:4px}
-.atlas-resp .ar-ent{color:var(--ink-2);margin-bottom:6px}
 .atlas-resp .ar-txt{white-space:pre-wrap}
 .atlas-resp .ar-falta{margin-top:7px;font-weight:600}
 .atlas-resp .ar-cons{margin-top:8px;font-size:11px;color:var(--ink-3)}
-.atlas-acc{display:flex;gap:8px;flex-wrap:wrap}
-.atlas-acc .btn{flex:1;min-width:0}
-.atlas-mic{flex:1 1 100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:0;border-radius:10px;
-  background:var(--wine,#7b1e2b);color:#fff;font:inherit;font-weight:600;font-size:14px;cursor:pointer}
-.atlas-mic.on{background:#c62828;animation:atlasPulso 1.2s ease-in-out infinite}
-@keyframes atlasPulso{50%{opacity:.7}}
+.atlas-esc{display:flex;gap:8px;margin-bottom:8px}
+.atlas-esc input{flex:1;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;
+  background:var(--card,#fff);color:inherit}
+.atlas-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.atlas-chk{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-2);cursor:pointer;padding:6px 2px}
+.atlas-chk input{width:16px;height:16px}
 @media(max-width:760px){
   #atlasBtn{left:14px;bottom:78px}
-  #atlasPanel{left:0;right:0;bottom:0;width:auto;max-width:none;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+  #atlasPanel{left:0;right:0;bottom:0;width:auto;max-width:none;max-height:92vh;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+  .atlas-orb{width:96px;height:96px}
 }
-@media(prefers-reduced-motion:reduce){.atlas-mic.on{animation:none}}
+@media(prefers-reduced-motion:reduce){.atlas-orb::after{animation:none!important}}
 /* teléfono vertical en pantalla completa: la guía va girada y la pinta el lienzo */
 .firma-rot .firma-hint{display:none}
 .firma-rot .firma-canvas-wrap::after{display:none}
@@ -6304,11 +6318,22 @@ async function vaciarPapelera(){
    NO corrige ni toca ningún dato. El "cerebro" (IA en una función de Supabase)
    se conecta después; la llave de la API nunca va en este archivo.
    ========================================================= */
-let ATLAS={rec:null,on:false,base:''};
+let ATLAS={rec:null,on:false,estado:'idle',hist:[],ult:null,ultTexto:'',conv:false,silencios:0,voz:true,wake:false,wrec:null,hablaId:0,ini:false,diag:''};
 const ATLAS_MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>';
+const ATLAS_LBL={idle:'Toca el círculo para hablar',escuchando:'Te escucho…',pensando:'Pensando…',hablando:'Toca para interrumpir'};
+function atlasPref(k,d){try{const v=localStorage.getItem('atlas_'+k);return v==null?d:v==='1';}catch(e){return d;}}
+function atlasSetPref(k,v){try{localStorage.setItem('atlas_'+k,v?'1':'0');}catch(e){}}
+function atlasSR(){return window.SpeechRecognition||window.webkitSpeechRecognition||null;}
+function atlasVisible(){const p=document.getElementById('atlasPanel');return !!(p&&p.classList.contains('show'));}
 function atlasBoton(){
   let b=document.getElementById('atlasBtn');
-  if(!esDev()){if(b)b.remove();atlasCerrar();return;}
+  if(!esDev()){if(b)b.remove();if(atlasVisible())atlasCerrar();atlasWakePausa();return;}
+  if(!ATLAS.ini){
+    ATLAS.ini=true;ATLAS.voz=atlasPref('voz',true);ATLAS.wake=atlasPref('wake',false);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')atlasWakeReanuda();else atlasWakePausa();});
+    try{if('speechSynthesis' in window)speechSynthesis.getVoices();}catch(e){}
+    atlasWakeReanuda();
+  }
   if(b)return;
   b=document.createElement('button');b.id='atlasBtn';b.type='button';b.title='Hablar con Atlas';
   b.innerHTML=ATLAS_MIC+'<span>Atlas</span>';
@@ -6325,44 +6350,122 @@ function atlasContexto(){
   }catch(e){}
   return s;
 }
-function atlasEst(m){const e=document.getElementById('atlasEst');if(e)e.textContent=m||'';}
-function atlasPintaMic(){
-  const m=document.getElementById('atlasMic');if(!m)return;
-  m.classList.toggle('on',ATLAS.on);
-  m.innerHTML=ATLAS_MIC+'<span>'+(ATLAS.on?'Escuchando… toca para parar':'Hablar')+'</span>';
+function atlasEst(m){const e=document.getElementById('atlasEst');if(e)e.textContent=m||'';if(m)ATLAS.diag=m;}
+function atlasDicho(m){const e=document.getElementById('atlasDicho');if(e)e.textContent=m||'';}
+function atlasEstado(e){
+  ATLAS.estado=e;
+  const o=document.getElementById('atlasOrb'),l=document.getElementById('atlasLbl');
+  if(o)o.className='atlas-orb '+e;
+  if(l)l.textContent=ATLAS_LBL[e]||'';
 }
+/* Conversación de corrido (14/11/2026): abrir el panel ya es empezar a hablar.
+   El dictado va con continuous=false, que es el modo en que el navegador decide
+   solo cuándo la persona terminó (y el único estable en Chrome de Android).
+   Al terminar la frase se envía, Atlas responde en voz alta y vuelve a escuchar.
+   No hay botón de parar: el círculo solo sirve para interrumpirlo o retomar. */
 function atlasAbrir(){
   let p=document.getElementById('atlasPanel');
   if(!p){
     p=document.createElement('div');p.id='atlasPanel';
-    p.innerHTML=`<div class="atlas-h"><b>Atlas</b><span class="atlas-fase">en pruebas · escucha y anota, no corrige</span>
+    p.innerHTML=`<div class="atlas-h"><b>Atlas</b><span class="atlas-fase">en pruebas · consulta, no cambia nada</span>
         <button type="button" class="atlas-x" onclick="atlasCerrar()" aria-label="Cerrar">×</button></div>
       <div class="atlas-ctx" id="atlasCtx"></div>
-      <textarea id="atlasTexto" rows="4" placeholder="Toca Hablar y dime qué hay que corregir. También puedes escribirlo."></textarea>
-      <div class="atlas-est" id="atlasEst"></div>
+      <button type="button" class="atlas-orb idle" id="atlasOrb" onclick="atlasToque()" aria-label="Hablar con Atlas">${ATLAS_MIC}</button>
+      <div class="atlas-lbl" id="atlasLbl" aria-live="polite"></div>
+      <div class="atlas-dicho" id="atlasDicho"></div>
+      <div class="atlas-est" id="atlasEst" aria-live="polite"></div>
       <div class="atlas-resp" id="atlasResp" hidden></div>
+      <form class="atlas-esc" onsubmit="event.preventDefault();atlasEscrito()">
+        <input id="atlasTexto" type="text" autocomplete="off" placeholder="O escríbelo aquí…">
+        <button type="submit" class="btn ghost">Enviar</button></form>
       <div class="atlas-acc">
-        <button type="button" class="atlas-mic" id="atlasMic" onclick="atlasMic()"></button>
-        <button type="button" class="btn ghost" onclick="atlasBorrar()">Borrar</button>
         <button type="button" class="btn ghost" onclick="atlasGuardar()">Anotar</button>
-        <button type="button" class="btn" id="atlasEnviarBtn" onclick="atlasEnviar()">Enviar a Atlas</button>
+        <button type="button" class="btn ghost" onclick="atlasBorrar()">Nueva</button>
+        <label class="atlas-chk"><input type="checkbox" id="atlasVoz" onchange="atlasCambiaVoz(this.checked)"> Voz</label>
+        <label class="atlas-chk" title="Con el CRM abierto, di «Oye Atlas» para llamarlo"><input type="checkbox" id="atlasWake" onchange="atlasCambiaWake(this.checked)"> «Oye Atlas»</label>
       </div>`;
     document.body.appendChild(p);
   }
   document.getElementById('atlasCtx').textContent=atlasContexto();
-  atlasEst('');atlasPintaMic();
+  document.getElementById('atlasVoz').checked=ATLAS.voz;
+  document.getElementById('atlasWake').checked=ATLAS.wake;
+  atlasEst('');atlasDicho('');
   p.classList.add('show');
+  atlasWakePausa();
+  /* este toque es el permiso del navegador para sonar: se "despierta" la voz */
+  try{if(ATLAS.voz&&'speechSynthesis' in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(' '));}}catch(e){}
+  ATLAS.conv=true;ATLAS.silencios=0;
+  atlasEscuchar();
 }
-function atlasParar(){if(ATLAS.rec&&ATLAS.on){try{ATLAS.rec.stop();}catch(e){}}}
+function atlasParar(){
+  const r=ATLAS.rec;ATLAS.rec=null;ATLAS.on=false;
+  if(r){try{r.onend=null;r.onresult=null;r.onerror=null;r.abort();}catch(e){}}
+}
+function atlasCallar(){ATLAS.hablaId++;try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}}
 function atlasCerrar(){
-  atlasParar();
+  ATLAS.conv=false;atlasParar();atlasCallar();atlasEstado('idle');
   const p=document.getElementById('atlasPanel');if(p)p.classList.remove('show');
+  atlasWakeReanuda();
 }
 function atlasBorrar(){
-  atlasParar();
-  const ta=document.getElementById('atlasTexto');if(ta)ta.value='';
   ATLAS.hist=[];ATLAS.ultTexto='';
-  atlasEst('');atlasMostrar(null);
+  const ta=document.getElementById('atlasTexto');if(ta)ta.value='';
+  atlasEst('');atlasDicho('');atlasMostrar(null);
+}
+/* el círculo: interrumpe a Atlas, o retoma la conversación si estaba en pausa */
+function atlasToque(){
+  if(ATLAS.estado==='pensando')return;
+  if(ATLAS.estado==='escuchando'){ATLAS.conv=false;atlasParar();atlasEstado('idle');return;}
+  atlasCallar();
+  ATLAS.conv=true;ATLAS.silencios=0;
+  atlasEscuchar();
+}
+function atlasEscuchar(){
+  const SR=atlasSR();
+  if(!SR){ATLAS.conv=false;atlasEstado('idle');atlasEst('Este navegador no tiene dictado. Abre el CRM en Chrome, o escribe abajo.');return;}
+  if(!atlasVisible())return;
+  atlasParar();atlasWakePausa();
+  const r=new SR();r.lang='es-CO';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;
+  let fin='',ultimo='',err='';
+  r.onstart=()=>{ATLAS.on=true;atlasEst('');atlasDicho('');atlasEstado('escuchando');};
+  r.onresult=e=>{
+    let f='',p='';
+    for(let i=0;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)f+=t;else p+=t;}
+    fin=f.trim();ultimo=(f+' '+p).trim();atlasDicho(ultimo);
+  };
+  r.onerror=e=>{err=e.error||'error';};
+  r.onend=()=>{
+    if(ATLAS.rec!==r)return;
+    ATLAS.rec=null;ATLAS.on=false;
+    const dicho=(fin||ultimo||'').trim();
+    if(dicho){ATLAS.silencios=0;atlasProcesar(dicho);return;}
+    const fatal={'not-allowed':'El navegador no tiene permiso de micrófono. Toca el candado junto a la dirección, permite el micrófono y vuelve a tocar el círculo.',
+      'service-not-allowed':'El navegador bloqueó el dictado. Revisa el permiso de micrófono de este sitio.',
+      'audio-capture':'No encuentro un micrófono en este equipo.',
+      'network':'El dictado necesita internet y no hay conexión.',
+      'language-not-supported':'Este navegador no tiene dictado en español.'}[err];
+    if(fatal){ATLAS.conv=false;atlasEstado('idle');atlasEst(fatal);return;}
+    if(err&&err!=='no-speech'&&err!=='aborted'){ATLAS.conv=false;atlasEstado('idle');atlasEst('El dictado falló ('+err+'). Toca el círculo para intentar de nuevo.');return;}
+    /* silencio: una oportunidad más y después queda en pausa, sin insistir */
+    if(ATLAS.conv&&atlasVisible()&&++ATLAS.silencios<2){atlasEscuchar();return;}
+    ATLAS.conv=false;atlasEstado('idle');
+  };
+  ATLAS.rec=r;
+  try{r.start();}catch(e){ATLAS.rec=null;ATLAS.conv=false;atlasEstado('idle');atlasEst('No se pudo abrir el micrófono. Toca el círculo para intentar de nuevo.');}
+}
+function atlasProcesar(texto){
+  /* despedidas cortas cierran la conversación sin gastar una consulta */
+  const t=texto.toLowerCase().replace(/[.,!¡¿?]/g,'').trim();
+  if(t.split(/\s+/).length<=5&&/^(gracias|muchas gracias|listo gracias|eso es todo|eso era todo|nada m[aá]s|chao|adi[oó]s|hasta luego)( atlas)?$/.test(t)){
+    ATLAS.conv=false;atlasDecir('Con gusto.',()=>atlasEstado('idle'));return;
+  }
+  atlasEnviar(texto);
+}
+function atlasEscrito(){
+  const ta=document.getElementById('atlasTexto');
+  const texto=(ta.value||'').trim();if(!texto||ATLAS.estado==='pensando')return;
+  ATLAS.conv=false;atlasParar();atlasCallar();ta.value='';atlasDicho(texto);
+  atlasEnviar(texto);
 }
 const ATLAS_TIPO={correccion_datos:'Corrección de datos',falla_programa:'Falla del programa',mejora:'Mejora',pregunta:'Pregunta',no_claro:'No quedó claro'};
 function atlasMostrar(r){
@@ -6370,77 +6473,109 @@ function atlasMostrar(r){
   const d=document.getElementById('atlasResp');if(!d)return;
   if(!r){d.hidden=true;d.innerHTML='';return;}
   d.innerHTML=`<div class="ar-tipo">${esc(ATLAS_TIPO[r.tipo]||r.tipo||'')}</div>
-    <div class="ar-ent"><b>Entendí:</b> ${esc(r.entendi||'')}</div>
     <div class="ar-txt">${esc(r.respuesta||'')}</div>
     ${r.falta?`<div class="ar-falta">${esc(r.falta)}</div>`:''}
     ${Array.isArray(r.consultas)&&r.consultas.length?`<div class="ar-cons">Consultó: ${esc([...new Set(r.consultas)].join(' · '))}</div>`:''}`;
-  d.hidden=false;
+  d.hidden=false;d.scrollTop=0;
 }
-/* manda lo dictado al cerebro (función "atlas" de Supabase). Solo entiende y
-   responde: no lee ni cambia datos del CRM. */
-async function atlasEnviar(){
-  atlasParar();
-  const ta=document.getElementById('atlasTexto');
-  const texto=(ta.value||'').trim();
-  if(!texto){atlasEst('Todavía no hay nada que enviar.');return;}
-  if(!USING_SB||!sb||!sb.functions){atlasEst('Atlas necesita conexión con la nube.');return;}
-  const b=document.getElementById('atlasEnviarBtn');
-  if(b){b.disabled=true;b.textContent='Pensando…';}
-  atlasEst('');atlasMostrar(null);
+/* manda lo dicho al cerebro (función "atlas" de Supabase). Solo consulta y
+   responde: no cambia datos del CRM. */
+async function atlasEnviar(texto){
+  if(!USING_SB||!sb||!sb.functions){ATLAS.conv=false;atlasEstado('idle');atlasEst('Atlas necesita conexión con la nube.');return;}
+  atlasEstado('pensando');atlasEst('');
+  let resp=null,fallo='';
   try{
     const u=currentUser();
-    if(!Array.isArray(ATLAS.hist))ATLAS.hist=[];
-    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-6)}});
+    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-6),voz:true}});
     if(error){
-      let m='';try{const j=await error.context.json();m=j&&j.error||'';}catch(e){}
-      atlasEst(m||'El cerebro de Atlas todavía no está conectado. Puedes usar «Anotar» mientras tanto.');
-    }else if(data&&data.error){atlasEst(data.error);}
-    else if(data&&data.respuesta){
-      atlasMostrar(data);
-      /* queda como conversación: la siguiente pregunta puede decir "¿y la de ayer?" */
-      ATLAS.hist.push({rol:'user',texto},{rol:'assistant',texto:data.respuesta});
-      ATLAS.ultTexto=texto;ta.value='';ta.placeholder='Sigue la conversación o toca Anotar para dejarla en el buzón.';
-    }
-    else atlasEst('Atlas no devolvió respuesta. Inténtalo de nuevo.');
-  }catch(e){atlasEst('No se pudo hablar con Atlas. Revisa la conexión.');}
-  if(b){b.disabled=false;b.textContent='Enviar a Atlas';}
+      try{const j=await error.context.json();fallo=j&&j.error||'';}catch(e){}
+      fallo=fallo||'No pude conectarme con el cerebro de Atlas.';
+    }else if(data&&data.error)fallo=data.error;
+    else if(data&&data.respuesta)resp=data;
+    else fallo='Atlas no devolvió respuesta. Inténtalo de nuevo.';
+  }catch(e){fallo='No se pudo hablar con Atlas. Revisa la conexión.';}
+  if(!atlasVisible())return;
+  if(!resp){ATLAS.conv=false;atlasEstado('idle');atlasEst(fallo);return;}
+  atlasMostrar(resp);
+  ATLAS.hist.push({rol:'user',texto},{rol:'assistant',texto:resp.respuesta});
+  ATLAS.ultTexto=texto;
+  atlasDecir(resp.respuesta+(resp.falta?' '+resp.falta:''),()=>{
+    if(ATLAS.conv&&atlasVisible()){ATLAS.silencios=0;atlasEscuchar();}else atlasEstado('idle');
+  });
 }
-function atlasMic(){
-  if(ATLAS.on){atlasParar();return;}
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){atlasEst('Este navegador no tiene dictado. Escribe la petición, o abre el CRM en Chrome.');return;}
-  const ta=document.getElementById('atlasTexto');
-  ATLAS.base=(ta.value||'').trim();
+function atlasVozEs(){
+  let vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
+  for(const pre of ['es-CO','es-US','es-MX','es-419','es']){
+    const v=vs.find(x=>(x.lang||'').replace('_','-').toLowerCase().startsWith(pre.toLowerCase()));
+    if(v)return v;
+  }
+  return null;
+}
+/* lee la respuesta frase por frase (Chrome corta las locuciones largas) */
+function atlasDecir(txt,alTerminar){
+  const id=++ATLAS.hablaId;
+  let hecho=false;
+  const fin=()=>{if(hecho||id!==ATLAS.hablaId)return;hecho=true;alTerminar&&alTerminar();};
+  if(!ATLAS.voz||!('speechSynthesis' in window)||!txt){fin();return;}
+  const frases=(String(txt).replace(/\s+/g,' ').match(/[^.!?…]+[.!?…]*\s*/g)||[String(txt)]).map(s=>s.trim()).filter(Boolean);
+  if(!frases.length){fin();return;}
+  try{
+    speechSynthesis.cancel();
+    const v=atlasVozEs();
+    atlasEstado('hablando');
+    frases.forEach((f,i)=>{
+      const u=new SpeechSynthesisUtterance(f);
+      u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
+      if(i===frases.length-1){u.onend=fin;}
+      u.onerror=()=>{if(id===ATLAS.hablaId){try{speechSynthesis.cancel();}catch(e){}fin();}};
+      speechSynthesis.speak(u);
+    });
+    /* si el navegador nunca avisa que terminó, no se queda pegado */
+    setTimeout(fin,Math.max(8000,String(txt).length*110));
+  }catch(e){fin();}
+}
+function atlasCambiaVoz(on){ATLAS.voz=!!on;atlasSetPref('voz',ATLAS.voz);if(!on)atlasCallar();}
+function atlasCambiaWake(on){
+  ATLAS.wake=!!on;atlasSetPref('wake',ATLAS.wake);
+  if(on&&!atlasSR())atlasEst('Este navegador no tiene dictado, así que «Oye Atlas» no va a funcionar aquí.');
+  else if(on)atlasEst('Listo: con el CRM abierto y este panel cerrado, di «Oye Atlas».');
+  if(!on)atlasWakePausa();
+}
+/* «Oye Atlas»: con el CRM abierto y a la vista, un dictado de fondo espera la
+   frase. Se pausa mientras el panel está abierto y cuando la pestaña se oculta. */
+function atlasWakePausa(){
+  clearTimeout(ATLAS._wt);
+  const r=ATLAS.wrec;ATLAS.wrec=null;
+  if(r){try{r.onend=null;r.onresult=null;r.onerror=null;r.abort();}catch(e){}}
+}
+function atlasWakeReanuda(){clearTimeout(ATLAS._wt);ATLAS._wt=setTimeout(atlasWakeIniciar,900);}
+function atlasWakeIniciar(){
+  if(!ATLAS.wake||ATLAS.wrec||ATLAS.rec||atlasVisible()||document.visibilityState!=='visible')return;
+  if(typeof esDev!=='function'||!esDev())return;
+  const SR=atlasSR();if(!SR)return;
   const r=new SR();r.lang='es-CO';r.continuous=true;r.interimResults=true;
-  r.onstart=()=>{ATLAS.on=true;atlasEst('');atlasPintaMic();};
   r.onresult=e=>{
-    let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;
-    ta.value=[ATLAS.base,t.trim()].filter(Boolean).join(' ');
+    let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';
+    if(/(?:^|\s)(?:oye|oiga|hey|ey|hola|ok)[,\s]+atlas(?:\s|$|[.,!?])/i.test(t)){atlasWakePausa();atlasAbrir();}
   };
-  r.onerror=e=>{
-    atlasEst(e.error==='not-allowed'||e.error==='service-not-allowed'?'Falta dar permiso al micrófono en el navegador.'
-      :e.error==='no-speech'?'No escuché nada. Toca Hablar e inténtalo otra vez.'
-      :e.error==='network'?'El dictado necesita internet y no hay conexión.'
-      :'El dictado falló ('+e.error+'). Puedes escribir la petición.');
-  };
-  r.onend=()=>{ATLAS.on=false;atlasPintaMic();};
-  ATLAS.rec=r;
-  try{r.start();}catch(e){atlasEst('No se pudo abrir el micrófono.');}
+  r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){ATLAS.wake=false;atlasSetPref('wake',false);}};
+  r.onend=()=>{if(ATLAS.wrec===r){ATLAS.wrec=null;if(ATLAS.wake)atlasWakeReanuda();}};
+  ATLAS.wrec=r;
+  try{r.start();}catch(e){ATLAS.wrec=null;}
 }
 async function atlasGuardar(){
-  atlasParar();
   const ta=document.getElementById('atlasTexto');
-  /* después de «Enviar a Atlas» el cuadro queda vacío: se anota lo último que se le dijo */
-  const texto=(ta.value||'').trim()||ATLAS.ultTexto||'';
+  const texto=(ATLAS.ultTexto||(ta&&ta.value)||'').trim();
   if(!texto){atlasEst('Todavía no hay nada que anotar.');return;}
+  ATLAS.conv=false;atlasParar();atlasCallar();atlasEstado('idle');
   const u=currentUser(),quien=u?u.name:'—',ahora=new Date().toISOString();
   const r=ATLAS.ult;
-  const nota=r?'\n\nAtlas entendió ('+(ATLAS_TIPO[r.tipo]||r.tipo)+'): '+(r.entendi||''):'';
+  const nota=r?'\n\nAtlas ('+(ATLAS_TIPO[r.tipo]||r.tipo)+'): '+(r.entendi||r.respuesta||''):'';
   const row={texto:'[Atlas] '+texto+nota+'\n\n('+atlasContexto()+')',autor:quien,estado:'Nueva',respuestas:[],
     createdBy:quien,createdAt:ahora,updatedBy:quien,updatedAt:ahora};
   const ok=await saveRow('sugerencias',row);
   if(ok===false){atlasEst('No se pudo guardar. Revisa la conexión e inténtalo de nuevo.');return;}
-  ta.value='';ATLAS.ultTexto='';ATLAS.hist=[];atlasMostrar(null);atlasCerrar();
+  if(ta)ta.value='';ATLAS.ultTexto='';ATLAS.hist=[];atlasMostrar(null);atlasCerrar();
   await cargarSugerencias();if(VIEW==='sugerencias')render();updateCounts();
   toast('Atlas anotó la petición');
 }
