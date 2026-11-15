@@ -6398,7 +6398,7 @@ function atlasAbrir(){
   atlasEscuchar();
 }
 function atlasParar(){
-  const r=ATLAS.rec;ATLAS.rec=null;ATLAS.on=false;
+  const r=ATLAS.rec;ATLAS.rec=null;ATLAS.on=false;clearTimeout(ATLAS._arr);
   if(r){try{r.onend=null;r.onresult=null;r.onerror=null;r.abort();}catch(e){}}
 }
 function atlasCallar(){ATLAS.hablaId++;try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}}
@@ -6420,14 +6420,42 @@ function atlasToque(){
   ATLAS.conv=true;ATLAS.silencios=0;
   atlasEscuchar();
 }
-function atlasEscuchar(){
+/* El dictado de Chrome NO avisa si falta el permiso de micrófono: se queda
+   esperando para siempre (así estaba el sitio el 14/11/2026: permiso en
+   "preguntar" y Atlas mudo). Por eso el permiso se pide aparte, con
+   getUserMedia, que sí muestra el aviso de Chrome y sí devuelve el rechazo. */
+async function atlasPermisoMic(avisar){
+  if(ATLAS.micOk)return true;
+  let st='';
+  try{st=(await navigator.permissions.query({name:'microphone'})).state;}catch(e){}
+  if(st==='granted'){ATLAS.micOk=true;return true;}
+  if(!avisar)return false;
+  if(st==='denied'){atlasEst('El micrófono está bloqueado para este sitio. Toca el icono a la izquierda de la dirección, entra a «Configuración del sitio» y pon Micrófono en «Permitir».');return false;}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return true;
+  atlasEst('Chrome te está pidiendo permiso para el micrófono: elige «Permitir» en el aviso de arriba.');
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({audio:true});
+    s.getTracks().forEach(t=>t.stop());
+    ATLAS.micOk=true;atlasEst('');return true;
+  }catch(e){
+    atlasEst(e&&e.name==='NotFoundError'?'No encuentro un micrófono conectado a este equipo.'
+      :'Sin permiso de micrófono no te puedo escuchar. Toca el círculo y elige «Permitir», o escribe abajo.');
+    return false;
+  }
+}
+async function atlasEscuchar(){
   const SR=atlasSR();
   if(!SR){ATLAS.conv=false;atlasEstado('idle');atlasEst('Este navegador no tiene dictado. Abre el CRM en Chrome, o escribe abajo.');return;}
   if(!atlasVisible())return;
   atlasParar();atlasWakePausa();
+  if(!(await atlasPermisoMic(true))){ATLAS.conv=false;atlasEstado('idle');return;}
+  if(!atlasVisible()||ATLAS.rec)return;
   const r=new SR();r.lang='es-CO';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;
   let fin='',ultimo='',err='';
-  r.onstart=()=>{ATLAS.on=true;atlasEst('');atlasDicho('');atlasEstado('escuchando');};
+  r.onstart=()=>{clearTimeout(ATLAS._arr);ATLAS.on=true;atlasEst('');atlasDicho('');atlasEstado('escuchando');};
+  /* si a los 4 s el dictado no arrancó, se dice: no se queda mudo */
+  clearTimeout(ATLAS._arr);
+  ATLAS._arr=setTimeout(()=>{if(ATLAS.rec===r&&!ATLAS.on)atlasEst('El micrófono no arrancó. Revisa que Chrome tenga permiso y que no lo esté usando otra aplicación; luego toca el círculo.');},4000);
   r.onresult=e=>{
     let f='',p='';
     for(let i=0;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)f+=t;else p+=t;}
@@ -6436,6 +6464,7 @@ function atlasEscuchar(){
   r.onerror=e=>{err=e.error||'error';};
   r.onend=()=>{
     if(ATLAS.rec!==r)return;
+    clearTimeout(ATLAS._arr);
     ATLAS.rec=null;ATLAS.on=false;
     const dicho=(fin||ultimo||'').trim();
     if(dicho){ATLAS.silencios=0;atlasProcesar(dicho);return;}
@@ -6483,6 +6512,11 @@ function atlasMostrar(r){
 async function atlasEnviar(texto){
   if(!USING_SB||!sb||!sb.functions){ATLAS.conv=false;atlasEstado('idle');atlasEst('Atlas necesita conexión con la nube.');return;}
   atlasEstado('pensando');atlasEst('');
+  /* si tarda, lo dice: un silencio largo se siente como que no escuchó */
+  const espera=setTimeout(()=>{
+    try{if(ATLAS.estado==='pensando'&&ATLAS.voz&&'speechSynthesis' in window&&atlasVisible()){
+      const u=new SpeechSynthesisUtterance('Déjame revisar.');const v=atlasVozEs();u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;speechSynthesis.speak(u);}}catch(e){}
+  },2800);
   let resp=null,fallo='';
   try{
     const u=currentUser();
@@ -6494,6 +6528,7 @@ async function atlasEnviar(texto){
     else if(data&&data.respuesta)resp=data;
     else fallo='Atlas no devolvió respuesta. Inténtalo de nuevo.';
   }catch(e){fallo='No se pudo hablar con Atlas. Revisa la conexión.';}
+  clearTimeout(espera);
   if(!atlasVisible())return;
   if(!resp){ATLAS.conv=false;atlasEstado('idle');atlasEst(fallo);return;}
   atlasMostrar(resp);
@@ -6503,13 +6538,33 @@ async function atlasEnviar(texto){
     if(ATLAS.conv&&atlasVisible()){ATLAS.silencios=0;atlasEscuchar();}else atlasEstado('idle');
   });
 }
+/* la mejor voz en español que tenga el equipo: primero las "naturales" (Edge)
+   y las de Google (Chrome), que suenan mucho menos robóticas que las de Windows */
 function atlasVozEs(){
   let vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
-  for(const pre of ['es-CO','es-US','es-MX','es-419','es']){
-    const v=vs.find(x=>(x.lang||'').replace('_','-').toLowerCase().startsWith(pre.toLowerCase()));
-    if(v)return v;
-  }
-  return null;
+  const es=vs.filter(x=>/^es/i.test(x.lang||''));
+  if(!es.length)return null;
+  const orden=['es-co','es-us','es-mx','es-419','es'];
+  const punt=v=>{
+    const l=(v.lang||'').replace('_','-').toLowerCase();
+    let i=orden.findIndex(p=>l.startsWith(p));if(i<0)i=orden.length;
+    return (/natural|neural/i.test(v.name)?0:/google/i.test(v.name)?20:40)+i;
+  };
+  return es.slice().sort((a,b)=>punt(a)-punt(b))[0];
+}
+/* cómo se DICEN las cosas de la casa (el texto en pantalla no cambia) */
+function atlasPronuncia(t){
+  return String(t)
+    .replace(/\bdoblaser\b/gi,'Dobláser')
+    .replace(/\bROP[-\s]?(\d+)/gi,'rop $1')
+    .replace(/\bDB[-\s]?(\d+)/gi,'de be $1')
+    .replace(/\bMDO[-\s]?(\d+)/gi,'eme de o $1')
+    .replace(/\bE&D\b/g,'E y D')
+    .replace(/\bcal\.?\s?(\d+)/gi,'calibre $1')
+    .replace(/(\d)\s?mm\b/g,'$1 milímetros')
+    .replace(/(\d)\s?kg\b/g,'$1 kilos')
+    .replace(/\bS\.?A\.?S\.?\b/g,'S A S')
+    .replace(/\bIVA\b/g,'iva');
 }
 /* lee la respuesta frase por frase (Chrome corta las locuciones largas) */
 function atlasDecir(txt,alTerminar){
@@ -6517,6 +6572,7 @@ function atlasDecir(txt,alTerminar){
   let hecho=false;
   const fin=()=>{if(hecho||id!==ATLAS.hablaId)return;hecho=true;alTerminar&&alTerminar();};
   if(!ATLAS.voz||!('speechSynthesis' in window)||!txt){fin();return;}
+  txt=atlasPronuncia(txt);
   const frases=(String(txt).replace(/\s+/g,' ').match(/[^.!?…]+[.!?…]*\s*/g)||[String(txt)]).map(s=>s.trim()).filter(Boolean);
   if(!frases.length){fin();return;}
   try{
@@ -6535,11 +6591,11 @@ function atlasDecir(txt,alTerminar){
   }catch(e){fin();}
 }
 function atlasCambiaVoz(on){ATLAS.voz=!!on;atlasSetPref('voz',ATLAS.voz);if(!on)atlasCallar();}
-function atlasCambiaWake(on){
+async function atlasCambiaWake(on){
   ATLAS.wake=!!on;atlasSetPref('wake',ATLAS.wake);
-  if(on&&!atlasSR())atlasEst('Este navegador no tiene dictado, así que «Oye Atlas» no va a funcionar aquí.');
-  else if(on)atlasEst('Listo: con el CRM abierto y este panel cerrado, di «Oye Atlas».');
-  if(!on)atlasWakePausa();
+  if(!on){atlasWakePausa();return;}
+  if(!atlasSR()){atlasEst('Este navegador no tiene dictado, así que «Oye Atlas» no va a funcionar aquí.');return;}
+  if(await atlasPermisoMic(true))atlasEst('Listo: con el CRM abierto y este panel cerrado, di «Oye Atlas».');
 }
 /* «Oye Atlas»: con el CRM abierto y a la vista, un dictado de fondo espera la
    frase. Se pausa mientras el panel está abierto y cuando la pestaña se oculta. */
@@ -6549,10 +6605,13 @@ function atlasWakePausa(){
   if(r){try{r.onend=null;r.onresult=null;r.onerror=null;r.abort();}catch(e){}}
 }
 function atlasWakeReanuda(){clearTimeout(ATLAS._wt);ATLAS._wt=setTimeout(atlasWakeIniciar,900);}
-function atlasWakeIniciar(){
+async function atlasWakeIniciar(){
   if(!ATLAS.wake||ATLAS.wrec||ATLAS.rec||atlasVisible()||document.visibilityState!=='visible')return;
   if(typeof esDev!=='function'||!esDev())return;
   const SR=atlasSR();if(!SR)return;
+  /* sin permiso ya dado no se arranca: el dictado de fondo se quedaría colgado */
+  if(!(await atlasPermisoMic(false)))return;
+  if(!ATLAS.wake||ATLAS.wrec||ATLAS.rec||atlasVisible())return;
   const r=new SR();r.lang='es-CO';r.continuous=true;r.interimResults=true;
   r.onresult=e=>{
     let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';
