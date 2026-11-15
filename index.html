@@ -6478,6 +6478,7 @@ function atlasAbrir(){
           <option value="piper:es_ES-davefx-medium">Liviana · España</option>
           <option value="nav">La del navegador</option>
           <option value="off">Sin voz</option></select></label>
+        <label id="atlasNavVozL">Cuál <select id="atlasNavVoz" onchange="atlasCambiaNavVoz(this.value)"></select></label>
         <label>Tono <select id="atlasTono" onchange="atlasCambiaTono(this.value)">
           <option value="1">Normal</option>
           <option value="0.9">Grave</option>
@@ -6489,6 +6490,7 @@ function atlasAbrir(){
   document.getElementById('atlasCtx').textContent=atlasContexto();
   document.getElementById('atlasVozSel').value=ATLAS.vozSel;
   document.getElementById('atlasTono').value=String(ATLAS.tono);
+  atlasPintaNavVoz();
   document.getElementById('atlasWake').checked=ATLAS.wake;
   atlasKokoroPrep();atlasPiperPrep();
   atlasEst('');atlasDicho('');
@@ -6804,6 +6806,9 @@ function atlasVozEs(){
   let vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
   const es=vs.filter(x=>/^es/i.test(x.lang||''));
   if(!es.length)return null;
+  const pref=atlasPrefS('navvoz','');
+  if(pref){const v=es.find(x=>x.name===pref);if(v)return v;}
+  return atlasVocesEs()[0];
   const orden=['es-co','es-us','es-mx','es-419','es'];
   const punt=v=>{
     const l=(v.lang||'').replace('_','-').toLowerCase();
@@ -6843,7 +6848,9 @@ function atlasNavMovil(){return /Android|iPhone|iPad/i.test(navigator.userAgent)
 function atlasNavMax(){return atlasNavMovil()?180:600;}
 let _atlasVivo=null;
 function atlasNavVivo(){
-  if(_atlasVivo||atlasNavMovil()||!('speechSynthesis' in window))return;
+  /* solo hace falta con las voces de Google (las del corte de Chrome); las Natural de Edge no cortan */
+  const v=atlasVozEs();
+  if(_atlasVivo||atlasNavMovil()||!('speechSynthesis' in window)||!(v&&/google/i.test(v.name)))return;
   _atlasVivo=setInterval(()=>{
     try{
       if(!speechSynthesis.speaking){clearInterval(_atlasVivo);_atlasVivo=null;return;}
@@ -7306,9 +7313,36 @@ function atlasDecirNav(frases,txt,id,finFuera){
   }catch(e){fin();}
 }
 function atlasCambiaVoz(v){
-  ATLAS.vozSel=v;atlasSetPrefS('vozsel3',v);ATLAS.voz=v!=='off';
+  ATLAS.vozSel=v;atlasSetPrefS('vozsel3',v);ATLAS.voz=v!=='off';atlasPintaNavVoz();
   atlasCallar();atlasVozEst('');
   atlasKokoroPrep();atlasPiperPrep();
+}
+/* Voz del navegador elegida por nombre (16/11/2026). Daniel eligió las «Natural» de Edge
+   (Gonzalo, Salomé, Ximena de Colombia): solo existen abriendo el CRM en Edge. */
+function atlasVocesEs(){
+  let vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
+  const orden=['es-co','es-us','es-mx','es-419','es'];
+  const punt=v=>{
+    const l=(v.lang||'').replace('_','-').toLowerCase();
+    let i=orden.findIndex(p=>l.startsWith(p));if(i<0)i=orden.length;
+    return (/natural|neural/i.test(v.name)?0:/google/i.test(v.name)?20:40)+i*2+(/gonzalo/i.test(v.name)?0:1);
+  };
+  return vs.filter(x=>/^es/i.test(x.lang||'')).sort((a,b)=>punt(a)-punt(b));
+}
+function atlasPintaNavVoz(){
+  const s=document.getElementById('atlasNavVoz'),l=document.getElementById('atlasNavVozL');if(!s)return;
+  if(l)l.style.display=ATLAS.vozSel==='nav'?'':'none';
+  const vs=atlasVocesEs(),pref=atlasPrefS('navvoz','');
+  s.innerHTML='<option value="">Automática</option>'+vs.map(v=>{
+    const n=v.name.replace(/^Microsoft\s+/,'').replace(/\s+Online\s+\(Natural\)/,' (Natural)');
+    return `<option value="${esc(v.name)}" ${v.name===pref?'selected':''}>${esc(n)}</option>`;
+  }).join('');
+  if(!ATLAS._navVc&&'speechSynthesis' in window){ATLAS._navVc=true;try{speechSynthesis.addEventListener('voiceschanged',atlasPintaNavVoz);}catch(e){}}
+}
+function atlasCambiaNavVoz(n){
+  atlasSetPrefS('navvoz',n);atlasCallar();
+  const v=atlasVozEs();
+  if(v){const u=new SpeechSynthesisUtterance('Hola, soy Atlas.');u.voice=v;u.lang=v.lang;u.rate=1.05;speechSynthesis.speak(u);}
 }
 function atlasCambiaTono(v){ATLAS.tono=+v||1;atlasSetPrefS('tono2',ATLAS.tono);}
 async function atlasCambiaWake(on){
