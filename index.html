@@ -6488,7 +6488,27 @@ function atlasProcesar(texto){
   if(t.split(/\s+/).length<=5&&/^(gracias|muchas gracias|listo gracias|eso es todo|eso era todo|nada m[aá]s|chao|adi[oó]s|hasta luego)( atlas)?$/.test(t)){
     ATLAS.conv=false;atlasDecir('Con gusto.',()=>atlasEstado('idle'));return;
   }
+  /* Lo que no vale la pena mandar (cada envío cuesta): un ruido de una o dos
+     letras, o el propio Atlas oyéndose por el parlante. Se trata como silencio. */
+  const n=atlasNorm(texto),u=ATLAS.ult;
+  /* eco = casi todas las palabras oídas son palabras que Atlas acaba de decir
+     (el dictado nunca lo transcribe idéntico, por eso no se compara la frase) */
+  let eco=false;
+  if(u){
+    const dijo=new Set(atlasNorm(atlasPronuncia((u.respuesta||'')+' '+(u.falta||''))+' dejame revisar con gusto').split(' '));
+    const oidas=n.split(' ').filter(w=>w.length>2);
+    /* exigente a propósito: perder una pregunta de verdad es peor que dejar pasar un eco */
+    eco=oidas.length>=5&&oidas.filter(w=>dijo.has(w)).length/oidas.length>=0.9;
+  }
+  if(n.length<3||eco){
+    atlasDicho('');
+    if(ATLAS.conv&&atlasVisible()&&++ATLAS.silencios<2)atlasEscuchar();else{ATLAS.conv=false;atlasEstado('idle');}
+    return;
+  }
   atlasEnviar(texto);
+}
+function atlasNorm(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 }
 function atlasEscrito(){
   const ta=document.getElementById('atlasTexto');
@@ -6520,7 +6540,7 @@ async function atlasEnviar(texto){
   let resp=null,fallo='';
   try{
     const u=currentUser();
-    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-6),voz:true}});
+    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-4),voz:true}});
     if(error){
       try{const j=await error.context.json();fallo=j&&j.error||'';}catch(e){}
       fallo=fallo||'No pude conectarme con el cerebro de Atlas.';
@@ -6534,7 +6554,11 @@ async function atlasEnviar(texto){
   atlasMostrar(resp);
   ATLAS.hist.push({rol:'user',texto},{rol:'assistant',texto:resp.respuesta});
   ATLAS.ultTexto=texto;
-  atlasDecir(resp.respuesta+(resp.falta?' '+resp.falta:''),()=>{
+  /* "falta" solo se dice si la respuesta no terminó ya en una pregunta: si no,
+     Atlas preguntaba dos veces lo mismo con otras palabras */
+  const r0=String(resp.respuesta||'').trim(),f0=String(resp.falta||'').trim();
+  const dice=r0+((f0&&!/\?\s*$/.test(r0)&&!atlasNorm(r0).includes(atlasNorm(f0)))?' '+f0:'');
+  atlasDecir(dice,()=>{
     if(ATLAS.conv&&atlasVisible()){ATLAS.silencios=0;atlasEscuchar();}else atlasEstado('idle');
   });
 }
@@ -6564,30 +6588,55 @@ function atlasPronuncia(t){
     .replace(/(\d)\s?mm\b/g,'$1 milímetros')
     .replace(/(\d)\s?kg\b/g,'$1 kilos')
     .replace(/\bS\.?A\.?S\.?\b/g,'S A S')
-    .replace(/\bIVA\b/g,'iva');
+    .replace(/\bIVA\b/g,'iva')
+    .replace(/\ba\.\s?m\./gi,'de la mañana')
+    .replace(/\bp\.\s?m\./gi,'de la tarde')
+    .replace(/[()«»"]/g,' ')
+    .replace(/\s*[;:]\s+/g,', ');
 }
-/* lee la respuesta frase por frase (Chrome corta las locuciones largas) */
+/* Parte el texto para leerlo. Antes se partía en CADA punto, y entre trozo y
+   trozo la voz hace una pausa: sonaba entrecortado (y partía mal en "p. m." o
+   "S.A.S."). Ahora solo se parte en un final de frase de verdad (punto + espacio
+   + mayúscula) y las frases se juntan en trozos de hasta ~180 letras: menos
+   cortes, pero sin pasar el largo en que Chrome deja de hablar a la mitad. */
+function atlasTrozos(txt){
+  const t=String(txt).replace(/\s+/g,' ').trim();
+  let partes;
+  try{partes=t.split(new RegExp('(?<=[.!?…])\\s+(?=[A-ZÁÉÍÓÚÑ¿¡])'));}catch(e){partes=[t];}
+  const out=[];let a='';
+  for(const p of partes){
+    if(a&&a.length+p.length>180){out.push(a);a=p;}else a=a?a+' '+p:p;
+  }
+  if(a)out.push(a);
+  return out.filter(Boolean);
+}
 function atlasDecir(txt,alTerminar){
   const id=++ATLAS.hablaId;
-  let hecho=false;
-  const fin=()=>{if(hecho||id!==ATLAS.hablaId)return;hecho=true;alTerminar&&alTerminar();};
+  let hecho=false,iv=null;
+  const fin=()=>{if(iv){clearInterval(iv);iv=null;}if(hecho||id!==ATLAS.hablaId)return;hecho=true;alTerminar&&alTerminar();};
   if(!ATLAS.voz||!('speechSynthesis' in window)||!txt){fin();return;}
-  txt=atlasPronuncia(txt);
-  const frases=(String(txt).replace(/\s+/g,' ').match(/[^.!?…]+[.!?…]*\s*/g)||[String(txt)]).map(s=>s.trim()).filter(Boolean);
+  const frases=atlasTrozos(atlasPronuncia(txt));
   if(!frases.length){fin();return;}
   try{
     speechSynthesis.cancel();
     const v=atlasVozEs();
     atlasEstado('hablando');
-    frases.forEach((f,i)=>{
+    frases.forEach(f=>{
       const u=new SpeechSynthesisUtterance(f);
       u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
-      if(i===frases.length-1){u.onend=fin;}
-      u.onerror=()=>{if(id===ATLAS.hablaId){try{speechSynthesis.cancel();}catch(e){}fin();}};
+      u.onerror=e=>{if(id===ATLAS.hablaId&&e&&e.error!=='interrupted'&&e.error!=='canceled'){try{speechSynthesis.cancel();}catch(x){}fin();}};
       speechSynthesis.speak(u);
     });
-    /* si el navegador nunca avisa que terminó, no se queda pegado */
-    setTimeout(fin,Math.max(8000,String(txt).length*110));
+    /* Se da por terminado cuando el navegador de verdad dejó de hablar (y no
+       por un reloj): si se volvía a escuchar antes de tiempo, Atlas se oía a
+       sí mismo, lo tomaba como otra pregunta y repetía. */
+    const t0=Date.now();let quieto=0;
+    iv=setInterval(()=>{
+      if(id!==ATLAS.hablaId||hecho){clearInterval(iv);iv=null;return;}
+      const activo=speechSynthesis.speaking||speechSynthesis.pending;
+      if(!activo&&Date.now()-t0>600){if(++quieto>=2)fin();}else quieto=0;
+      if(Date.now()-t0>String(txt).length*260+20000){try{speechSynthesis.cancel();}catch(x){}fin();}
+    },200);
   }catch(e){fin();}
 }
 function atlasCambiaVoz(on){ATLAS.voz=!!on;atlasSetPref('voz',ATLAS.voz);if(!on)atlasCallar();}
