@@ -1319,6 +1319,10 @@ html.side-off .menu-btn{display:grid !important}
 .firma-max .firma-canvas-wrap::after{content:'';position:absolute;left:28px;right:28px;bottom:44px;border-top:1px solid var(--line);pointer-events:none}
 .firma-max .firma-canvas-wrap{flex:1;border:0;border-radius:0;margin:0}
 .firma-max .firma-canvas-wrap canvas{height:100%}
+/* teléfono vertical en pantalla completa: la guía va girada y la pinta el lienzo */
+.firma-rot .firma-hint{display:none}
+.firma-rot .firma-canvas-wrap::after{display:none}
+#firmaLayer:fullscreen{background:#fff}
 .firma-canvas-wrap canvas{display:block;width:100%;height:220px;touch-action:none;cursor:crosshair}
 .firma-hint{font-size:11px;color:var(--ink-3);margin:8px 0 12px}
 .firma-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -11039,15 +11043,16 @@ function abrirFirma(titulo,resumen,onListo,opts){
   if(bOk)bOk.textContent=opts.textoOk||'Confirmar y compartir';
   FIRMA.sinQuien=!!opts.sinQuien;
   FIRMA.onListo=onListo;
+  FIRMA.strokes=[];
   c.classList.remove('firma-max');
   c.classList.add('show');
-  setTimeout(firmaInitCanvas,30);
+  setTimeout(()=>firmaInitCanvas(),30);
   /* si gira el teléfono mientras firma, el lienzo se reajusta sin perder el trazo */
   clearTimeout(FIRMA._rt);
   if(FIRMA._onResize)removeEventListener('resize',FIRMA._onResize);
   FIRMA._onResize=()=>{clearTimeout(FIRMA._rt);FIRMA._rt=setTimeout(()=>{
     const l=document.getElementById('firmaLayer');
-    if(l&&l.classList.contains('show'))firmaMax(l.classList.contains('firma-max'));},200);};
+    if(l&&l.classList.contains('show'))firmaInitCanvas();},200);};
   addEventListener('resize',FIRMA._onResize);
 }
 /* Pantalla completa para firmar: en el celular el recuadro quedaba muy chico
@@ -11057,48 +11062,97 @@ function abrirFirma(titulo,resumen,onListo,opts){
    vuelve a pintar escalado — si no, al agrandar se perdía la firma. */
 function firmaMax(on){
   const c=document.getElementById('firmaLayer');if(!c)return;
-  const cv=document.getElementById('firmaCanvas');
-  const prev=(FIRMA.hasStroke&&cv)?(()=>{const o=document.createElement('canvas');
-    o.width=cv.width;o.height=cv.height;o.getContext('2d').drawImage(cv,0,0);return o;})():null;
   const poner=(on===undefined)?!c.classList.contains('firma-max'):!!on;
   c.classList.toggle('firma-max',poner);
+  firmaPantalla(c,poner);
   firmaInitCanvas();
-  if(prev&&FIRMA.ctx){
-    const cvn=document.getElementById('firmaCanvas');
-    FIRMA.ctx.drawImage(prev,0,0,prev.width,prev.height,0,0,FIRMA.w,FIRMA.h);
-    FIRMA.hasStroke=true;
-  }
 }
+/* Pantalla completa de verdad + bloqueo en horizontal, que es como firman las
+   apps de entrega. Android/Chrome lo permite; en iPhone no existe y se cae al
+   modo girado de firmaInitCanvas. Nada de esto puede tumbar la firma: todo va
+   en try/catch. (14/11/2026) */
+function firmaPantalla(c,poner){
+  try{
+    if(poner){
+      if(innerWidth>=600||!c.requestFullscreen)return;
+      const p=c.requestFullscreen();
+      if(p&&p.then)p.then(()=>{const o=screen.orientation;
+        if(o&&o.lock)return o.lock('landscape');}).catch(()=>{});
+    }else{
+      const o=screen.orientation;if(o&&o.unlock)try{o.unlock();}catch(e){}
+      if(document.fullscreenElement&&document.exitFullscreen){const q=document.exitFullscreen();if(q&&q.catch)q.catch(()=>{});}
+    }
+  }catch(e){}
+}
+/* La firma se guarda como TRAZOS (puntos), no como dibujo. Antes, al salir de
+   pantalla completa o girar el teléfono, se copiaba la imagen alta del lienzo
+   y se estiraba dentro del recuadro ancho: la firma quedaba aplastada. Con los
+   puntos se vuelve a dibujar a escala pareja en cualquier tamaño.
+   Los puntos viven en un espacio "lógico" siempre apaisado (LW x LH). Si el
+   teléfono está vertical en pantalla completa (FIRMA.rot), ese espacio se
+   pinta girado 90°: la línea de firma corre por el lado largo y la persona
+   gira el teléfono para firmar a lo ancho. */
 function firmaInitCanvas(){
   const cv=document.getElementById('firmaCanvas');if(!cv)return;
   const wrap=cv.parentElement;
   const dpr=window.devicePixelRatio||1;
-  const max=!!(document.getElementById('firmaLayer')||{classList:{contains:()=>false}}).classList.contains('firma-max');
+  const capa=document.getElementById('firmaLayer');
+  const max=!!(capa&&capa.classList.contains('firma-max'));
   /* en el teléfono y la tablet el lienzo se hace más alto: es donde de verdad
      se firma, y 220 px fijos dejaban media pantalla vacía debajo */
   const w=wrap.clientWidth||420;
   const h=max?Math.max(220,wrap.clientHeight||Math.round(innerHeight*0.72))
     :(innerWidth<=620?Math.round(Math.min(300,Math.max(200,innerHeight*0.32))):220);
+  const rot=max&&w<600&&h>w*1.15;
+  if(capa)capa.classList.toggle('firma-rot',rot);
+  const LW=rot?h:w,LH=rot?w:h;
+  /* lo ya firmado se acomoda al tamaño nuevo: misma escala en X y en Y, centrado */
+  const tr=Array.isArray(FIRMA.strokes)?FIRMA.strokes:(FIRMA.strokes=[]);
+  if(tr.length&&FIRMA.LW&&FIRMA.LH&&(FIRMA.LW!==LW||FIRMA.LH!==LH)){
+    const s=Math.min(LW/FIRMA.LW,LH/FIRMA.LH),ox=(LW-FIRMA.LW*s)/2,oy=(LH-FIRMA.LH*s)/2;
+    tr.forEach(t=>t.forEach(p=>{p.x=p.x*s+ox;p.y=p.y*s+oy;}));
+  }
   cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';
   const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
-  ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
-  FIRMA.ctx=ctx;FIRMA.drawing=false;FIRMA.hasStroke=false;FIRMA.w=w;FIRMA.h=h;
-  let last=null;
-  const pos=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};};
-  cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);FIRMA.drawing=true;FIRMA.hasStroke=true;last=pos(e);};
-  cv.onpointermove=e=>{if(!FIRMA.drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;};
+  if(rot){ctx.translate(w,0);ctx.rotate(Math.PI/2);}
+  FIRMA.ctx=ctx;FIRMA.drawing=false;FIRMA.w=w;FIRMA.h=h;FIRMA.LW=LW;FIRMA.LH=LH;FIRMA.rot=rot;
+  firmaPintar();
+  let cur=null;
+  const pos=e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+    return FIRMA.rot?{x:y,y:FIRMA.w-x}:{x,y};};
+  cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);FIRMA.drawing=true;FIRMA.hasStroke=true;cur=[pos(e)];FIRMA.strokes.push(cur);};
+  cv.onpointermove=e=>{if(!FIRMA.drawing||!cur)return;const p=pos(e),l=cur[cur.length-1];
+    ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(p.x,p.y);ctx.stroke();cur.push(p);};
   const end=()=>{FIRMA.drawing=false;};
   cv.onpointerup=end;cv.onpointercancel=end;cv.onpointerleave=end;
 }
-function firmaLimpiar(){
+function firmaTrazos(ctx,trazos,f){
+  trazos.forEach(t=>{if(!t.length)return;ctx.beginPath();
+    t.forEach((p,i)=>{const q=f?f(p):p;if(i)ctx.lineTo(q.x,q.y);else ctx.moveTo(q.x,q.y);});
+    if(t.length===1){const q=f?f(t[0]):t[0];ctx.lineTo(q.x+.1,q.y+.1);}
+    ctx.stroke();});
+}
+function firmaPintar(){
   const ctx=FIRMA.ctx;if(!ctx)return;
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,FIRMA.w,FIRMA.h);
-  FIRMA.hasStroke=false;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,FIRMA.LW,FIRMA.LH);
+  if(FIRMA.rot){
+    /* guía girada: solo se ve en pantalla, no sale en la firma guardada */
+    ctx.strokeStyle='#cfcfcf';ctx.lineWidth=1;ctx.beginPath();
+    ctx.moveTo(28,FIRMA.LH-56);ctx.lineTo(FIRMA.LW-28,FIRMA.LH-56);ctx.stroke();
+    ctx.fillStyle='#9a9a9a';ctx.font='13px system-ui,sans-serif';ctx.textAlign='center';
+    ctx.fillText('Gira el teléfono y firma sobre la línea',FIRMA.LW/2,FIRMA.LH-30);
+  }
+  ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
+  firmaTrazos(ctx,FIRMA.strokes||[]);
+  FIRMA.hasStroke=!!(FIRMA.strokes&&FIRMA.strokes.length);
+}
+function firmaLimpiar(){
+  FIRMA.strokes=[];
+  firmaPintar();
 }
 function cerrarFirma(){
   const c=document.getElementById('firmaLayer');
-  if(c){c.classList.remove('show');c.classList.remove('firma-max');}
+  if(c){firmaPantalla(c,false);c.classList.remove('show');c.classList.remove('firma-max');c.classList.remove('firma-rot');}
   if(FIRMA._onResize){removeEventListener('resize',FIRMA._onResize);FIRMA._onResize=null;}
 }
 function firmaOmitir(){const d=firmaDatosQuien();cerrarFirma();if(FIRMA.onListo)FIRMA.onListo(null,d);}
@@ -11115,9 +11169,26 @@ function firmaConfirmar(){
   const d=firmaDatosQuien();
   if(!FIRMA.sinQuien&&!d.nombre){toast('Falta el nombre de quien recibe');const n=document.getElementById('firmaNombre');if(n)n.focus();return;}
   const cv=document.getElementById('firmaCanvas');
-  let dataUrl;try{dataUrl=firmaComprimir(cv);}catch(e){toast('No se pudo guardar la firma');return;}
+  let dataUrl;try{dataUrl=firmaExportar()||firmaComprimir(cv);}catch(e){toast('No se pudo guardar la firma');return;}
   cerrarFirma();
   if(FIRMA.onListo)FIRMA.onListo(dataUrl,d);
+}
+/* Lo que se guarda es la firma recortada a su propio contorno (más un margen),
+   siempre derecha y a un tamaño parejo — no la foto del lienzo con todo el
+   blanco alrededor. Así en la remisión se ve grande y pesa menos. */
+function firmaExportar(){
+  const tr=FIRMA.strokes||[];if(!tr.length)return null;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  tr.forEach(t=>t.forEach(p=>{if(p.x<x0)x0=p.x;if(p.x>x1)x1=p.x;if(p.y<y0)y0=p.y;if(p.y>y1)y1=p.y;}));
+  const M=14,bw=Math.max(1,x1-x0),bh=Math.max(1,y1-y0);
+  const s=Math.min((500-2*M)/bw,(260-2*M)/bh,2.5);
+  const o=document.createElement('canvas');
+  o.width=Math.round(bw*s+2*M);o.height=Math.round(bh*s+2*M);
+  const ctx=o.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,o.width,o.height);
+  ctx.lineWidth=Math.max(1.6,Math.min(3,2.4*s));ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
+  firmaTrazos(ctx,tr,p=>({x:(p.x-x0)*s+M,y:(p.y-y0)*s+M}));
+  return o.toDataURL('image/png');
 }
 /* El canvas se dibuja a la resolución del dispositivo (devicePixelRatio) para que el
    trazo se vea liso al firmar -- en un celular de gama alta eso son 1200x660 px o más
