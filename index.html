@@ -6728,9 +6728,7 @@ function atlasFlujoNav(id){
   try{speechSynthesis.cancel();}catch(e){}
   atlasEstado('hablando');
   const decir=t=>{
-    const u=new SpeechSynthesisUtterance(atlasPronuncia(t));
-    u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
-    speechSynthesis.speak(u);dichas++;tUlt=Date.now();atlasNavVivo();
+    atlasNavFrase(atlasPronuncia(t),v,id);dichas++;tUlt=Date.now();atlasNavVivo();
   };
   let quieto=0,t0=Date.now();
   const iv=setInterval(()=>{
@@ -6807,8 +6805,8 @@ function atlasVozEs(){
   const es=vs.filter(x=>/^es/i.test(x.lang||''));
   if(!es.length)return null;
   const pref=atlasPrefS('navvoz','');
-  if(pref){const v=es.find(x=>x.name===pref);if(v)return v;}
-  return atlasVocesEs()[0];
+  if(pref&&pref!==ATLAS._navMal){const v=es.find(x=>x.name===pref);if(v)return v;}
+  return atlasVocesEs().find(x=>x.name!==ATLAS._navMal)||es[0];
   const orden=['es-co','es-us','es-mx','es-419','es'];
   const punt=v=>{
     const l=(v.lang||'').replace('_','-').toLowerCase();
@@ -7284,6 +7282,26 @@ function atlasDecir(txt,alTerminar){
   if(mo){atlasDecirPiper(atlasFrasesCortas(atlasPronuncia(txt)),mo.slice(6),id,fin,String(txt));return;}
   atlasDecirNav(frases,String(txt),id,fin);
 }
+/* Encola una frase con la voz del navegador. Las voces «Natural» de Edge vienen de internet y
+   en algunas versiones fallan en silencio («synthesis-failed», reportado en Edge 156): el
+   navegador salta a la siguiente frase sin decir nada. Si una voz de internet falla, esa frase
+   se repite con una voz instalada en el equipo y la voz que falló no se usa más en la sesión. */
+function atlasNavFrase(t,v,id){
+  const u=new SpeechSynthesisUtterance(t);
+  u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
+  u.onerror=e=>{
+    const er=e&&e.error;
+    if(id!==ATLAS.hablaId||er==='interrupted'||er==='canceled')return;
+    if(v&&!v.localService){
+      ATLAS._navMal=v.name;
+      const loc=atlasVocesEs().find(x=>x.localService&&x.name!==v.name);
+      atlasVozEst('La voz '+v.name.replace(/^Microsoft\s+/,'').replace(/\s+Online.*$/,'')+' falló ('+er+'); uso una voz del equipo.');
+      if(loc){atlasNavFrase(t,loc,id);return;}
+    }
+  };
+  speechSynthesis.speak(u);
+  return u;
+}
 function atlasDecirNav(frases,txt,id,finFuera){
   let iv=null;
   const fin=()=>{if(iv){clearInterval(iv);iv=null;}finFuera();};
@@ -7293,12 +7311,7 @@ function atlasDecirNav(frases,txt,id,finFuera){
     speechSynthesis.cancel();
     const v=atlasVozEs();
     atlasEstado('hablando');
-    frases.forEach(f=>{
-      const u=new SpeechSynthesisUtterance(f);
-      u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
-      u.onerror=e=>{if(id===ATLAS.hablaId&&e&&e.error!=='interrupted'&&e.error!=='canceled'){try{speechSynthesis.cancel();}catch(x){}fin();}};
-      speechSynthesis.speak(u);
-    });
+    frases.forEach(f=>atlasNavFrase(f,v,id));
     atlasNavVivo();
     /* Se da por terminado cuando el navegador de verdad dejó de hablar (y no
        por un reloj): si se volvía a escuchar antes de tiempo, Atlas se oía a
