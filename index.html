@@ -1342,6 +1342,7 @@ html.side-off .menu-btn{display:grid !important}
 .atlas-resp .ar-ent{color:var(--ink-2);margin-bottom:6px}
 .atlas-resp .ar-txt{white-space:pre-wrap}
 .atlas-resp .ar-falta{margin-top:7px;font-weight:600}
+.atlas-resp .ar-cons{margin-top:8px;font-size:11px;color:var(--ink-3)}
 .atlas-acc{display:flex;gap:8px;flex-wrap:wrap}
 .atlas-acc .btn{flex:1;min-width:0}
 .atlas-mic{flex:1 1 100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:0;border-radius:10px;
@@ -6360,6 +6361,7 @@ function atlasCerrar(){
 function atlasBorrar(){
   atlasParar();
   const ta=document.getElementById('atlasTexto');if(ta)ta.value='';
+  ATLAS.hist=[];ATLAS.ultTexto='';
   atlasEst('');atlasMostrar(null);
 }
 const ATLAS_TIPO={correccion_datos:'Corrección de datos',falla_programa:'Falla del programa',mejora:'Mejora',pregunta:'Pregunta',no_claro:'No quedó claro'};
@@ -6370,7 +6372,8 @@ function atlasMostrar(r){
   d.innerHTML=`<div class="ar-tipo">${esc(ATLAS_TIPO[r.tipo]||r.tipo||'')}</div>
     <div class="ar-ent"><b>Entendí:</b> ${esc(r.entendi||'')}</div>
     <div class="ar-txt">${esc(r.respuesta||'')}</div>
-    ${r.falta?`<div class="ar-falta">${esc(r.falta)}</div>`:''}`;
+    ${r.falta?`<div class="ar-falta">${esc(r.falta)}</div>`:''}
+    ${Array.isArray(r.consultas)&&r.consultas.length?`<div class="ar-cons">Consultó: ${esc([...new Set(r.consultas)].join(' · '))}</div>`:''}`;
   d.hidden=false;
 }
 /* manda lo dictado al cerebro (función "atlas" de Supabase). Solo entiende y
@@ -6386,12 +6389,18 @@ async function atlasEnviar(){
   atlasEst('');atlasMostrar(null);
   try{
     const u=currentUser();
-    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:''}});
+    if(!Array.isArray(ATLAS.hist))ATLAS.hist=[];
+    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-6)}});
     if(error){
       let m='';try{const j=await error.context.json();m=j&&j.error||'';}catch(e){}
       atlasEst(m||'El cerebro de Atlas todavía no está conectado. Puedes usar «Anotar» mientras tanto.');
     }else if(data&&data.error){atlasEst(data.error);}
-    else if(data&&data.respuesta){atlasMostrar(data);}
+    else if(data&&data.respuesta){
+      atlasMostrar(data);
+      /* queda como conversación: la siguiente pregunta puede decir "¿y la de ayer?" */
+      ATLAS.hist.push({rol:'user',texto},{rol:'assistant',texto:data.respuesta});
+      ATLAS.ultTexto=texto;ta.value='';ta.placeholder='Sigue la conversación o toca Anotar para dejarla en el buzón.';
+    }
     else atlasEst('Atlas no devolvió respuesta. Inténtalo de nuevo.');
   }catch(e){atlasEst('No se pudo hablar con Atlas. Revisa la conexión.');}
   if(b){b.disabled=false;b.textContent='Enviar a Atlas';}
@@ -6421,7 +6430,8 @@ function atlasMic(){
 async function atlasGuardar(){
   atlasParar();
   const ta=document.getElementById('atlasTexto');
-  const texto=(ta.value||'').trim();
+  /* después de «Enviar a Atlas» el cuadro queda vacío: se anota lo último que se le dijo */
+  const texto=(ta.value||'').trim()||ATLAS.ultTexto||'';
   if(!texto){atlasEst('Todavía no hay nada que anotar.');return;}
   const u=currentUser(),quien=u?u.name:'—',ahora=new Date().toISOString();
   const r=ATLAS.ult;
@@ -6430,7 +6440,7 @@ async function atlasGuardar(){
     createdBy:quien,createdAt:ahora,updatedBy:quien,updatedAt:ahora};
   const ok=await saveRow('sugerencias',row);
   if(ok===false){atlasEst('No se pudo guardar. Revisa la conexión e inténtalo de nuevo.');return;}
-  ta.value='';atlasMostrar(null);atlasCerrar();
+  ta.value='';ATLAS.ultTexto='';ATLAS.hist=[];atlasMostrar(null);atlasCerrar();
   await cargarSugerencias();if(VIEW==='sugerencias')render();updateCounts();
   toast('Atlas anotó la petición');
 }
