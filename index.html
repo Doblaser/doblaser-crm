@@ -1392,6 +1392,17 @@ html.side-off .menu-btn{display:grid !important}
 .atlas-vozcfg label{display:flex;align-items:center;gap:5px}
 .atlas-vozcfg select{font:inherit;font-size:12.5px;padding:5px 6px;border:1px solid var(--line);border-radius:7px;background:var(--card,#fff);color:inherit;max-width:150px}
 .atlas-vozest{font-size:11.5px;color:var(--ink-3);min-height:0;margin-top:5px}
+/* PC: esfera pequeña dentro de la barra superior y panel abierto debajo, a la derecha */
+#atlasBtn.en-barra{position:relative;left:auto;bottom:auto;transform:none;z-index:auto;width:40px;height:40px;flex:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.22),0 0 0 1px rgba(255,255,255,.06) inset}
+#atlasBtn.en-barra:hover{transform:scale(1.08);box-shadow:0 4px 14px rgba(123,30,43,.4)}
+#atlasBtn.en-barra .atlas-forma{padding:3px}
+#atlasBtn.en-barra.oculto{display:inline-block;visibility:hidden}
+@media(min-width:761px){
+  #atlasPanel{left:auto;right:24px;top:84px;bottom:auto;transform:none;max-height:calc(100vh - 100px)}
+  #atlasPanel.show{animation:atlasBaja .22s ease-out}
+}
+@keyframes atlasBaja{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
 /* sin menú lateral (tablet y celular) el centro es el de la pantalla */
 @media(max-width:760px){
   #atlasBtn,#atlasPanel{left:50%}
@@ -6399,7 +6410,21 @@ function atlasBoton(){
   b=document.createElement('button');b.id='atlasBtn';b.type='button';b.title='Hablar con Atlas';b.className='idle';
   b.setAttribute('aria-label','Hablar con Atlas');
   b.innerHTML=ATLAS_FORMA;
-  b.onclick=atlasAbrir;document.body.appendChild(b);
+  b.onclick=atlasAbrir;
+  atlasUbicaBoton(b);
+  if(!ATLAS._ubRes){ATLAS._ubRes=true;addEventListener('resize',()=>{const x=document.getElementById('atlasBtn');if(x)atlasUbicaBoton(x);});}
+}
+/* PC: la esfera va en la barra superior, junto al chat y la campana (flotando
+   abajo tapaba las tablas). Celular: sigue flotando sobre la barra inferior. */
+function atlasUbicaBoton(b){
+  const bar=document.querySelector('.topbar'),ref=document.getElementById('msgBtn');
+  if(innerWidth>760&&bar&&ref){
+    if(b.parentNode!==bar||b.nextSibling!==ref)bar.insertBefore(b,ref);
+    b.classList.add('en-barra');
+  }else{
+    b.classList.remove('en-barra');
+    if(b.parentNode!==document.body)document.body.appendChild(b);
+  }
 }
 function atlasContexto(){
   let s='Pantalla: '+(VIEW_LBL[VIEW]||VIEW);
