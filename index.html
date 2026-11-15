@@ -6652,30 +6652,115 @@ async function atlasEnviar(texto){
       }
     }catch(e){}
   },2800);
-  let resp=null,fallo='';
-  try{
-    const u=currentUser();
-    const{data,error}=await sb.functions.invoke('atlas',{body:{texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-4),voz:true}});
-    if(error){
-      try{const j=await error.context.json();fallo=j&&j.error||'';}catch(e){}
-      fallo=fallo||'No pude conectarme con el cerebro de Atlas.';
-    }else if(data&&data.error)fallo=data.error;
-    else if(data&&data.respuesta)resp=data;
-    else fallo='Atlas no devolvió respuesta. Inténtalo de nuevo.';
-  }catch(e){fallo='No se pudo hablar con Atlas. Revisa la conexión.';}
+  let resp=null,fallo='',flujo=null;
+  const u=currentUser();
+  const cuerpo={texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-4),voz:true};
+  /* Con voz propia lista, la respuesta llega por partes y Alex empieza a hablar con
+     la primera frase mientras el resto se sigue escribiendo (antes esperaba todo). */
+  if(ATLAS.voz&&atlasMotorListo()&&!ATLAS._sinFlujo&&window.fetch&&window.TextDecoder&&typeof SB_CFG!=='undefined'){
+    try{
+      const r=await fetch(SB_CFG.url+'/functions/v1/atlas',{method:'POST',
+        headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+SB_CFG.key},
+        body:JSON.stringify({...cuerpo,flujo:true})});
+      if(!r.ok||!r.body){try{const j=await r.json();fallo=j&&j.error||'';}catch(e){}if(!fallo)throw new Error('http');}
+      else{
+        const rd=r.body.getReader(),dec=new TextDecoder();let pend='';
+        const linea=l=>{
+          if(!l.trim())return;let m;try{m=JSON.parse(l);}catch(e){return;}
+          if(m.t==='r'&&atlasVisible()){
+            if(!flujo){clearTimeout(espera);flujo=atlasFlujo();}
+            flujo.push(m.d);
+          }else if(m.t==='fin'){delete m.t;resp=m;}
+          else if(m.t==='error')fallo=m.error||'Atlas no pudo responder.';
+        };
+        for(;;){
+          const{done,value}=await rd.read();
+          if(value){pend+=dec.decode(value,{stream:true});const ls=pend.split('\n');pend=ls.pop();ls.forEach(linea);}
+          if(done){linea(pend);break;}
+        }
+        if(!resp&&!fallo)fallo='Atlas no devolvió respuesta. Inténtalo de nuevo.';
+      }
+    }catch(e){
+      /* si el modo por partes falla antes de empezar a hablar, se intenta a la antigua */
+      if(!flujo&&!fallo){resp=null;fallo='';ATLAS._sinFlujo=true;}
+      else if(!fallo)fallo='Se cortó la conexión con Atlas.';
+    }
+  }
+  if(!resp&&!fallo&&!flujo){
+    try{
+      const{data,error}=await sb.functions.invoke('atlas',{body:cuerpo});
+      if(error){
+        try{const j=await error.context.json();fallo=j&&j.error||'';}catch(e){}
+        fallo=fallo||'No pude conectarme con el cerebro de Atlas.';
+      }else if(data&&data.error)fallo=data.error;
+      else if(data&&data.respuesta)resp=data;
+      else fallo='Atlas no devolvió respuesta. Inténtalo de nuevo.';
+    }catch(e){fallo='No se pudo hablar con Atlas. Revisa la conexión.';}
+  }
   clearTimeout(espera);
-  if(!atlasVisible())return;
-  if(!resp){ATLAS.conv=false;atlasEstado('idle');atlasEst(fallo);return;}
+  const sigue=()=>{if(ATLAS.conv&&atlasVisible()){ATLAS.silencios=0;atlasEscuchar();}else atlasEstado('idle');};
+  if(!atlasVisible()){if(flujo)atlasCallar();return;}
+  if(!resp){
+    if(flujo){flujo.cerrar(' ',()=>{ATLAS.conv=false;atlasEstado('idle');atlasEst(fallo);});}
+    else{ATLAS.conv=false;atlasEstado('idle');atlasEst(fallo);}
+    return;
+  }
   atlasMostrar(resp);
   ATLAS.hist.push({rol:'user',texto},{rol:'assistant',texto:resp.respuesta});
   ATLAS.ultTexto=texto;
   /* "falta" solo se dice si la respuesta no terminó ya en una pregunta: si no,
      Atlas preguntaba dos veces lo mismo con otras palabras */
   const r0=String(resp.respuesta||'').trim(),f0=String(resp.falta||'').trim();
-  const dice=r0+((f0&&!/\?\s*$/.test(r0)&&!atlasNorm(r0).includes(atlasNorm(f0)))?' '+f0:'');
-  atlasDecir(dice,()=>{
-    if(ATLAS.conv&&atlasVisible()){ATLAS.silencios=0;atlasEscuchar();}else atlasEstado('idle');
-  });
+  const extra=(f0&&!/\?\s*$/.test(r0)&&!atlasNorm(r0).includes(atlasNorm(f0)))?' '+f0:'';
+  if(flujo){flujo.cerrar(extra,sigue);return;}
+  atlasDecir(r0+extra,sigue);
+}
+/* Habla un texto que va llegando a pedazos: corta en finales de frase, dice la
+   primera sola (para arrancar ya) y agrupa las siguientes como atlasTrozosKokoro. */
+function atlasFlujo(){
+  const id=++ATLAS.hablaId,mo=atlasMotorListo();
+  let buf='',todo='',cola=[],cerrado=false,primera=true,fin=null,dichas=0;
+  const gen=mo==='kokoro'
+    ?(f=>{const ph=atlasFonemasEs(atlasPronuncia(f));return ph?atlasKokoroGen(ph,atlasKokoroVel()):null;})
+    :(async f=>{const s=await atlasPiperSesion(mo.slice(6));return atlasAPcm(await s.predict(atlasPronuncia(f)));});
+  const saca=()=>{
+    let corte=-1;const re=/[.!?…](?=\s+[A-ZÁÉÍÓÚÑ¿¡])/g;let m;
+    while((m=re.exec(buf)))corte=m.index+1;
+    if(cerrado){corte=buf.length;}
+    if(corte>0){cola.push(...atlasFrasesCortas(buf.slice(0,corte)));buf=buf.slice(corte);}
+  };
+  const bucle=async()=>{
+    atlasEstado('hablando');
+    try{
+      for(;;){
+        if(id!==ATLAS.hablaId)return;
+        saca();
+        if(!cola.length){if(cerrado)break;await new Promise(r=>setTimeout(r,40));continue;}
+        let t=cola.shift();
+        if(!primera)while(cola.length&&t.length+cola[0].length<=260)t+=' '+cola.shift();
+        primera=false;
+        const p=await gen(t);
+        if(id!==ATLAS.hablaId)return;
+        dichas+=t.length+1;
+        if(p)atlasProgramar(p.d,p.hz,(cola.length||buf.trim()||!cerrado)?atlasPausa(t):0);
+      }
+      await atlasEsperaFin(id);
+      if(id===ATLAS.hablaId&&fin)fin();
+    }catch(e){
+      if(id!==ATLAS.hablaId)return;
+      if(mo==='kokoro'){ATLAS.kokoroMal=true;ATLAS.kokoroLista=false;}
+      /* lo que faltaba lo termina la voz del navegador, cuando llegue todo */
+      while(!cerrado&&id===ATLAS.hablaId)await new Promise(r=>setTimeout(r,60));
+      await atlasEsperaFin(id);
+      const resto=atlasPronuncia(todo.slice(dichas));
+      atlasDecirNav(atlasTrozos(resto),resto,id,()=>{if(fin)fin();});
+    }
+  };
+  bucle();
+  return{
+    push(d){buf+=d;todo+=d;},
+    cerrar(extra,alTerminar){if(extra){buf+=extra;todo+=extra;}fin=alTerminar;cerrado=true;}
+  };
 }
 /* la mejor voz en español que tenga el equipo: primero las "naturales" (Edge)
    y las de Google (Chrome), que suenan mucho menos robóticas que las de Windows */
@@ -6803,7 +6888,9 @@ function atlasRecorta(d,hz){
   return x;
 }
 /* pausa natural después de cada trozo, según cómo termina */
-function atlasPausa(f){f=String(f).trim();return /[?!]$/.test(f)?0.30:/[.…]$/.test(f)?0.24:/[,;:]$/.test(f)?0.12:0.06;}
+/* valores afinados de oído en otro proyecto con Kokoro: 0,4 s tras frase y 0,25 en comas resultaron
+   más naturales que pausas cortas; aquí un poco menos porque Atlas conversa, no narra */
+function atlasPausa(f){f=String(f).trim();return /[?!]$/.test(f)?0.38:/[.…]$/.test(f)?0.32:/[,;:]$/.test(f)?0.2:0.08;}
 /* programa un audio ({d,hz}) detrás de todo lo que ya suena; devuelve cuándo termina */
 function atlasProgramar(d,hz,pausa){
   const ac=atlasAC(),x=atlasRecorta(d,hz);
