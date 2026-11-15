@@ -7106,7 +7106,8 @@ return fonemasEs;
 const ATLAS_KOKORO_SRC=`import {KokoroTTS} from 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
 let tts=null;
 self.onmessage=async e=>{const m=e.data;try{
- if(m.t==='ini'){tts=await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'fp32',device:'webgpu',progress_callback:p=>{if(p&&p.status==='progress'&&String(p.file||'').indexOf('.onnx')>=0)self.postMessage({t:'prog',p:Math.round(p.progress||0)});}});self.postMessage({t:'listo'});return;}
+ if(m.t==='ini'){tts=await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'fp32',device:'webgpu',progress_callback:p=>{if(p&&p.status==='progress'&&String(p.file||'').indexOf('.onnx')>=0)self.postMessage({t:'prog',p:Math.round(p.progress||0)});}});let gpu='';try{const a=await navigator.gpu.requestAdapter();const i=a&&a.info;gpu=i?((i.vendor||'')+' '+(i.architecture||'')).trim():'';}catch(x){}self.postMessage({t:'listo',gpu});return;}
+ if(m.t==='chk'){const w=await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'fp32',device:'wasm'});const ids=tts.tokenizer(m.ph,{truncation:true}).input_ids;const a=(await tts.generate_from_ids(ids,{voice:m.voz,speed:1})).audio,b=(await w.generate_from_ids(ids,{voice:m.voz,speed:1})).audio;let c=0,ea=0,eb=0;const n=Math.min(a.length,b.length);for(let i=0;i<n;i++){const x=isFinite(a[i])?a[i]:0;c+=x*b[i];ea+=x*x;eb+=b[i]*b[i];}const corr=(a.length===b.length&&ea>0&&eb>0)?c/Math.sqrt(ea*eb):0;self.postMessage({t:'chk',id:m.id,corr});return;}
  if(m.t==='gen'){const {input_ids}=tts.tokenizer(m.ph,{truncation:true});const a=await tts.generate_from_ids(input_ids,{voice:m.voz,speed:m.vel});const d=a.audio;self.postMessage({t:'audio',id:m.id,d,hz:a.sampling_rate},[d.buffer]);}
 }catch(err){self.postMessage({t:'err',id:m.id,e:String(err&&err.message||err)});}};`;
 function atlasKokoroVoz(){
@@ -7148,13 +7149,28 @@ async function atlasKokoroPrep(){
       w.onmessage=e=>{
         const m=e.data;
         if(m.t==='prog')atlasVozEst('Descargando la voz Alex (solo esta vez)… '+m.p+' %');
-        else if(m.t==='listo')ok();
+        else if(m.t==='listo'){ATLAS.kokoroGpu=m.gpu||'';ok();}
         else if(m.t==='err'&&m.id===undefined)no(new Error(m.e));
-        else if(m.t==='audio'||m.t==='err'){const p=ATLAS._kp[m.id];if(p){delete ATLAS._kp[m.id];if(m.t==='audio')p.ok(m);else p.no(new Error(m.e));}}
+        else if(m.t==='audio'||m.t==='chk'||m.t==='err'){const p=ATLAS._kp[m.id];if(p){delete ATLAS._kp[m.id];if(m.t!=='err')p.ok(m);else p.no(new Error(m.e));}}
       };
       w.postMessage({t:'ini'});
       setTimeout(()=>no(new Error('timeout')),900000);
     });
+    /* Control de calidad (16/11/2026): en algunas tarjetas gráficas (sobre todo las
+       integradas AMD Radeon e Intel, que Chrome usa por defecto en portátiles con dos
+       tarjetas) WebGPU deforma la voz de Kokoro hasta volverla ininteligible. Se genera
+       la misma frase con la tarjeta y con el procesador y se comparan: si no coinciden,
+       Alex no se usa en ese equipo. El resultado se guarda por tarjeta. */
+    const g=ATLAS.kokoroGpu||'?',prev=atlasPrefS('kokoro_chk','');
+    if(prev===g+'|mal')throw new Error('gpu');
+    if(prev!==g+'|ok'){
+      atlasVozEst('Comprobando que la voz Alex suene bien en esta tarjeta gráfica…');
+      const id=++ATLAS._kid;
+      const r=await new Promise((ok,no)=>{ATLAS._kp[id]={ok,no};ATLAS._kw.postMessage({t:'chk',id,ph:atlasFonemasEs('Hay siete órdenes en proceso, y cuatro ya están vencidas.'),voz:atlasKokoroVoz()||'em_alex'});setTimeout(()=>{if(ATLAS._kp[id]){delete ATLAS._kp[id];no(new Error('chk lento'));}},240000);});
+      ATLAS.kokoroCorr=r.corr;
+      if(!(r.corr>0.95)){atlasSetPrefS('kokoro_chk',g+'|mal');throw new Error('gpu');}
+      atlasSetPrefS('kokoro_chk',g+'|ok');
+    }
     atlasVozEst('Preparando la voz Alex…');
     await atlasKokoroGen(atlasFonemasEs('Hola.'),1.08); /* la primera generación calienta la tarjeta gráfica */
     const mu=await atlasKokoroGen(atlasFonemasEs('Déjame revisar.'),atlasKokoroVel());
@@ -7162,7 +7178,9 @@ async function atlasKokoroPrep(){
     ATLAS.kokoroLista=true;atlasVozEst('');atlasSetPrefS('kokoro_ok','1');
   }catch(e){
     ATLAS.kokoroMal=true;try{if(ATLAS._kw)ATLAS._kw.terminate();}catch(x){}
-    atlasVozEst('La voz Alex no pudo cargarse en este equipo; uso la voz liviana.');
+    atlasVozEst(String(e&&e.message)==='gpu'
+      ?'La tarjeta gráfica de este equipo ('+(ATLAS.kokoroGpu||'sin nombre')+') deforma la voz Alex; uso la voz liviana.'
+      :'La voz Alex no pudo cargarse en este equipo; uso la voz liviana.');
   }
   ATLAS._kprep=false;
 }
