@@ -6721,20 +6721,23 @@ async function atlasEnviar(texto){
 /* Voz del navegador por partes: cada frase se encola en el navegador apenas llega
    (en trozos de hasta ~180 letras, por el corte de Chrome a los ~15 s). */
 function atlasFlujoNav(id){
-  let buf='',cola=[],cerrado=false,fin=null,listo=false;
+  let buf='',cola=[],cerrado=false,fin=null,listo=false,dichas=0,tUlt=0;
   const v=atlasVozEs();
   try{speechSynthesis.cancel();}catch(e){}
   atlasEstado('hablando');
   const decir=t=>{
     const u=new SpeechSynthesisUtterance(atlasPronuncia(t));
     u.lang=v?v.lang:'es-CO';if(v)u.voice=v;u.rate=1.05;
-    speechSynthesis.speak(u);
+    speechSynthesis.speak(u);dichas++;tUlt=Date.now();atlasNavVivo();
   };
   let quieto=0,t0=Date.now();
   const iv=setInterval(()=>{
     if(id!==ATLAS.hablaId){clearInterval(iv);return;}
+    /* la 1.ª frase sale apenas está completa; el resto se junta en un solo bloque mientras
+       la primera suena (llega casi todo en menos de un segundo), para no dejar huecos */
     let corte=-1;const re=/[.!?…](?=\s+[A-ZÁÉÍÓÚÑ¿¡])/g;let m;
-    while((m=re.exec(buf)))corte=m.index+1;
+    while((m=re.exec(buf))){corte=m.index+1;if(!dichas)break;}
+    if(dichas&&!cerrado&&Date.now()-tUlt<1500)corte=-1;
     if(cerrado)corte=buf.length;
     if(corte>0){cola.push(...atlasTrozos(buf.slice(0,corte)));buf=buf.slice(corte);}
     while(cola.length)decir(cola.shift());
@@ -6833,13 +6836,29 @@ function atlasPronuncia(t){
    "S.A.S."). Ahora solo se parte en un final de frase de verdad (punto + espacio
    + mayúscula) y las frases se juntan en trozos de hasta ~180 letras: menos
    cortes, pero sin pasar el largo en que Chrome deja de hablar a la mitad. */
-function atlasTrozos(txt){
+/* En el PC, con el truco de pausar y reanudar cada 10 s (ver atlasNavVivo), Chrome ya no corta
+   a los ~15 s y se pueden decir bloques largos: menos huecos entre frases (cada frase nueva de
+   una voz de Google es otra petición a internet). En celular pausar CANCELA la voz: ahí no. */
+function atlasNavMovil(){return /Android|iPhone|iPad/i.test(navigator.userAgent);}
+function atlasNavMax(){return atlasNavMovil()?180:600;}
+let _atlasVivo=null;
+function atlasNavVivo(){
+  if(_atlasVivo||atlasNavMovil()||!('speechSynthesis' in window))return;
+  _atlasVivo=setInterval(()=>{
+    try{
+      if(!speechSynthesis.speaking){clearInterval(_atlasVivo);_atlasVivo=null;return;}
+      if(!speechSynthesis.paused){speechSynthesis.pause();speechSynthesis.resume();}
+    }catch(e){}
+  },10000);
+}
+function atlasTrozos(txt,max){
+  max=max||atlasNavMax();
   const t=String(txt).replace(/\s+/g,' ').trim();
   let partes;
   try{partes=t.split(new RegExp('(?<=[.!?…])\\s+(?=[A-ZÁÉÍÓÚÑ¿¡])'));}catch(e){partes=[t];}
   const out=[];let a='';
   for(const p of partes){
-    if(a&&a.length+p.length>180){out.push(a);a=p;}else a=a?a+' '+p:p;
+    if(a&&a.length+p.length>max){out.push(a);a=p;}else a=a?a+' '+p:p;
   }
   if(a)out.push(a);
   return out.filter(Boolean);
@@ -7273,6 +7292,7 @@ function atlasDecirNav(frases,txt,id,finFuera){
       u.onerror=e=>{if(id===ATLAS.hablaId&&e&&e.error!=='interrupted'&&e.error!=='canceled'){try{speechSynthesis.cancel();}catch(x){}fin();}};
       speechSynthesis.speak(u);
     });
+    atlasNavVivo();
     /* Se da por terminado cuando el navegador de verdad dejó de hablar (y no
        por un reloj): si se volvía a escuchar antes de tiempo, Atlas se oía a
        sí mismo, lo tomaba como otra pregunta y repetía. */
