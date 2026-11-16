@@ -1823,6 +1823,7 @@ td.c,th.c{text-align:center}
       <div class="spacer"></div>
       <div class="presence" id="presence"></div>
       <button class="notif-bell" id="msgBtn" onclick="abrirChat()" title="Chat con un compañero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="notif-badge" id="msgBadge" style="display:none">0</span></button>
+      <button class="notif-bell" id="recargarBtn" onclick="crmRecargar()" title="Recargar el CRM (como F5): trae la última versión y los datos al día"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
       <button class="notif-bell" id="globalSearchBtn" onclick="abrirBusquedaGlobal()" title="Buscar en todo (ventas, ROP, cotizaciones, clientes)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <div class="notif-wrap">
         <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" title="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
@@ -11436,6 +11437,12 @@ function cotTexto(c){
   return L.join('\n');
 }
 /* carga una librería del CDN una sola vez, cuando de verdad se necesita */
+/* Botón «Recargar» (16/11/2026, pedido de Daniel para no tener que dar F5).
+   Si hay una ficha abierta, pregunta antes: recargar descarta lo que no se haya guardado. */
+function crmRecargar(){
+  if(document.querySelector('.overlay.show')&&!confirm('Hay una ventana abierta. Si recargas, se pierde lo que no hayas guardado. ¿Recargar de todos modos?'))return;
+  location.reload();
+}
 function cargarLib(url){
   window._libs=window._libs||{};
   if(window._libs[url])return window._libs[url];
