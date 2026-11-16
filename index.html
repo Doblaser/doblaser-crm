@@ -1414,6 +1414,8 @@ html.side-off .menu-btn{display:grid !important}
 .atlas-resp .ar-prop-c{margin-top:3px;overflow-wrap:anywhere}.atlas-resp .ar-prop-c s{color:var(--ink-3)}
 .atlas-resp .ar-prop-acc{display:flex;gap:6px;align-items:center;margin-top:7px}
 .atlas-resp .ar-ok{color:#15803d;font-weight:600}.atlas-resp .ar-mal{color:#b3261e}
+.atlas-resp .ar-prop-adv{margin:6px 0;padding:6px 8px;border-radius:7px;background:#fef3c7;color:#78350f;font-size:12.5px}
+.atlas-resp .ar-prop-adv ul{margin:3px 0 0 16px;padding:0}
 .atlas-resp .ar-prop-nuevo{font-weight:600;color:#15803d;margin-bottom:2px}
 .atlas-resp .ar-prop ol{margin:3px 0 0 18px;padding:0}
 .atlas-adj{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.atlas-adj:empty{display:none}
@@ -6740,6 +6742,7 @@ function atlasPropuestas(r){
   return ps.map((p,i)=>`<div class="ar-prop" id="atlasProp${i}">
       <div class="ar-prop-h">${esc((VIEW_LBL[p.tabla]||p.tabla)+(p.etiqueta?' · '+p.etiqueta:''))}</div>
       ${p.resumen?`<div>${esc(p.resumen)}</div>`:''}
+      ${Array.isArray(p.advertencias)&&p.advertencias.length?`<div class="ar-prop-adv"><b>Revisar antes de aplicar</b><ul>${p.advertencias.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}
       ${p.tipo==='crear'?`<div class="ar-prop-nuevo">Nuevo registro</div>${atlasCamposTxt(p.campos)}`:p.cambios.map(c=>`<div class="ar-prop-c"><b>${esc(c.col)}</b>: <s>${esc(atlasValor(c.antes))}</s> → <b>${esc(atlasValor(c.despues))}</b></div>`).join('')}
       <div class="ar-prop-acc"><button type="button" class="btn sm" onclick="atlasAplicar(${i})">Aplicar</button>
         <button type="button" class="btn ghost sm" onclick="this.closest('.ar-prop').remove()">Descartar</button></div>
