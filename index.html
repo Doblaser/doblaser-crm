@@ -62,7 +62,8 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .side{background:var(--side);color:#c9c5c1;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.07)}
 .brand img{width:100%;max-width:185px;display:block}
-.brand .tag{font-size:10px;color:#8a8580;letter-spacing:.14em;text-transform:uppercase;margin-top:9px;padding-left:2px}
+.brand .tag{font-size:10px;color:#8a8580;letter-spacing:.14em;text-transform:uppercase;margin-top:9px;padding-left:2px;
+  background:transparent;border:0;line-height:1.5}
 .nav{padding:14px 12px;flex:1;overflow-y:auto}
 .nav .lbl{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:#6f6a65;padding:12px 12px 6px;font-weight:600}
 .nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:8px;color:#bdb8b3;text-decoration:none;font-weight:500;font-size:13.5px;margin-bottom:2px;transition:background .12s,color .12s}
@@ -191,6 +192,13 @@ button,a,.btn,.ic-btn,.seg button,.pill,.tag,.chip,label,summary{
 .panel-h .spacer{flex:1}
 .panel-h .hint{font-size:12px;color:var(--ink-3)}
 .tbl-wrap{overflow-x:auto}
+/* revisión visual 16/11/2026: fechas y códigos en una sola línea; barra superior sin cortes */
+td.nw,th.nw{white-space:nowrap}
+/* un poco menos de relleno lateral en las tablas: con 10-11 columnas recupera unos 90 px */
+.tbl-wrap th{padding-left:12px;padding-right:12px}
+.tbl-wrap td{padding-left:12px;padding-right:12px}
+.tbl-wrap .tag{white-space:nowrap}
+.presence .pres-lbl,.topbar .btn{white-space:nowrap}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:11px 16px;background:#faf9f8;border-bottom:1px solid var(--line-2);white-space:nowrap}
 td{padding:12px 16px;border-bottom:1px solid var(--line-2);font-size:13.5px;vertical-align:middle}
@@ -2786,7 +2794,27 @@ const ventaMatch=x=>{
 /* Copia el título de cada columna a su celda (data-l). En el computador no
    se ve; en el teléfono es lo que deja convertir la tabla en tarjetas sin
    tener que escribir la etiqueta a mano en cada una de las cuatro tablas. */
+/* 16/11/2026 (revisión visual con ui-ux-pro-max): en las tablas de computador las fechas y los
+   códigos se partían en 3-4 renglones («12 / de nov / de 2026», «ROP- / 2779») y duplicaban la
+   altura de cada fila. Esas columnas ya no se parten. Se reconocen por el título de la columna. */
+const COLS_SIN_CORTE=/^(fecha|ingreso|entrega|vence|vencimiento|pago|factura|n[úu]mero|rop|cotizaci[óo]n|n°|#)$/i;
+function columnasSinCorte(raiz){
+  if(innerWidth<=760)return; /* en el celular las tablas ya se ven como tarjetas */
+  (raiz||document).querySelectorAll('table').forEach(t=>{
+    [...t.querySelectorAll('thead th')].forEach((th,i)=>{
+      if(!COLS_SIN_CORTE.test(th.textContent.trim()))return;
+      th.classList.add('nw');
+      t.querySelectorAll('tbody tr > :nth-child('+(i+1)+')').forEach(td=>{
+        td.classList.add('nw');
+        /* fecha corta solo en pantalla («12 de nov de 2026» → «12 nov 26») para que la tabla quepa */
+        const w=document.createTreeWalker(td,NodeFilter.SHOW_TEXT);let n;
+        while((n=w.nextNode()))n.nodeValue=n.nodeValue.replace(/\b(\d{1,2}) de ([a-zñ]{3,4})\.? de \d{2}(\d{2})\b/gi,'$1 $2 $3');
+      });
+    });
+  });
+}
 function etiquetarTablas(raiz){
+  try{columnasSinCorte(raiz);}catch(e){}
   (raiz||document).querySelectorAll('table.fc-tabla').forEach(t=>{
     const ths=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim());
     if(!ths.length)return;
