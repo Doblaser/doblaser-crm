@@ -653,6 +653,21 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .sug-estado-sel{font-size:12px;padding:5px 8px;border-radius:8px}
 .sug-meta{font-size:12.5px;margin-bottom:6px}
 .sug-texto{font-size:14px;line-height:1.5;white-space:pre-line}
+.sug-imgs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.sug-imgs img{max-width:260px;max-height:170px;border-radius:8px;border:1px solid #d1d5db;cursor:zoom-in;object-fit:cover}
+#pzEditor{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.92);display:flex;flex-direction:column}
+#pzEditor .pz-bar,#pzEditor .pz-pie{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--card,#fff);color:var(--ink,#111)}
+#pzEditor .pz-bar .spacer{flex:1}
+#pzEditor .pz-col{display:flex;gap:6px}#pzEditor .pz-col button{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #9ca3af;cursor:pointer;padding:0}
+#pzEditor .pz-col button.on{box-shadow:0 0 0 3px #111827}
+#pzEditor .pz-lienzo{flex:1 1 0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px}
+#pzEditor .pz-her{display:flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden}
+#pzEditor .pz-her button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font:inherit;color:inherit}
+#pzEditor .pz-her button+button{border-left:1px solid #d1d5db}
+#pzEditor .pz-her button.on{background:#111827;color:#fff}
+#pzCanvas{touch-action:none;cursor:crosshair;box-shadow:0 6px 30px rgba(0,0,0,.5);border-radius:6px}
+#pzEditor .pz-pie textarea{flex:1;min-width:200px}
+.pz-ver{position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px}.pz-ver img{max-width:100%;max-height:100%}
+
 .sug-hilo{margin-top:12px;padding-left:14px;border-left:2px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .sug-resp{font-size:12.5px}
 .sug-resp-h{display:flex;align-items:center;gap:8px;margin-bottom:2px}
@@ -6468,6 +6483,7 @@ function atlasAbrir(){
         <button type="submit" class="btn ghost">Enviar</button></form>
       <div class="atlas-acc">
         <button type="button" class="btn ghost" onclick="atlasGuardar()">Anotar</button>
+        <button type="button" class="btn ghost" onclick="atlasPantallazo()" title="Foto de esta pantalla para rayar encima">Pantallazo</button>
         <button type="button" class="btn ghost" onclick="atlasBorrar()">Nueva</button>
         <label class="atlas-chk" title="Con el CRM abierto, di «Oye Atlas» para llamarlo"><input type="checkbox" id="atlasWake" onchange="atlasCambiaWake(this.checked)"> «Oye Atlas»</label>
       </div>
@@ -6508,7 +6524,7 @@ function atlasParar(){
 }
 function atlasCallar(){
   ATLAS.hablaId++;
-  try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
+  atlasNavCancel();
   atlasSilenciar();
 }
 function atlasCerrar(){
@@ -6723,9 +6739,9 @@ async function atlasEnviar(texto){
 /* Voz del navegador por partes: cada frase se encola en el navegador apenas llega
    (en trozos de hasta ~180 letras, por el corte de Chrome a los ~15 s). */
 function atlasFlujoNav(id){
-  let buf='',cola=[],cerrado=false,fin=null,listo=false,dichas=0,tUlt=0;
+  let buf='',cola=[],cerrado=false,fin=null,listo=false,dichas=0,tUlt=0,total=0;
   const v=atlasVozEs();
-  try{speechSynthesis.cancel();}catch(e){}
+  atlasNavCancel();
   atlasEstado('hablando');
   const decir=t=>{
     atlasNavFrase(atlasPronuncia(t),v,id);dichas++;tUlt=Date.now();atlasNavVivo();
@@ -6745,11 +6761,12 @@ function atlasFlujoNav(id){
     /* terminó cuando el navegador de verdad dejó de hablar (si no, Atlas se oye a sí mismo) */
     const activo=speechSynthesis.speaking||speechSynthesis.pending;
     if(!activo){if(++quieto>=4&&!listo){listo=true;clearInterval(iv);if(fin)fin();}}else quieto=0;
-    if(Date.now()-t0>180000&&!listo){listo=true;clearInterval(iv);try{speechSynthesis.cancel();}catch(e){}if(fin)fin();}
+    /* tope por si el navegador se queda «hablando» sin sonar (Chromium 374263394) */
+    if(Date.now()-t0>total*110+15000&&!listo){listo=true;clearInterval(iv);atlasNavCancel();if(fin)fin();}
   },60);
   return{
-    push(d){buf+=d;},
-    cerrar(extra,alTerminar){if(extra)buf+=extra;fin=alTerminar;cerrado=true;t0=Date.now();}
+    push(d){buf+=d;total+=d.length;},
+    cerrar(extra,alTerminar){if(extra){buf+=extra;total+=extra.length;}fin=alTerminar;cerrado=true;t0=Date.now();}
   };
 }
 function atlasFlujo(){
@@ -7300,7 +7317,16 @@ function atlasNavFrase(t,v,id){
     }
   };
   speechSynthesis.speak(u);
+  /* hablar justo después de cancelar a veces se pierde (Mozilla 1522074): resume() lo destraba */
+  try{speechSynthesis.resume();}catch(e){}
   return u;
+}
+/* Cancelar estando en pausa deja mudas las frases siguientes en Chromium/Edge (TypeWords #338):
+   se reanuda primero y luego se cancela. */
+function atlasNavCancel(){
+  if(!('speechSynthesis' in window))return;
+  try{if(speechSynthesis.paused)speechSynthesis.resume();}catch(e){}
+  try{speechSynthesis.cancel();}catch(e){}
 }
 function atlasDecirNav(frases,txt,id,finFuera){
   let iv=null;
@@ -7308,7 +7334,7 @@ function atlasDecirNav(frases,txt,id,finFuera){
   let hecho=false;
   if(!('speechSynthesis' in window)||!frases.length){fin();return;}
   try{
-    speechSynthesis.cancel();
+    atlasNavCancel();
     const v=atlasVozEs();
     atlasEstado('hablando');
     frases.forEach(f=>atlasNavFrase(f,v,id));
@@ -7321,7 +7347,7 @@ function atlasDecirNav(frases,txt,id,finFuera){
       if(id!==ATLAS.hablaId||hecho){clearInterval(iv);iv=null;return;}
       const activo=speechSynthesis.speaking||speechSynthesis.pending;
       if(!activo&&Date.now()-t0>600){if(++quieto>=2)fin();}else quieto=0;
-      if(Date.now()-t0>String(txt).length*260+20000){try{speechSynthesis.cancel();}catch(x){}fin();}
+      if(Date.now()-t0>String(txt).length*260+20000){atlasNavCancel();fin();}
     },200);
   }catch(e){fin();}
 }
@@ -7355,7 +7381,7 @@ function atlasPintaNavVoz(){
 function atlasCambiaNavVoz(n){
   atlasSetPrefS('navvoz',n);atlasCallar();
   const v=atlasVozEs();
-  if(v){const u=new SpeechSynthesisUtterance('Hola, soy Atlas.');u.voice=v;u.lang=v.lang;u.rate=1.05;speechSynthesis.speak(u);}
+  if(v)atlasNavFrase('Hola, soy Atlas.',v,ATLAS.hablaId);
 }
 function atlasCambiaTono(v){ATLAS.tono=+v||1;atlasSetPrefS('tono2',ATLAS.tono);}
 async function atlasCambiaWake(on){
@@ -7404,6 +7430,128 @@ async function atlasGuardar(){
   if(ta)ta.value='';ATLAS.ultTexto='';ATLAS.hist=[];atlasMostrar(null);atlasCerrar();
   await cargarSugerencias();if(VIEW==='sugerencias')render();updateCounts();
   toast('Atlas anotó la petición');
+}
+/* Pantallazo con dibujo (16/11/2026): Atlas toma una foto de lo que se ve en el
+   CRM, deja rayar encima (lápiz, flecha, recuadro, texto) y lo anota en
+   Sugerencias con la explicación. La imagen va en sugerencias.imagenes (JPEG
+   reducido, ~100-250 KB) porque el proyecto no tiene Storage. */
+const PZ={tool:'lapiz',color:'#e11d48',trazos:[],cur:null,img:null};
+async function atlasPantallazo(){
+  atlasCerrar();
+  try{await cargarLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');}
+  catch(e){toast('No se pudo cargar el capturador. Revisa la conexión.');return;}
+  await new Promise(r=>setTimeout(r,250));
+  let cv;
+  try{
+    cv=await html2canvas(document.body,{x:scrollX,y:scrollY,width:innerWidth,height:innerHeight,
+      scale:Math.min(devicePixelRatio||1,1.5),useCORS:true,logging:false,
+      backgroundColor:getComputedStyle(document.body).backgroundColor||'#fff',
+      ignoreElements:el=>el.id==='atlasPanel'||el.id==='toast'||el.id==='pzEditor'});
+  }catch(e){toast('No se pudo tomar el pantallazo: '+(e.message||e));return;}
+  PZ.img=cv;PZ.trazos=[];PZ.cur=null;PZ.ctx=atlasContexto();
+  pzAbrir();
+}
+function pzAbrir(){
+  let ed=document.getElementById('pzEditor');if(ed)ed.remove();
+  ed=document.createElement('div');ed.id='pzEditor';
+  const colores=['#e11d48','#f59e0b','#16a34a','#2563eb','#111827'];
+  const herr=[['lapiz','Lápiz'],['flecha','Flecha'],['caja','Recuadro'],['texto','Texto']];
+  ed.innerHTML=`<div class="pz-bar">
+      <b>Pantallazo</b>
+      <div class="pz-her">${herr.map(([k,l])=>`<button type="button" data-t="${k}" class="${PZ.tool===k?'on':''}" onclick="pzTool('${k}')">${l}</button>`).join('')}</div>
+      <div class="pz-col">${colores.map(c=>`<button type="button" style="background:${c}" class="${PZ.color===c?'on':''}" data-c="${c}" onclick="pzColor('${c}')" aria-label="Color"></button>`).join('')}</div>
+      <button type="button" class="btn ghost sm" onclick="pzDeshacer()">Deshacer</button>
+      <button type="button" class="btn ghost sm" onclick="PZ.trazos=[];pzPintar()">Borrar dibujo</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn ghost sm" onclick="pzCerrar()">Cancelar</button></div>
+    <div class="pz-lienzo"><canvas id="pzCanvas"></canvas></div>
+    <div class="pz-pie">
+      <textarea id="pzNota" rows="2" placeholder="¿Qué falla o qué mejorarías aquí?"></textarea>
+      <button type="button" class="btn" onclick="pzGuardar()">Anotar en Sugerencias</button></div>`;
+  document.body.appendChild(ed);
+  const c=document.getElementById('pzCanvas');
+  c.width=PZ.img.width;c.height=PZ.img.height;
+  const pos=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height};};
+  c.onpointerdown=e=>{
+    e.preventDefault();const p=pos(e),g=Math.max(3,c.width/400);
+    if(PZ.tool==='texto'){
+      const t=prompt('Texto para poner aquí:');
+      if(t&&t.trim()){PZ.trazos.push({t:'texto',c:PZ.color,g,p:[p],txt:t.trim()});pzPintar();}
+      return;
+    }
+    try{c.setPointerCapture(e.pointerId);}catch(_){}
+    PZ.cur={t:PZ.tool,c:PZ.color,g,p:[p,p]};
+  };
+  c.onpointermove=e=>{
+    if(!PZ.cur)return;const p=pos(e);
+    if(PZ.cur.t==='lapiz')PZ.cur.p.push(p);else PZ.cur.p[1]=p;
+    pzPintar();
+  };
+  c.onpointerup=c.onpointercancel=()=>{
+    if(!PZ.cur)return;
+    const a=PZ.cur.p[0],b=PZ.cur.p[PZ.cur.p.length-1];
+    if(PZ.cur.t==='lapiz'||Math.hypot(b.x-a.x,b.y-a.y)>6)PZ.trazos.push(PZ.cur);
+    PZ.cur=null;pzPintar();
+  };
+  pzAjustar();if(!PZ._rs){PZ._rs=true;addEventListener('resize',pzAjustar);}
+  pzPintar();
+}
+/* el lienzo se encaja en el espacio libre sin deformar la foto */
+function pzAjustar(){
+  const c=document.getElementById('pzCanvas'),l=c&&c.parentNode;if(!c)return;
+  const W=l.clientWidth-20,H=l.clientHeight-20,k=Math.min(W/c.width,H/c.height);
+  c.style.width=Math.floor(c.width*k)+'px';c.style.height=Math.floor(c.height*k)+'px';
+}
+function pzTool(t){PZ.tool=t;document.querySelectorAll('#pzEditor .pz-her button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));}
+function pzColor(c){PZ.color=c;document.querySelectorAll('#pzEditor .pz-col button').forEach(b=>b.classList.toggle('on',b.dataset.c===c));}
+function pzDeshacer(){PZ.trazos.pop();pzPintar();}
+function pzCerrar(){const ed=document.getElementById('pzEditor');if(ed)ed.remove();PZ.img=null;PZ.trazos=[];}
+function pzTrazo(x,s){
+  x.strokeStyle=x.fillStyle=s.c;x.lineWidth=s.g;x.lineCap=x.lineJoin='round';
+  const a=s.p[0],b=s.p[s.p.length-1];
+  if(s.t==='lapiz'){x.beginPath();s.p.forEach((q,i)=>i?x.lineTo(q.x,q.y):x.moveTo(q.x,q.y));x.stroke();}
+  else if(s.t==='caja'){x.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y));}
+  else if(s.t==='flecha'){
+    const ang=Math.atan2(b.y-a.y,b.x-a.x),L=s.g*5;
+    x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke();
+    x.beginPath();x.moveTo(b.x,b.y);
+    x.lineTo(b.x-L*Math.cos(ang-0.45),b.y-L*Math.sin(ang-0.45));
+    x.lineTo(b.x-L*Math.cos(ang+0.45),b.y-L*Math.sin(ang+0.45));x.closePath();x.fill();
+  }else if(s.t==='texto'){
+    const f=Math.round(s.g*6);x.font='bold '+f+'px system-ui,sans-serif';x.textBaseline='top';
+    const w=x.measureText(s.txt).width;
+    x.fillStyle='rgba(255,255,255,.88)';x.fillRect(a.x-4,a.y-3,w+8,f+6);
+    x.fillStyle=s.c;x.fillText(s.txt,a.x,a.y);
+  }
+}
+function pzPintar(){
+  const c=document.getElementById('pzCanvas');if(!c||!PZ.img)return;
+  const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.drawImage(PZ.img,0,0);
+  PZ.trazos.forEach(s=>pzTrazo(x,s));if(PZ.cur)pzTrazo(x,PZ.cur);
+}
+function pzJpeg(){
+  const src=document.getElementById('pzCanvas'),k=Math.min(1,1400/src.width);
+  const o=document.createElement('canvas');o.width=Math.round(src.width*k);o.height=Math.round(src.height*k);
+  o.getContext('2d').drawImage(src,0,0,o.width,o.height);
+  return o.toDataURL('image/jpeg',0.72);
+}
+async function pzGuardar(){
+  const nota=(document.getElementById('pzNota').value||'').trim();
+  if(!nota&&!PZ.trazos.length){toast('Dibuja o escribe qué falla antes de anotar.');return;}
+  const u=currentUser(),quien=u?u.name:'—',ahora=new Date().toISOString();
+  const row={texto:'[Atlas · pantallazo] '+(nota||'(ver dibujo)')+'\n\n('+PZ.ctx+')',autor:quien,estado:'Nueva',respuestas:[],
+    imagenes:[pzJpeg()],createdBy:quien,createdAt:ahora,updatedBy:quien,updatedAt:ahora};
+  const ok=await saveRow('sugerencias',row);
+  if(ok===false){toast('No se pudo guardar. Revisa la conexión.');return;}
+  pzCerrar();
+  await cargarSugerencias();if(VIEW==='sugerencias')render();updateCounts();
+  toast('Atlas anotó el pantallazo en Sugerencias');
+}
+function pzVerSug(id,i){
+  const s=(CACHE.sugerencias||[]).find(z=>String(z.id)===String(id));
+  const src=s&&Array.isArray(s.imagenes)&&s.imagenes[i];if(!src)return;
+  const v=document.createElement('div');v.className='pz-ver';v.onclick=()=>v.remove();
+  const im=document.createElement('img');im.alt='Pantallazo';im.src=src;v.appendChild(im);document.body.appendChild(v);
 }
 const SUG_ESTADOS=['Nueva','En revisión','Hecha','Descartada'];
 const SUG_CLASE={Nueva:'st-prog','En revisión':'st-proceso',Hecha:'st-proc',Descartada:'st-lost'};
@@ -7454,6 +7602,7 @@ function sugCard(s){
     <div style="padding:4px 20px 16px">
       <div class="sug-meta"><b>${esc(s.autor)||'—'}</b><span class="muted"> · ${_hace(s.createdAt)}</span></div>
       <div class="sug-texto">${esc(s.texto)}</div>
+      ${Array.isArray(s.imagenes)&&s.imagenes.length?`<div class="sug-imgs">${s.imagenes.map((im,ii)=>`<img src="${esc(im)}" alt="Pantallazo" onclick="pzVerSug('${s.id}',${ii})">`).join('')}</div>`:''}
       ${hilo?`<div class="sug-hilo">${hilo}</div>`:''}
       <div class="sug-reply"><input id="sugR_${s.id}" placeholder="Responder / comentar..." onkeydown="if(event.key==='Enter'){event.preventDefault();sugResponder('${s.id}')}">
         <button type="button" class="btn ghost sm" onclick="sugResponder('${s.id}')">Responder</button></div>
