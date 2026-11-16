@@ -1382,6 +1382,18 @@ html.side-off .menu-btn{display:grid !important}
 .atlas-h{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
 .atlas-h b{font-size:16px}
 .atlas-fase{font-size:11px;color:var(--ink-3);flex:1}
+.atlas-h .atlas-sp{flex:1}
+.atlas-modo{display:inline-flex;align-items:center;gap:6px;align-self:center;border:1px solid transparent;border-radius:999px;
+  padding:4px 11px 4px 9px;font-family:inherit;font-weight:600;font-size:11px;line-height:1;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:filter .15s,box-shadow .15s}
+.atlas-modo svg{width:13px;height:13px;flex:none}
+.atlas-modo:hover{filter:brightness(1.06);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.atlas-modo.lectura{background:var(--line,#eef0f3);color:var(--ink-2,#4b5563);border-color:var(--line,#e5e7eb)}
+.atlas-modo.admin{background:linear-gradient(135deg,#7b1e2b,#a8323f);color:#fff;box-shadow:0 2px 10px rgba(123,30,43,.35)}
+.atlas-modo.revisando{background:var(--line,#eef0f3);color:var(--ink-3,#6b7280)}
+.atlas-login{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 10px;padding:10px;border:1px solid var(--line);border-radius:10px}
+.atlas-login[hidden]{display:none}
+.atlas-login input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;background:var(--card,#fff);color:inherit}
+.atlas-login-msg{flex-basis:100%;font-size:12px;color:var(--ink-3);min-height:0}.atlas-login-msg:empty{display:none}.atlas-login-msg.mal{color:#b3261e}
 .atlas-x{border:0;background:none;font-size:22px;line-height:1;color:var(--ink-3);cursor:pointer;padding:2px 8px;align-self:center}
 .atlas-ctx{font-size:11.5px;color:var(--ink-3);margin-bottom:6px}
 /* el escenario oscuro donde vive la forma; tocarla interrumpe o retoma */
@@ -6495,8 +6507,13 @@ function atlasAbrir(){
   let p=document.getElementById('atlasPanel');
   if(!p){
     p=document.createElement('div');p.id='atlasPanel';
-    p.innerHTML=`<div class="atlas-h"><b>Atlas</b><span class="atlas-fase" id="atlasFase"></span>
+    p.innerHTML=`<div class="atlas-h"><b>Atlas</b><span class="atlas-sp"></span>
+        <button type="button" class="atlas-modo" id="atlasFase" onclick="atlasModoClick()"></button>
         <button type="button" class="atlas-x" onclick="atlasCerrar()" aria-label="Cerrar">×</button></div>
+      <form class="atlas-login" id="atlasLogin" hidden onsubmit="event.preventDefault();atlasActivar()">
+        <input type="password" id="atlasClave" placeholder="Clave de administrador" autocomplete="off" aria-label="Clave de administrador">
+        <button type="submit" class="btn sm">Activar</button>
+        <div class="atlas-login-msg" id="atlasLoginMsg"></div></form>
       <div class="atlas-ctx" id="atlasCtx"></div>
       <button type="button" class="atlas-orb idle" id="atlasOrb" onclick="atlasToque()" aria-label="Atlas: toca para hablar o interrumpir">${ATLAS_FORMA}</button>
       <div class="atlas-lbl" id="atlasLbl" aria-live="polite"></div>
@@ -6519,7 +6536,6 @@ function atlasAbrir(){
           <option value="nav">La del navegador</option>
           <option value="off">Sin voz</option></select></label>
         <label id="atlasNavVozL">Cuál <select id="atlasNavVoz" onchange="atlasCambiaNavVoz(this.value)"></select></label>
-        <label title="Con la clave, Atlas puede proponer correcciones de datos que tú apruebas">Clave de edición <input type="password" id="atlasClave" autocomplete="off" style="width:120px" onchange="atlasSetPrefS('clave',this.value.trim());atlasPintaFase()"></label>
         <label>Tono <select id="atlasTono" onchange="atlasCambiaTono(this.value)">
           <option value="1">Normal</option>
           <option value="0.9">Grave</option>
@@ -6531,7 +6547,7 @@ function atlasAbrir(){
   document.getElementById('atlasCtx').textContent=atlasContexto();
   document.getElementById('atlasVozSel').value=ATLAS.vozSel;
   document.getElementById('atlasTono').value=String(ATLAS.tono);
-  document.getElementById('atlasClave').value=atlasClave();atlasPintaFase();
+  atlasPintaFase();if(ATLAS.claveOk===undefined)atlasVerificarClave();
   atlasPintaNavVoz();
   document.getElementById('atlasWake').checked=ATLAS.wake;
   atlasKokoroPrep();atlasPiperPrep();
@@ -6672,8 +6688,50 @@ const ATLAS_TIPO={correccion_datos:'Corrección de datos',falla_programa:'Falla 
 /* Edición (16/11/2026, desde la cuenta personal de Claude de Daniel): con la clave,
    Atlas PROPONE cambios; nada se escribe hasta tocar «Aplicar», y cada cambio aplicado
    se puede deshacer. La clave se guarda solo en este navegador. */
-function atlasClave(){return esDev()?atlasPrefS('clave',''):'';}
-function atlasPintaFase(){const f=document.getElementById('atlasFase');if(f)f.textContent=atlasClave()?'puede proponer correcciones · tú las apruebas':'en pruebas · consulta, no cambia nada';}
+function atlasClave(){return esDev()?String(atlasPrefS('clave','')).replace(/["'\s,]/g,''):'';}
+/* 16/11/2026: si la clave no coincidía, Atlas seguía en solo lectura sin avisar.
+   Ahora se limpia (comillas y espacios de copiar del JSON) y se verifica con el servidor. */
+const ATLAS_ICO_ESCUDO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>';
+const ATLAS_ICO_CANDADO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+/* 16/11/2026 (pedido de Daniel): insignia «Modo Administrador» / «Modo Lectura» en la
+   cabecera. La clave ya no se ve: se escribe una vez al tocar la insignia, se verifica con
+   el servidor y solo entonces se guarda en este navegador. */
+function atlasPintaFase(){
+  const f=document.getElementById('atlasFase');if(!f)return;
+  const k=atlasClave(),v=ATLAS.claveOk,admin=!!k&&v!==false;
+  f.className='atlas-modo '+(admin?(v===true?'admin':'revisando'):'lectura');
+  f.innerHTML=(admin?ATLAS_ICO_ESCUDO:ATLAS_ICO_CANDADO)+'<span>'+(admin?(v===true?'Modo Administrador':'Verificando…'):'Modo Lectura')+'</span>';
+  f.title=admin?'Puede crear y corregir datos; nada se guarda sin tu «Aplicar». Toca para salir.':'Solo consulta. Toca para activar el modo administrador.';
+}
+function atlasModoClick(){
+  const lg=document.getElementById('atlasLogin');if(!lg)return;
+  if(atlasClave()&&ATLAS.claveOk!==false){
+    if(!confirm('¿Salir del modo administrador en este navegador?'))return;
+    atlasSetPrefS('clave','');ATLAS.claveOk=undefined;atlasPintaFase();toast('Atlas quedó en modo lectura');return;
+  }
+  lg.hidden=!lg.hidden;document.getElementById('atlasLoginMsg').textContent='';
+  if(!lg.hidden){ATLAS.conv=false;atlasParar();atlasEstado('idle');setTimeout(()=>document.getElementById('atlasClave').focus(),30);}
+}
+async function atlasActivar(){
+  const i=document.getElementById('atlasClave'),m=document.getElementById('atlasLoginMsg');
+  const v=String(i.value||'').replace(/["'\s,]/g,'');if(!v)return;
+  m.textContent='Verificando…';m.className='atlas-login-msg';
+  try{
+    const j=await atlasLlamar({verificarClave:true,clave:v});
+    if(!j.ok){m.textContent='Clave incorrecta';m.className='atlas-login-msg mal';i.value='';i.focus();return;}
+  }catch(e){m.textContent='No se pudo verificar: '+e.message;m.className='atlas-login-msg mal';return;}
+  i.value='';atlasSetPrefS('clave',v);ATLAS.claveOk=true;
+  document.getElementById('atlasLogin').hidden=true;atlasPintaFase();toast('Modo Administrador activado');
+}
+async function atlasVerificarClave(){
+  const k=atlasClave();ATLAS.claveOk=undefined;atlasPintaFase();if(!k)return;
+  try{const j=await atlasLlamar({verificarClave:true,clave:k});ATLAS.claveOk=!!j.ok;}catch(e){ATLAS.claveOk=undefined;}
+  atlasPintaFase();
+}
+function atlasGuardarClave(v){
+  v=String(v||'').replace(/["'\s,]/g,'');atlasSetPrefS('clave',v);
+  const i=document.getElementById('atlasClave');if(i)i.value=v;atlasVerificarClave();
+}
 function atlasValor(v){if(v===null||v===undefined||v==='')return '(vacío)';if(typeof v==='boolean')return v?'sí':'no';return typeof v==='object'?JSON.stringify(v):String(v);}
 function atlasPropuestas(r){
   const ps=Array.isArray(r.propuestas)?r.propuestas:[];
@@ -6753,6 +6811,7 @@ function atlasCamposTxt(c){
 }
 function atlasMostrar(r){
   ATLAS.ult=r||null;
+  if(r&&atlasClave()&&r.edicion===false&&ATLAS.claveOk!==false){ATLAS.claveOk=false;atlasPintaFase();}
   const d=document.getElementById('atlasResp');if(!d)return;
   if(!r){d.hidden=true;d.innerHTML='';return;}
   d.innerHTML=`<div class="ar-tipo">${esc(ATLAS_TIPO[r.tipo]||r.tipo||'')}</div>
