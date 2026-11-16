@@ -1917,6 +1917,15 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
   .kpi .k-meta{font-size:11.5px;margin-top:4px;line-height:1.35}
 }
 
+/* ---- ETAPA 3: pestañas de filtro como selector (fondo gris, la elegida en blanco) ---- */
+.toolbar .seg{background:var(--n-100);border:0;border-radius:8px;padding:3px;gap:2px}
+.toolbar .seg button{font-weight:500;color:var(--n-600);border-radius:6px;padding:5px 12px}
+.toolbar .seg button:hover:not(.on){color:var(--n-900);background:rgba(255,255,255,.55)}
+.toolbar .seg button.on{background:var(--n-0);color:var(--n-900);box-shadow:0 1px 2px rgba(26,25,23,.08),0 0 0 1px rgba(26,25,23,.04)}
+/* ---- ETAPA 3: pantallas vacías con más presencia ---- */
+.empty{padding:56px 20px;color:var(--n-500);font-size:13.5px}
+.empty svg{width:36px;height:36px;opacity:1;color:var(--n-300);margin-bottom:12px}
+
 /* ---- ventanas que flotan sí llevan sombra ---- */
 .modal,.notif-panel,#atlasPanel{box-shadow:var(--shadow-lg)}
 </style>
@@ -1965,7 +1974,7 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
       <div class="presence" id="presence"></div>
       <button class="notif-bell" id="msgBtn" onclick="abrirChat()" title="Chat con un compañero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="notif-badge" id="msgBadge" style="display:none">0</span></button>
       <button class="notif-bell" id="recargarBtn" onclick="crmRecargar()" title="Recargar el CRM (como F5): trae la última versión y los datos al día"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-      <button class="notif-bell" id="globalSearchBtn" onclick="abrirBusquedaGlobal()" title="Buscar en todo (ventas, ROP, cotizaciones, clientes)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <button class="notif-bell" id="globalSearchBtn" onclick="abrirBusquedaGlobal()" title="Buscar en todo (ventas, ROP, cotizaciones, clientes) · Ctrl+K"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <div class="notif-wrap">
         <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" title="Notificaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
         <div class="notif-panel" id="notifPanel" style="display:none">
@@ -11504,6 +11513,12 @@ function pedirConfirmacion(titulo,detalle,alConfirmar,textoBoton){
 }
 function cerrarConfirmacion(){const c=document.getElementById('confirmLayer');if(c)c.classList.remove('show');_confirmFn=null;}
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;cerrarConfirmacion();cerrarCompartir();cerrarPicker();});
+/* Ctrl+K / ⌘K abre la búsqueda global desde cualquier pantalla (diseño v2, 16/11/2026) */
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='k'||e.key==='K')&&typeof abrirBusquedaGlobal==='function'&&currentUser()){
+    e.preventDefault();abrirBusquedaGlobal();
+  }
+});
 
 /* descripción legible del registro, para no borrar el equivocado */
 function _descRegistro(t,id){
