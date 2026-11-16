@@ -6446,7 +6446,7 @@ function atlasBoton(){
     /* claves "2": al llegar Kokoro (15/11/2026) se parte de la voz nueva, no de lo que se probó antes */
     /* claves "3" (16/11/2026): Daniel prefiere la voz del navegador; Alex queda como opción */
     /* claves "4" (16/11/2026): solo la voz del navegador; Alex y Piper ya no se ofrecen ni se descargan */
-    ATLAS.vozSel=atlasPrefS('vozsel4','nav')==='off'?'off':'nav';ATLAS.voz=ATLAS.vozSel!=='off';
+    {const vs=atlasPrefS('vozsel4','nav');ATLAS.vozSel=vs==='off'||vs.indexOf('azure:')===0?vs:'nav';}ATLAS.voz=ATLAS.vozSel!=='off';
     ATLAS.tono=+atlasPrefS('tono2','0.9')||1;ATLAS.muletillas={};
     /* si este equipo ya tiene la voz Alex descargada, se va cargando sola (~20 s) */
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')atlasWakeReanuda();else atlasWakePausa();});
@@ -6538,6 +6538,8 @@ function atlasAbrir(){
       <div class="atlas-vozcfg">
         <label>Voz <select id="atlasVozSel" onchange="atlasCambiaVoz(this.value)">
           <option value="nav">La del navegador</option>
+          <option value="azure:es-CO-GonzaloNeural">Gonzalo · Colombia (Azure)</option>
+          <option value="azure:es-CO-SalomeNeural">Salomé · Colombia (Azure)</option>
           <option value="off">Sin voz</option></select></label>
         <label id="atlasNavVozL">Cuál <select id="atlasNavVoz" onchange="atlasCambiaNavVoz(this.value)"></select></label>
         <label>Tono <select id="atlasTono" onchange="atlasCambiaTono(this.value)">
@@ -6702,7 +6704,7 @@ const ATLAS_ICO_CANDADO='<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
    el servidor y solo entonces se guarda en este navegador. */
 function atlasPintaFase(){
   const f=document.getElementById('atlasFase');if(!f)return;
-  const k=atlasClave(),v=ATLAS.claveOk,admin=!!k&&v!==false;
+  const k=atlasClave(),v=ATLAS.claveOk,admin=(!!k&&v!==false)||v===true;
   f.className='atlas-modo '+(admin?(v===true?'admin':'revisando'):'lectura');
   f.innerHTML=(admin?ATLAS_ICO_ESCUDO:ATLAS_ICO_CANDADO)+'<span>'+(admin?(v===true?'Modo Administrador':'Verificando…'):'Modo Lectura')+'</span>';
   f.title=admin?'Puede crear y corregir datos; nada se guarda sin tu «Aplicar». Toca para salir.':'Solo consulta. Toca para activar el modo administrador.';
@@ -6722,14 +6724,14 @@ async function atlasActivar(){
   m.textContent='Verificando…';m.className='atlas-login-msg';
   try{
     const j=await atlasLlamar({verificarClave:true,clave:v});
-    if(!j.ok){m.textContent='Clave incorrecta';m.className='atlas-login-msg mal';i.value='';i.focus();return;}
+    if(!j.ok){m.textContent=j.bloqueada?'Clave bloqueada por hoy (demasiados intentos). Entra con tu cuenta o espera a mañana.':'Clave incorrecta';m.className='atlas-login-msg mal';i.value='';i.focus();return;}
   }catch(e){m.textContent='No se pudo verificar: '+e.message;m.className='atlas-login-msg mal';return;}
   i.value='';atlasSetPrefS('clave',v);ATLAS.claveOk=true;
   document.getElementById('atlasLogin').hidden=true;atlasPintaFase();toast('Modo Administrador activado');
 }
 async function atlasVerificarClave(){
-  const k=atlasClave();ATLAS.claveOk=undefined;atlasPintaFase();if(!k)return;
-  try{const j=await atlasLlamar({verificarClave:true,clave:k});ATLAS.claveOk=!!j.ok;}catch(e){ATLAS.claveOk=undefined;}
+  const k=atlasClave();ATLAS.claveOk=undefined;atlasPintaFase();if(!k&&!_sbTok)return;
+  try{const j=await atlasLlamar({verificarClave:true,clave:k||undefined});ATLAS.claveOk=!!j.ok;ATLAS.azureListo=!!j.vozAzure;}catch(e){ATLAS.claveOk=undefined;}
   atlasPintaFase();
 }
 function atlasGuardarClave(v){
@@ -6768,7 +6770,7 @@ async function atlasAplicar(i){
     const j=await atlasLlamar({aplicar:p,clave:atlasClave()});
     if(p.tipo==='crear'&&j.fila){(CACHE[p.tabla]=CACHE[p.tabla]||[]).unshift(j.fila);p.id=j.fila.id;try{render();updateCounts();}catch(e){}}
     else atlasRefleja(p.tabla,p.id,p.cambios,'aplicar');
-    acc.innerHTML=`<span class="ar-ok">${p.tipo==='crear'?'Creado'+(j.fila&&(j.fila.rop||j.fila.numero)?': '+esc(j.fila.rop||j.fila.numero):''):'Aplicado'}</span> <button type="button" class="btn ghost sm" onclick="atlasDeshacer('${esc(j.uid)}',${i})">Deshacer</button>`;
+    acc.innerHTML=`<span class="ar-ok">${p.tipo==='crear'?'Creado'+(j.fila&&(j.fila.rop||j.fila.numero)?': '+esc(j.fila.rop||j.fila.numero):''):(j.verificado===false?'Aplicado, pero '+esc((j.diferencias||[]).join('; ')):'Aplicado y verificado')}</span> <button type="button" class="btn ghost sm" onclick="atlasDeshacer('${esc(j.uid)}',${i})">Deshacer</button>`;
     toast('Atlas aplicó el cambio');
   }catch(e){acc.innerHTML=`<span class="ar-mal">${esc(e.message)}</span>`;}
 }
@@ -6948,7 +6950,8 @@ function atlasFlujo(){
   const id=++ATLAS.hablaId,mo=atlasMotorListo();
   if(!mo)return atlasFlujoNav(id);
   let buf='',todo='',cola=[],cerrado=false,primera=true,fin=null,dichas=0;
-  const gen=mo==='kokoro'
+  const gen=mo==='azure'?(f=>atlasAzurePcm(atlasPronuncia(f)))
+    :mo==='kokoro'
     ?(f=>{const ph=atlasFonemasEs(atlasPronuncia(f));return ph?atlasKokoroGen(ph,atlasKokoroVel()):null;})
     :(async f=>{const s=await atlasPiperSesion(mo.slice(6));return atlasAPcm(await s.predict(atlasPronuncia(f)));});
   const saca=()=>{
@@ -6977,6 +6980,7 @@ function atlasFlujo(){
     }catch(e){
       if(id!==ATLAS.hablaId)return;
       if(mo==='kokoro'){ATLAS.kokoroMal=true;ATLAS.kokoroLista=false;}
+      if(mo==='azure')ATLAS.azureMal=true;
       /* lo que faltaba lo termina la voz del navegador, cuando llegue todo */
       while(!cerrado&&id===ATLAS.hablaId)await new Promise(r=>setTimeout(r,60));
       await atlasEsperaFin(id);
@@ -7008,14 +7012,42 @@ function atlasVozEs(){
   return es.slice().sort((a,b)=>punt(a)-punt(b))[0];
 }
 /* cómo se DICEN las cosas de la casa (el texto en pantalla no cambia) */
-function atlasPronuncia(t){
+/* Texto hablable (16/11/2026, desde la cuenta personal de Claude de Daniel; informes
+   «Mejoras para Atlas» y «Atlas en foros de Claude»): sin markdown, enlaces ni emojis; fechas,
+   horas, fracciones de pulgada, medidas y miles dichos como se hablan en Colombia. */
+const ATLAS_MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const ATLAS_FRAC={'1/8':'un octavo','3/16':'tres dieciseisavos','1/4':'un cuarto','5/16':'cinco dieciseisavos','3/8':'tres octavos','1/2':'media','5/8':'cinco octavos','3/4':'tres cuartos','1/16':'un dieciseisavo','7/16':'siete dieciseisavos'};
+function atlasFecha(d,m,a){
+  d=+d;m=+m;a=+a;if(!(m>=1&&m<=12&&d>=1&&d<=31))return null;
+  return d+' de '+ATLAS_MESES[m-1]+(a&&a!==new Date().getFullYear()?' de '+a:'');
+}
+function atlasHablable(t){
   return String(t)
+    .replace(/https?:\/\/\S+/g,'el enlace')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,'')
+    .replace(/\*\*|__|`+|^#{1,6}\s*/gm,'')
+    .replace(/(^|\n)\s*(?:[-*•]|\d+[.)])\s+/g,'$1')
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g,(m,a,me,d)=>atlasFecha(d,me,a)||m)
+    .replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g,(m,d,me,a)=>atlasFecha(d,me,a)||m)
+    .replace(/\b([01]?\d|2[0-3]):([0-5]\d)\s*(?:h|hrs?)?\b/g,(m,h,mi)=>{h=+h;const fr=h<12?'de la mañana':h<19?'de la tarde':'de la noche';const h12=h%12||12;return h12+(mi!=='00'?' y '+(+mi):'')+' '+fr;})
+    .replace(/\b(\d{1,2}\/\d{1,2})\s*(?:"|”|''|pulg(?:adas?)?\.?)/g,(m,f)=>ATLAS_FRAC[f]?ATLAS_FRAC[f]+' de pulgada':m)
+    .replace(/\b(\d{1,2}\/\d{1,2})\b/g,(m,f)=>ATLAS_FRAC[f]||m)
+    .replace(/(\d)\s*[x×]\s*(\d)/g,'$1 por $2')
+    .replace(/\b(\d{1,3}(?:\.\d{3})+)(?![\d,])/g,m=>m.replace(/\./g,''))
+    .replace(/(\d)\.(\d{1,2})(?!\d)/g,'$1,$2')
+    .replace(/(\d+(?:,\d+)?)\s?M\b/g,'$1 millones')
+    .replace(/(\d)\s?%/g,'$1 por ciento')
+    .replace(/\s*&\s*/g,' y ')
+    .replace(/[<>*_#|~^]/g,' ');
+}
+function atlasPronuncia(t){
+  return atlasHablable(t)
     .replace(/\bdoblaser\b/gi,'Dobláser')
     .replace(/\bROP[-\s]?(\d+)/gi,'rop $1')
     .replace(/\bDB[-\s]?(\d+)/gi,'de be $1')
     .replace(/\bMDO[-\s]?(\d+)/gi,'eme de o $1')
     .replace(/\bE&D\b/g,'E y D')
-    .replace(/\bcal\.?\s?(\d+)/gi,'calibre $1')
+    .replace(/\b(?:calibre\s+)?cal\.?\s?(\d+)/gi,'calibre $1')
     .replace(/(\d)\s?mm\b/g,'$1 milímetros')
     .replace(/(\d)\s?kg\b/g,'$1 kilos')
     .replace(/\bS\.?A\.?S\.?\b/g,'S A S')
@@ -7365,7 +7397,24 @@ function atlasKokoroVoz(){
   return s.slice(7);
 }
 /* qué voz propia está lista para hablar YA: 'kokoro', 'piper:<voz>' o '' (la del navegador) */
+/* Voz Azure es-CO (16/11/2026): el texto va a la función atlas, que pide el audio a Azure
+   con su llave (nunca en el navegador) y lo devuelve en MP3; se decodifica y entra a la misma
+   cola de Web Audio que usaban Kokoro y Piper (sin huecos, y «Tocar» lo interrumpe igual).
+   Si Azure no está configurado o falla, sigue la voz del navegador. */
+async function atlasAzurePcm(t){
+  const voz=String(ATLAS.vozSel).slice(6);
+  const r=await fetch(SB_CFG.url+'/functions/v1/atlas',{method:'POST',
+    headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+(_sbTok||SB_CFG.key)},
+    body:JSON.stringify({tts:{texto:t,voz,velocidad:1},clave:atlasClave()||undefined})});
+  if(!r.ok){
+    let j={};try{j=await r.json();}catch(e){}
+    if(!ATLAS.azureMal){ATLAS.azureMal=true;toast(j.error==='sin_llave'?'La voz de Azure aún no está configurada; uso la del navegador':'La voz de Azure falló; uso la del navegador');}
+    throw new Error(j.error||('azure '+r.status));
+  }
+  return atlasAPcm(await r.blob());
+}
 function atlasMotorListo(){
+  if(String(ATLAS.vozSel).indexOf('azure:')===0&&!ATLAS.azureMal&&typeof SB_CFG!=='undefined')return 'azure';
   if(atlasKokoroVoz()&&ATLAS.kokoroLista&&!ATLAS.kokoroMal)return 'kokoro';
   const pv=atlasPiperVoz();
   if(pv&&ATLAS.piperLista===pv&&!ATLAS.piperLento)return 'piper:'+pv;
@@ -7470,6 +7519,15 @@ function atlasDecir(txt,alTerminar){
   if(!frases.length){fin();return;}
   const mo=atlasMotorListo();
   atlasKokoroPrep();atlasPiperPrep();
+  if(mo==='azure'){
+    const fs=atlasFrasesCortas(atlasPronuncia(txt)),bloques=[];
+    fs.forEach((f,i)=>{if(i&&bloques.length>1&&bloques[bloques.length-1].length+f.length<=500)bloques[bloques.length-1]+=' '+f;else bloques.push(f);});
+    let hechas=0;
+    atlasDecirCola(bloques,async f=>{const p=await atlasAzurePcm(f);hechas++;return p;},id,fin).catch(async()=>{
+      if(id!==ATLAS.hablaId)return;await atlasEsperaFin(id);
+      const resto=bloques.slice(hechas).join(' ');atlasDecirNav(atlasTrozos(resto),resto,id,fin);});
+    return;
+  }
   if(mo==='kokoro'){atlasDecirKokoro(atlasTrozosKokoro(atlasPronuncia(txt)),id,fin,String(txt));return;}
   if(mo){atlasDecirPiper(atlasFrasesCortas(atlasPronuncia(txt)),mo.slice(6),id,fin,String(txt));return;}
   atlasDecirNav(frases,String(txt),id,fin);
@@ -7527,7 +7585,7 @@ function atlasDecirNav(frases,txt,id,finFuera){
   }catch(e){fin();}
 }
 function atlasCambiaVoz(v){
-  v=v==='off'?'off':'nav';ATLAS.vozSel=v;atlasSetPrefS('vozsel4',v);ATLAS.voz=v!=='off';atlasPintaNavVoz();
+  v=v==='off'||String(v).indexOf('azure:')===0?v:'nav';ATLAS.vozSel=v;atlasSetPrefS('vozsel4',v);ATLAS.azureMal=false;ATLAS.voz=v!=='off';atlasPintaNavVoz();
   atlasCallar();atlasVozEst('');
   atlasKokoroPrep();atlasPiperPrep();
 }
