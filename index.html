@@ -1414,6 +1414,9 @@ html.side-off .menu-btn{display:grid !important}
 #atlasBtn.en-barra:hover{transform:scale(1.08);box-shadow:0 4px 14px rgba(123,30,43,.4)}
 #atlasBtn.en-barra .atlas-forma{padding:3px}
 #atlasBtn.en-barra.oculto{display:inline-block;visibility:hidden}
+#atlasBtn.en-modal{position:fixed;left:18px;right:auto;top:auto;bottom:18px;transform:none;z-index:205;width:50px;height:50px}
+#atlasBtn.en-modal:hover{transform:scale(1.08)}
+#atlasBtn.en-modal .atlas-forma{padding:4px}
 @media(min-width:761px){
   #atlasPanel{left:auto;right:24px;top:84px;bottom:auto;transform:none;max-height:calc(100vh - 100px)}
   #atlasPanel.show{animation:atlasBaja .22s ease-out}
@@ -1819,7 +1822,6 @@ td.c,th.c{text-align:center}
       <div><h1 id="vTitle">Resumen</h1><div class="sub" id="vSub"></div></div>
       <div class="spacer"></div>
       <div class="presence" id="presence"></div>
-      <button class="notif-bell" id="pzBtn" onclick="atlasPantallazo()" title="Pantallazo: señala algo que falla o se puede mejorar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
       <button class="notif-bell" id="msgBtn" onclick="abrirChat()" title="Chat con un compañero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="notif-badge" id="msgBadge" style="display:none">0</span></button>
       <button class="notif-bell" id="globalSearchBtn" onclick="abrirBusquedaGlobal()" title="Buscar en todo (ventas, ROP, cotizaciones, clientes)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <div class="notif-wrap">
@@ -6430,11 +6432,21 @@ function atlasBoton(){
   b.innerHTML=ATLAS_FORMA;
   b.onclick=atlasAbrir;
   atlasUbicaBoton(b);
-  if(!ATLAS._ubRes){ATLAS._ubRes=true;addEventListener('resize',()=>{const x=document.getElementById('atlasBtn');if(x)atlasUbicaBoton(x);});}
+  if(!ATLAS._ubRes){ATLAS._ubRes=true;const ub=()=>{const x=document.getElementById('atlasBtn');if(x)atlasUbicaBoton(x);};
+    addEventListener('resize',ub);
+    document.querySelectorAll('.overlay').forEach(o=>new MutationObserver(ub).observe(o,{attributes:true,attributeFilter:['class']}));}
 }
 /* PC: la esfera va en la barra superior, junto al chat y la campana (flotando
    abajo tapaba las tablas). Celular: sigue flotando sobre la barra inferior. */
 function atlasUbicaBoton(b){
+  /* 16/11/2026: con una ventana abierta (cotización, ROP…) la barra queda tapada;
+     la esfera flota abajo a la izquierda, encima de la ventana */
+  if(document.querySelector('.overlay.show')){
+    b.classList.remove('en-barra');b.classList.add('en-modal');
+    if(b.parentNode!==document.body)document.body.appendChild(b);
+    return;
+  }
+  b.classList.remove('en-modal');
   const bar=document.querySelector('.topbar'),ref=document.getElementById('msgBtn');
   if(innerWidth>760&&bar&&ref){
     if(b.parentNode!==bar||b.nextSibling!==ref)bar.insertBefore(b,ref);
@@ -7448,7 +7460,7 @@ async function atlasPantallazo(){
     cv=await html2canvas(document.body,{x:scrollX,y:scrollY,width:innerWidth,height:innerHeight,
       scale:Math.min(devicePixelRatio||1,1.5),useCORS:true,logging:false,
       backgroundColor:getComputedStyle(document.body).backgroundColor||'#fff',
-      ignoreElements:el=>el.id==='atlasPanel'||el.id==='pzBtn'||el.id==='toast'||el.id==='pzEditor'});
+      ignoreElements:el=>el.id==='atlasPanel'||el.id==='atlasBtn'||el.id==='toast'||el.id==='pzEditor'});
   }catch(e){toast('No se pudo tomar el pantallazo: '+(e.message||e));return;}
   PZ.img=cv;PZ.trazos=[];PZ.cur=null;PZ.ctx=atlasContexto();
   pzAbrir();
