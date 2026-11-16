@@ -1402,6 +1402,11 @@ html.side-off .menu-btn{display:grid !important}
 .atlas-resp .ar-prop-c{margin-top:3px;overflow-wrap:anywhere}.atlas-resp .ar-prop-c s{color:var(--ink-3)}
 .atlas-resp .ar-prop-acc{display:flex;gap:6px;align-items:center;margin-top:7px}
 .atlas-resp .ar-ok{color:#15803d;font-weight:600}.atlas-resp .ar-mal{color:#b3261e}
+.atlas-resp .ar-prop-nuevo{font-weight:600;color:#15803d;margin-bottom:2px}
+.atlas-resp .ar-prop ol{margin:3px 0 0 18px;padding:0}
+.atlas-adj{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.atlas-adj:empty{display:none}
+.atlas-adj span{position:relative}.atlas-adj img{width:64px;height:64px;object-fit:cover;border-radius:7px;border:1px solid var(--line)}
+.atlas-adj button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#111827;color:#fff;cursor:pointer;line-height:1;padding:0}
 .atlas-resp .ar-cons{margin-top:8px;font-size:11px;color:var(--ink-3)}
 .atlas-esc{display:flex;gap:8px;margin-bottom:8px}
 .atlas-esc input{flex:1;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;
@@ -6498,12 +6503,14 @@ function atlasAbrir(){
       <div class="atlas-dicho" id="atlasDicho"></div>
       <div class="atlas-est" id="atlasEst" aria-live="polite"></div>
       <div class="atlas-resp" id="atlasResp" hidden></div>
+      <div class="atlas-adj" id="atlasAdj"></div>
       <form class="atlas-esc" onsubmit="event.preventDefault();atlasEscrito()">
         <input id="atlasTexto" type="text" autocomplete="off" placeholder="O escríbelo aquí…">
         <button type="submit" class="btn ghost">Enviar</button></form>
       <div class="atlas-acc">
         <button type="button" class="btn ghost" onclick="atlasGuardar()">Anotar</button>
         <button type="button" class="btn ghost" onclick="atlasPantallazo()" title="Foto de esta pantalla para rayar encima">Pantallazo</button>
+        <label class="btn ghost" title="Adjuntar una foto, un plano o una orden para que Atlas la lea" style="cursor:pointer">Imagen<input type="file" accept="image/*" multiple hidden onchange="atlasAdjuntar(this.files);this.value=''"></label>
         <button type="button" class="btn ghost" onclick="atlasBorrar()">Nueva</button>
         <label class="atlas-chk" title="Con el CRM abierto, di «Oye Atlas» para llamarlo"><input type="checkbox" id="atlasWake" onchange="atlasCambiaWake(this.checked)"> «Oye Atlas»</label>
       </div>
@@ -6657,7 +6664,7 @@ function atlasNorm(s){
 }
 function atlasEscrito(){
   const ta=document.getElementById('atlasTexto');
-  const texto=(ta.value||'').trim();if(!texto||ATLAS.estado==='pensando')return;
+  const texto=(ta.value||'').trim()||((ATLAS.adj||[]).length?'Mira la imagen':'');if(!texto||ATLAS.estado==='pensando')return;
   ATLAS.conv=false;atlasParar();atlasCallar();ta.value='';atlasDicho(texto);
   atlasEnviar(texto);
 }
@@ -6673,7 +6680,7 @@ function atlasPropuestas(r){
   return ps.map((p,i)=>`<div class="ar-prop" id="atlasProp${i}">
       <div class="ar-prop-h">${esc((VIEW_LBL[p.tabla]||p.tabla)+(p.etiqueta?' · '+p.etiqueta:''))}</div>
       ${p.resumen?`<div>${esc(p.resumen)}</div>`:''}
-      ${p.cambios.map(c=>`<div class="ar-prop-c"><b>${esc(c.col)}</b>: <s>${esc(atlasValor(c.antes))}</s> → <b>${esc(atlasValor(c.despues))}</b></div>`).join('')}
+      ${p.tipo==='crear'?`<div class="ar-prop-nuevo">Nuevo registro</div>${atlasCamposTxt(p.campos)}`:p.cambios.map(c=>`<div class="ar-prop-c"><b>${esc(c.col)}</b>: <s>${esc(atlasValor(c.antes))}</s> → <b>${esc(atlasValor(c.despues))}</b></div>`).join('')}
       <div class="ar-prop-acc"><button type="button" class="btn sm" onclick="atlasAplicar(${i})">Aplicar</button>
         <button type="button" class="btn ghost sm" onclick="this.closest('.ar-prop').remove()">Descartar</button></div>
     </div>`).join('');
@@ -6696,8 +6703,9 @@ async function atlasAplicar(i){
   const acc=box.querySelector('.ar-prop-acc');acc.innerHTML='<span class="muted">Aplicando…</span>';
   try{
     const j=await atlasLlamar({aplicar:p,clave:atlasClave()});
-    atlasRefleja(p.tabla,p.id,p.cambios,'aplicar');
-    acc.innerHTML=`<span class="ar-ok">Aplicado</span> <button type="button" class="btn ghost sm" onclick="atlasDeshacer('${esc(j.uid)}',${i})">Deshacer</button>`;
+    if(p.tipo==='crear'&&j.fila){(CACHE[p.tabla]=CACHE[p.tabla]||[]).unshift(j.fila);p.id=j.fila.id;try{render();updateCounts();}catch(e){}}
+    else atlasRefleja(p.tabla,p.id,p.cambios,'aplicar');
+    acc.innerHTML=`<span class="ar-ok">${p.tipo==='crear'?'Creado'+(j.fila&&(j.fila.rop||j.fila.numero)?': '+esc(j.fila.rop||j.fila.numero):''):'Aplicado'}</span> <button type="button" class="btn ghost sm" onclick="atlasDeshacer('${esc(j.uid)}',${i})">Deshacer</button>`;
     toast('Atlas aplicó el cambio');
   }catch(e){acc.innerHTML=`<span class="ar-mal">${esc(e.message)}</span>`;}
 }
@@ -6706,10 +6714,42 @@ async function atlasDeshacer(uid,i){
   const acc=box&&box.querySelector('.ar-prop-acc');if(acc)acc.innerHTML='<span class="muted">Deshaciendo…</span>';
   try{
     await atlasLlamar({deshacer:uid,clave:atlasClave()});
-    if(p)atlasRefleja(p.tabla,p.id,p.cambios,'deshacer');
-    if(acc)acc.innerHTML='<span class="muted">Deshecho: quedó como estaba</span>';
+    if(p&&p.tipo==='crear'){CACHE[p.tabla]=(CACHE[p.tabla]||[]).filter(x=>String(x.id)!==String(p.id));try{render();updateCounts();}catch(e){}}
+    else if(p)atlasRefleja(p.tabla,p.id,p.cambios,'deshacer');
+    if(acc)acc.innerHTML='<span class="muted">'+(p&&p.tipo==='crear'?'Deshecho: se borró el registro':'Deshecho: quedó como estaba')+'</span>';
     toast('Cambio deshecho');
   }catch(e){if(acc)acc.innerHTML=`<span class="ar-mal">${esc(e.message)}</span>`;}
+}
+/* Imágenes para Atlas (16/11/2026): fotos de órdenes, planos o pantallazos que viajan con
+   la siguiente pregunta. Se reducen a 1400 px JPEG para gastar menos tokens. */
+function atlasReducir(src,max,q){
+  return new Promise((ok,mal)=>{const im=new Image();im.onload=()=>{
+    const k=Math.min(1,(max||1400)/Math.max(im.width,im.height)),c=document.createElement('canvas');
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');
+    x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',q||0.75));};
+    im.onerror=()=>mal(new Error('imagen'));im.src=src;});
+}
+async function atlasAdjuntar(files){
+  ATLAS.adj=ATLAS.adj||[];
+  for(const f of [...(files||[])].slice(0,4)){
+    if(ATLAS.adj.length>=4){toast('Máximo 4 imágenes por pregunta');break;}
+    try{const url=await new Promise((ok,mal)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=mal;r.readAsDataURL(f);});
+      ATLAS.adj.push(await atlasReducir(url));}catch(e){toast('No se pudo leer '+(f.name||'la imagen'));}
+  }
+  atlasPintaAdj();
+  const ta=document.getElementById('atlasTexto');if(ta){ATLAS.conv=false;atlasParar();atlasEstado('idle');ta.placeholder='¿Qué hago con la imagen? (o envía así)';ta.focus();}
+}
+function atlasPintaAdj(){
+  const d=document.getElementById('atlasAdj');if(!d)return;
+  d.innerHTML=(ATLAS.adj||[]).map((u,i)=>`<span><img src="${u}" alt="Adjunto"><button type="button" onclick="ATLAS.adj.splice(${i},1);atlasPintaAdj()" aria-label="Quitar">×</button></span>`).join('');
+}
+function atlasCamposTxt(c){
+  const nom={piezas:'Piezas',items:'Ítems',procesos:'Procesos',fases:'Fases'};
+  return Object.entries(c||{}).map(([k,v])=>{
+    if(Array.isArray(v)&&v.length&&typeof v[0]==='object')
+      return `<div class="ar-prop-c"><b>${esc(nom[k]||k)}</b>:<ol>${v.map(x=>`<li>${esc(Object.values(x).filter(y=>!Array.isArray(y)).join(' · '))}</li>`).join('')}</ol></div>`;
+    return `<div class="ar-prop-c"><b>${esc(nom[k]||k)}</b>: ${esc(atlasValor(Array.isArray(v)?v.join(', '):v))}</div>`;
+  }).join('');
 }
 function atlasMostrar(r){
   ATLAS.ult=r||null;
@@ -6742,7 +6782,9 @@ async function atlasEnviar(texto){
   },2800);
   let resp=null,fallo='',flujo=null;
   const u=currentUser();
-  const cuerpo={texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-4),voz:true,clave:atlasClave()||undefined};
+  const cuerpo={texto,contexto:atlasContexto(),usuario:u?u.name:'',historial:ATLAS.hist.slice(-4),voz:true,clave:atlasClave()||undefined,
+    imagenes:(ATLAS.adj||[]).length?ATLAS.adj.slice(0,4):undefined};
+  ATLAS.adj=[];atlasPintaAdj();
   /* Con voz propia lista, la respuesta llega por partes y Alex empieza a hablar con
      la primera frase mientras el resto se sigue escribiendo (antes esperaba todo). */
   if(ATLAS.voz&&(atlasMotorListo()||('speechSynthesis' in window))&&!ATLAS._sinFlujo&&window.fetch&&window.TextDecoder&&typeof SB_CFG!=='undefined'){
@@ -7536,6 +7578,7 @@ function pzAbrir(){
     <div class="pz-lienzo"><canvas id="pzCanvas"></canvas></div>
     <div class="pz-pie">
       <textarea id="pzNota" rows="2" placeholder="¿Qué falla o qué mejorarías aquí?"></textarea>
+      ${esDev()?'<button type="button" class="btn ghost" onclick="pzAAtlas()">Preguntarle a Atlas</button>':''}
       <button type="button" class="btn" id="pzOk" onclick="pzGuardar()">Anotar en Sugerencias</button></div>`;
   document.body.appendChild(ed);
   const c=document.getElementById('pzCanvas');
@@ -7633,6 +7676,12 @@ async function pzGuardar(){
     pie.firstChild.textContent=(entendi?entendi+'\n\n':'')+fin;
   }else pzCerrar();
   await cargarSugerencias();if(VIEW==='sugerencias')render();updateCounts();
+}
+function pzAAtlas(){
+  const nota=(document.getElementById('pzNota').value||'').trim();
+  ATLAS.adj=[pzJpeg(1400,0.75)];pzCerrar();atlasAbrir();atlasPintaAdj();
+  ATLAS.conv=false;atlasParar();atlasEstado('idle');
+  const ta=document.getElementById('atlasTexto');if(ta){ta.value=nota;ta.placeholder='¿Qué hago con la imagen? (o envía así)';ta.focus();}
 }
 function pzVerSug(id,i){
   const s=(CACHE.sugerencias||[]).find(z=>String(z.id)===String(id));
