@@ -2534,8 +2534,8 @@ const fmtDate=d=>d?new Date(d+'T00:00:00').toLocaleDateString('es-CO',{day:'2-di
 const initials=n=>n?n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase():'?';
 const avColors={Daniel:'#7b1e2b',Susana:'#1d4ed8',Esteban:'#0f766e',Yuliana:'#a16207','Sin asignar':'#9ca3af'};
 const avColor=n=>avColors[n]||'#585450';
-function profAvatar(name){const p=(PERFILES||[]).find(x=>x.name===name);return p&&p.avatar?p.avatar:'';}
-function avatarHTML(name,cls){const a=profAvatar(name);cls=cls||'';return a?`<span class="avatar ${cls} has-img" style="cursor:pointer" onclick="verFotoGrande('${esc(a)}','${esc(name)}');event.stopPropagation()"><img src="${a}" alt="${esc(name)}"></span>`:`<span class="avatar ${cls}" style="background:${avColor(name)}">${initials(name)}</span>`;}
+function profAvatar(name){const p=(PERFILES||[]).find(x=>x.name===name);return p&&p.avatar?fotoSegura(p.avatar):'';}
+function avatarHTML(name,cls){const a=profAvatar(name);cls=cls||'';return a?`<span class="avatar ${cls} has-img" style="cursor:pointer" onclick="verFotoGrande('${escJs(a)}','${escJs(name)}');event.stopPropagation()"><img src="${a}" alt="${esc(name)}"></span>`:`<span class="avatar ${cls}" style="background:${avColor(name)}">${initials(name)}</span>`;}
 /* clic en cualquier foto de perfil (tarjetas de presencia, avatares en
    listas, tarjetas del chat...) la muestra en grande, como en WhatsApp */
 function verFotoGrande(url,nombre){
@@ -2554,7 +2554,7 @@ function verFotoGrande(url,nombre){
 }
 function toggleZoomFoto(){const img=document.getElementById('fotoGrandeImg');if(img)img.classList.toggle('zoom');}
 function cerrarFotoGrande(){const c=document.getElementById('fotoLayer');if(c)c.classList.remove('show');const img=document.getElementById('fotoGrandeImg');if(img)img.classList.remove('zoom');}
-const av=n=>{const a=profAvatar(n);return a?`<span class="avatar has-img" style="cursor:pointer" title="${esc(n)||''}" onclick="verFotoGrande('${esc(a)}','${esc(n)}');event.stopPropagation()"><img src="${a}" alt="${esc(n)}"></span>`:`<span class="avatar" style="background:${avColor(n)}" title="${n||''}">${initials(n)}</span>`;};
+const av=n=>{const a=profAvatar(n);return a?`<span class="avatar has-img" style="cursor:pointer" title="${esc(n)||''}" onclick="verFotoGrande('${escJs(a)}','${escJs(n)}');event.stopPropagation()"><img src="${a}" alt="${esc(n)}"></span>`:`<span class="avatar" style="background:${avColor(n)}" title="${n||''}">${initials(n)}</span>`;};
 const servClass=s=>({'Corte láser':'laser','Doblez':'dobl','Soldadura':'mig','Pintura':'pint','Material':'mat','Terceros':'terc'}[s]||'');
 function ventaServs(v){if(Array.isArray(v.servicios)&&v.servicios.length)return v.servicios;return v.servicio?[v.servicio]:[];}
 function ventaServTags(v){const s=ventaServs(v);return s.length?s.map(x=>`<span class="tag ${servClass(x)}">${esc(x)}</span>`).join(' '):'<span class="muted">—</span>';}
@@ -2611,7 +2611,13 @@ function cotTotal(c){
   }
   return{sub,iva:sub*IVA,total:sub*(1+IVA),base:sub}
 }
-const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+/* 16/11/2026 (revisión ECC, hallazgo 4): dentro de onclick="f('...')" el navegador vuelve a
+   convertir &#39; en comilla ANTES de ejecutar, así que ahí no basta esc(): escJs escapa
+   primero para JavaScript y luego para HTML. Usarlo con todo dato que alguien pueda escribir. */
+const escJs=s=>esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,'\\n'));
+/* foto de perfil: solo imágenes incrustadas (data:image/…), nunca otra cosa */
+const fotoSegura=a=>/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(String(a||''))?a:'';
 
 /* =========================================================
    Vistas
@@ -3414,7 +3420,7 @@ function marcarPerdida(id){
   }
   document.getElementById('perdidaSub').textContent=(c.numero||'')+' · '+(c.cliente||'')+' · '+COP(cotTotal(c).total);
   document.getElementById('perdidaOpts').innerHTML=COT_MOTIVOS.map(m=>
-    `<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left" onclick="guardarPerdida('${esc(String(id))}','${esc(m)}')">${esc(m)}</button>`).join('');
+    `<button type="button" class="btn ghost" style="justify-content:flex-start;text-align:left" onclick="guardarPerdida('${escJs(String(id))}','${escJs(m)}')">${esc(m)}</button>`).join('');
   capa.classList.add('show');
 }
 function cerrarPerdida(){const c=document.getElementById('perdidaLayer');if(c)c.classList.remove('show');}
@@ -7781,8 +7787,8 @@ async function pzGuardar(){
   try{
     if(typeof SB_CFG!=='undefined'){
       const r=await fetch(SB_CFG.url+'/functions/v1/atlas',{method:'POST',
-        headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+SB_CFG.key},
-        body:JSON.stringify({imagen:pzJpeg(1000,0.6),texto:nota,contexto:PZ.ctx,usuario:quien})});
+        headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+(_sbTok||SB_CFG.key)},
+        body:JSON.stringify({imagen:pzJpeg(1000,0.6),texto:nota,contexto:PZ.ctx,usuario:quien,clave:atlasClave()||undefined})});
       const j=await r.json();entendi=(j&&j.entendi)||'';
     }
   }catch(e){}
@@ -12311,7 +12317,7 @@ function chatPintar(){
   box.innerHTML=CHAT_MSGS.map(m=>{
     const mio=m.de===(u?u.name:'');
     return `<div class="chat-bubble-wrap ${mio?'mio':'otro'}"><div class="chat-bubble">
-      ${m.imagen?`<img src="${esc(m.imagen)}" class="chat-img" onclick="verFotoGrande('${esc(m.imagen)}',null)">`:''}
+      ${m.imagen?`<img src="${esc(m.imagen)}" class="chat-img" onclick="verFotoGrande('${escJs(m.imagen)}',null)">`:''}
       ${m.texto?`<div class="chat-txt">${esc(m.texto)}</div>`:''}
       <div class="chat-hora">${_horaCorta(m.createdAt)}</div>
     </div></div>`;
@@ -13176,7 +13182,7 @@ function showLogin(){
     <img src="${LOGO_POS}" class="login-logo" alt="Doblaser">
     <div class="login-h">CRM Comercial y Producción</div>
     <div class="login-sub">Elige tu perfil para continuar</div>
-    <div class="login-profiles">${PERFILES.map(p=>`<button class="login-prof" onclick="pickProfile('${esc(p.name)}')">${avatarHTML(p.name,'lg')}<span class="lp-name">${esc(p.name)}</span><span class="lp-role">${esc(p.role)}</span></button>`).join('')}</div>
+    <div class="login-profiles">${PERFILES.map(p=>`<button class="login-prof" onclick="pickProfile('${escJs(p.name)}')">${avatarHTML(p.name,'lg')}<span class="lp-name">${esc(p.name)}</span><span class="lp-role">${esc(p.role)}</span></button>`).join('')}</div>
     <div id="loginPass" class="login-pass" style="display:none">
       <label id="loginPassLbl">Contraseña</label>
       <input type="password" id="loginPassInput" onkeydown="if(event.key==='Enter')doLogin()" placeholder="Contraseña" autocomplete="off">
