@@ -1811,6 +1811,115 @@ td.c,th.c{text-align:center}
   .rbcorr{max-width:none}
 }
 </style>
+<style id="diseno-v2">
+/* =====================================================================
+   DISEÑO v2 (16/11/2026, desde la cuenta personal de Claude de Daniel)
+   Capa encima del estilo original, siguiendo «Desktop\ATLAS\reports\Diseño
+   profesional para el CRM.md» (principios de Linear, Stripe, Carbon, Polaris…
+   + reglas de ui-ux-pro-max). Para volver al diseño anterior: borrar este
+   bloque <style id="diseno-v2"> completo.
+   Ideas: grises cálidos + un solo acento (vino) + 4 colores de estado;
+   bordes en vez de sombras; jerarquía por peso y gris, sin MAYÚSCULAS;
+   números con ancho fijo; un solo juego de radios.
+   ===================================================================== */
+:root{
+  /* neutros cálidos */
+  --n-0:#ffffff;--n-25:#fafaf9;--n-50:#f5f5f4;--n-100:#ececea;--n-200:#e2e1de;--n-300:#cfcdc9;
+  --n-400:#a8a59f;--n-500:#78756f;--n-600:#5b5853;--n-700:#44423e;--n-800:#2a2926;--n-900:#1a1917;
+  /* vino */
+  --wine-50:#fbf3f4;--wine-100:#f5e1e4;--wine-200:#e9bfc5;--wine-500:#9a3242;--wine-600:#7b1e2b;--wine-700:#651824;
+  /* los nombres viejos apuntan a la escala nueva: así cambia todo el CRM a la vez */
+  --bg:var(--n-25);--card:var(--n-0);
+  --ink:var(--n-900);--ink-2:var(--n-600);--ink-3:var(--n-500);
+  --line:var(--n-200);--line-2:var(--n-100);
+  --side:var(--n-900);--side-2:#22211e;--side-3:#2c2a27;
+  --wine-soft:var(--wine-50);--wine-line:var(--wine-100);
+  /* estados: éxito, atención, info, neutro (el error es rojo, distinto del vino) */
+  --st-proc:#1f7a3d;--st-proc-bg:#ecf7ef;
+  --st-proceso:#8a5a00;--st-proceso-bg:#fdf6e3;
+  --st-prog:#1d5fbf;--st-prog-bg:#eef4fd;
+  --st-sin:#5b5853;--st-sin-bg:#f5f5f4;
+  --warm:#8a5a00;--warm-bg:#fdf6e3;--cold:#1d5fbf;--cold-bg:#eef4fd;
+  --radius:8px;
+  --shadow:none;
+  --shadow-md:0 4px 12px rgba(26,25,23,.08),0 1px 3px rgba(26,25,23,.06);
+  --shadow-lg:0 16px 40px rgba(26,25,23,.16),0 2px 6px rgba(26,25,23,.08);
+}
+body{-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
+/* foco visible solo con teclado */
+:focus-visible{outline:2px solid var(--wine-500);outline-offset:2px}
+
+/* ---- encabezado de página ---- */
+.topbar{background:var(--n-0);border-bottom:1px solid var(--n-200)}
+.topbar h1{font-family:'Inter',system-ui,sans-serif;font-size:20px;font-weight:600;letter-spacing:-.015em}
+
+/* ---- tarjetas: borde, sin sombra ---- */
+.panel,.kpi{box-shadow:none;border-color:var(--n-200)}
+.panel-h{padding:14px 18px}
+.panel-h h3{font-size:15px;font-weight:600;letter-spacing:-.005em}
+
+/* ---- indicadores: cifra grande y limpia ---- */
+.kpi{padding:16px 18px}
+.kpi .k-val,.kpi .kpi-v,.kpi strong{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ---- tablas: encabezado sobrio y fijo, números alineados ---- */
+th{text-transform:none;letter-spacing:0;font-size:12px;font-weight:500;color:var(--n-500);background:var(--n-25);
+  border-bottom:1px solid var(--n-200);position:sticky;top:0;z-index:1}
+td{font-size:13px;padding-top:10px;padding-bottom:10px;border-bottom:1px solid var(--n-100);font-variant-numeric:tabular-nums}
+tbody tr:hover>td{background:var(--n-50)}
+/* filas de ROP: el color propio de cada orden queda como franja; el fondo apenas se insinúa */
+tr.rop-tr-color>td{background:color-mix(in srgb,var(--rc) 4%,transparent)}
+tr.rop-tr-color>td:first-child{box-shadow:inset 3px 0 0 var(--rc)}
+tr.rop-tr-color:hover>td{background:color-mix(in srgb,var(--rc) 8%,var(--n-50))}
+tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
+
+/* ---- estados: pastillas con punto, mismo tamaño en todo el CRM ---- */
+.pill{font-weight:500;font-size:12px;padding:2px 9px;border-radius:999px}
+.tag{border-radius:4px;font-weight:500}
+
+/* ---- menú lateral: activo con línea vino, no bloque vino ---- */
+.nav a{border-radius:6px}
+.nav a.active{background:var(--side-3);color:#fff;box-shadow:inset 2px 0 0 var(--wine-500)}
+.nav a.active .count{background:rgba(255,255,255,.12)}
+
+/* ---- botones: un solo radio ---- */
+.btn{border-radius:6px;font-weight:500}
+.btn.ghost{box-shadow:none}
+
+/* ---- ETAPA 2: indicadores con la cifra como protagonista ---- */
+.kpi .k-ico,.kpi .k-ico.blue,.kpi .k-ico.green,.kpi .k-ico.gray,.kpi .k-ico.gold,.k-ico.red{
+  background:transparent;color:var(--n-400);width:22px;height:22px;border-radius:0}
+.kpi .k-ico svg{width:18px;height:18px}
+.kpi .k-lbl{font-size:13px;color:var(--n-600);font-weight:500}
+.kpi .k-val{font-family:'Inter',system-ui,sans-serif;font-size:28px;font-weight:600;letter-spacing:-.025em;line-height:1.2;margin-top:6px}
+.kpi .k-meta{font-size:12.5px;color:var(--n-500);margin-top:6px}
+.kpi-btn:hover:not(:disabled){border-color:var(--n-300);box-shadow:none;background:var(--n-25)}
+.kpi-btn.on{border-color:var(--wine-600);box-shadow:inset 0 0 0 1px var(--wine-600)}
+
+/* ---- ETAPA 2: etiquetas de servicio en gris, con un punto de color que las distingue ---- */
+.tag,.tag.laser,.tag.dobl,.tag.mig,.tag.terc,.tag.pint,.tag.mat{
+  background:var(--n-0);color:var(--n-700);border-color:var(--n-200);font-size:12px;padding:2px 8px 2px 7px}
+.tag.laser::before,.tag.dobl::before,.tag.mig::before,.tag.terc::before,.tag.pint::before,.tag.mat::before{
+  content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.tag.laser::before{background:var(--wine-600)}
+.tag.dobl::before{background:#8a6d55}
+.tag.mig::before{background:#6d28d9}
+.tag.terc::before{background:#0f766e}
+.tag.pint::before{background:#c2416a}
+.tag.mat::before{background:#c27803}
+
+/* ---- celular: indicadores de a dos, para llegar rápido a la lista ---- */
+@media(max-width:760px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
+  .kpi{padding:12px 13px}
+  .kpi .k-val{font-size:22px;margin-top:4px}
+  .kpi .k-lbl{font-size:12px}
+  .kpi .k-meta{font-size:11.5px;margin-top:4px;line-height:1.35}
+}
+
+/* ---- ventanas que flotan sí llevan sombra ---- */
+.modal,.notif-panel,#atlasPanel{box-shadow:var(--shadow-lg)}
+</style>
 </head>
 <body>
 <div class="app">
