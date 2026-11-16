@@ -666,6 +666,7 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 #pzEditor .pz-her button.on{background:#111827;color:#fff}
 #pzCanvas{touch-action:none;cursor:crosshair;box-shadow:0 6px 30px rgba(0,0,0,.5);border-radius:6px}
 #pzEditor .pz-pie textarea{flex:1;min-width:200px}
+#pzEditor .pz-resp{flex:1;min-width:200px;white-space:pre-line;font-size:14px;line-height:1.5}
 .pz-ver{position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px}.pz-ver img{max-width:100%;max-height:100%}
 
 .sug-hilo{margin-top:12px;padding-left:14px;border-left:2px solid var(--line);display:flex;flex-direction:column;gap:10px}
@@ -1818,6 +1819,7 @@ td.c,th.c{text-align:center}
       <div><h1 id="vTitle">Resumen</h1><div class="sub" id="vSub"></div></div>
       <div class="spacer"></div>
       <div class="presence" id="presence"></div>
+      <button class="notif-bell" id="pzBtn" onclick="atlasPantallazo()" title="Pantallazo: señala algo que falla o se puede mejorar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
       <button class="notif-bell" id="msgBtn" onclick="abrirChat()" title="Chat con un compañero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="notif-badge" id="msgBadge" style="display:none">0</span></button>
       <button class="notif-bell" id="globalSearchBtn" onclick="abrirBusquedaGlobal()" title="Buscar en todo (ventas, ROP, cotizaciones, clientes)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <div class="notif-wrap">
@@ -7437,7 +7439,7 @@ async function atlasGuardar(){
    reducido, ~100-250 KB) porque el proyecto no tiene Storage. */
 const PZ={tool:'lapiz',color:'#e11d48',trazos:[],cur:null,img:null};
 async function atlasPantallazo(){
-  atlasCerrar();
+  if(atlasVisible())atlasCerrar();
   try{await cargarLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');}
   catch(e){toast('No se pudo cargar el capturador. Revisa la conexión.');return;}
   await new Promise(r=>setTimeout(r,250));
@@ -7446,7 +7448,7 @@ async function atlasPantallazo(){
     cv=await html2canvas(document.body,{x:scrollX,y:scrollY,width:innerWidth,height:innerHeight,
       scale:Math.min(devicePixelRatio||1,1.5),useCORS:true,logging:false,
       backgroundColor:getComputedStyle(document.body).backgroundColor||'#fff',
-      ignoreElements:el=>el.id==='atlasPanel'||el.id==='toast'||el.id==='pzEditor'});
+      ignoreElements:el=>el.id==='atlasPanel'||el.id==='pzBtn'||el.id==='toast'||el.id==='pzEditor'});
   }catch(e){toast('No se pudo tomar el pantallazo: '+(e.message||e));return;}
   PZ.img=cv;PZ.trazos=[];PZ.cur=null;PZ.ctx=atlasContexto();
   pzAbrir();
@@ -7467,7 +7469,7 @@ function pzAbrir(){
     <div class="pz-lienzo"><canvas id="pzCanvas"></canvas></div>
     <div class="pz-pie">
       <textarea id="pzNota" rows="2" placeholder="¿Qué falla o qué mejorarías aquí?"></textarea>
-      <button type="button" class="btn" onclick="pzGuardar()">Anotar en Sugerencias</button></div>`;
+      <button type="button" class="btn" id="pzOk" onclick="pzGuardar()">Anotar en Sugerencias</button></div>`;
   document.body.appendChild(ed);
   const c=document.getElementById('pzCanvas');
   c.width=PZ.img.width;c.height=PZ.img.height;
@@ -7529,23 +7531,41 @@ function pzPintar(){
   const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.drawImage(PZ.img,0,0);
   PZ.trazos.forEach(s=>pzTrazo(x,s));if(PZ.cur)pzTrazo(x,PZ.cur);
 }
-function pzJpeg(){
-  const src=document.getElementById('pzCanvas'),k=Math.min(1,1400/src.width);
+function pzJpeg(max,q){
+  const src=document.getElementById('pzCanvas'),k=Math.min(1,(max||1400)/src.width);
   const o=document.createElement('canvas');o.width=Math.round(src.width*k);o.height=Math.round(src.height*k);
   o.getContext('2d').drawImage(src,0,0,o.width,o.height);
-  return o.toDataURL('image/jpeg',0.72);
+  return o.toDataURL('image/jpeg',q||0.72);
 }
+/* Al anotar, Atlas MIRA el pantallazo (una llamada corta a Haiku, imagen de 1000 px)
+   y dice qué entendió; eso queda escrito en la sugerencia. Solo Daniel aprueba y hace
+   cambios: a los demás se les responde que su pedido queda en revisión. */
 async function pzGuardar(){
   const nota=(document.getElementById('pzNota').value||'').trim();
   if(!nota&&!PZ.trazos.length){toast('Dibuja o escribe qué falla antes de anotar.');return;}
+  const bt=document.getElementById('pzOk');if(bt){bt.disabled=true;bt.textContent='Atlas está mirando…';}
   const u=currentUser(),quien=u?u.name:'—',ahora=new Date().toISOString();
-  const row={texto:'[Atlas · pantallazo] '+(nota||'(ver dibujo)')+'\n\n('+PZ.ctx+')',autor:quien,estado:'Nueva',respuestas:[],
+  let entendi='';
+  try{
+    if(typeof SB_CFG!=='undefined'){
+      const r=await fetch(SB_CFG.url+'/functions/v1/atlas',{method:'POST',
+        headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+SB_CFG.key},
+        body:JSON.stringify({imagen:pzJpeg(1000,0.6),texto:nota,contexto:PZ.ctx,usuario:quien})});
+      const j=await r.json();entendi=(j&&j.entendi)||'';
+    }
+  }catch(e){}
+  const row={texto:'[Atlas · pantallazo] '+(nota||'(ver dibujo)')+(entendi?'\n\nAtlas: '+entendi:'')+'\n\n('+PZ.ctx+')',autor:quien,estado:'Nueva',respuestas:[],
     imagenes:[pzJpeg()],createdBy:quien,createdAt:ahora,updatedBy:quien,updatedAt:ahora};
   const ok=await saveRow('sugerencias',row);
-  if(ok===false){toast('No se pudo guardar. Revisa la conexión.');return;}
-  pzCerrar();
+  if(ok===false){if(bt){bt.disabled=false;bt.textContent='Anotar en Sugerencias';}toast('No se pudo guardar. Revisa la conexión.');return;}
+  const fin=esDev()?'Quedó anotado en Sugerencias.'
+    :'Tu solicitud quedó registrada. Daniel la revisará y, después de evaluar si es factible, la aprobará en el menor tiempo posible.';
+  const pie=document.querySelector('#pzEditor .pz-pie');
+  if(pie){
+    pie.innerHTML='<div class="pz-resp"></div><button type="button" class="btn" onclick="pzCerrar()">Listo</button>';
+    pie.firstChild.textContent=(entendi?entendi+'\n\n':'')+fin;
+  }else pzCerrar();
   await cargarSugerencias();if(VIEW==='sugerencias')render();updateCounts();
-  toast('Atlas anotó el pantallazo en Sugerencias');
 }
 function pzVerSug(id,i){
   const s=(CACHE.sugerencias||[]).find(z=>String(z.id)===String(id));
