@@ -2469,7 +2469,14 @@ async function saveRow(t,row){
     const omitidas=[];
     for(let intento=0;intento<8;intento++){
       let res;
-      if(row.id&&!isLocalId(row.id)){res=await sb.from(t).update(r).eq('id',row.id)}
+      /* .select('id') (16/11/2026, revisión ECC): sin él, actualizar una fila que ya no existe
+         (o que la base no deja tocar) devolvía «éxito» sin cambiar nada y el CRM decía Guardado */
+      if(row.id&&!isLocalId(row.id)){
+        res=await sb.from(t).update(r).eq('id',row.id).select('id');
+        if(res&&!res.error&&Array.isArray(res.data)&&!res.data.length){
+          toast('No se guardó: este registro ya no existe en la nube (¿alguien lo borró?). Recarga y revisa.');return false;
+        }
+      }
       /* al insertar se pide de vuelta la fila: el id que trae el navegador es
          provisional y Supabase lo descarta para poner el suyo. Si no se lee el
          definitivo, todo lo que se guarde después apuntando a esta fila
@@ -2498,34 +2505,45 @@ async function saveRow(t,row){
 const TABLAS_PAPELERA=['cotizaciones','rop','ventas','leads','inventario','sugerencias','piezascli'];
 let PAPELERA_OK=true;   /* se apaga solo si la tabla aún no existe */
 
+/* 16/11/2026 (revisión ECC): la copia sale SIEMPRE de la nube y completa (la lista en memoria
+   viene recortada, sin firmas de entrega ni imágenes, y al restaurar se perdían). Devuelve
+   false si no se pudo dejar copia, y entonces NO se borra. */
 async function aPapelera(t,id){
-  if(!USING_SB||!PAPELERA_OK||!TABLAS_PAPELERA.includes(t))return;
+  if(!USING_SB||!PAPELERA_OK||!TABLAS_PAPELERA.includes(t))return true;
   try{
-    let reg=(CACHE[t]||[]).find(x=>String(x.id)===String(id));
-    if(!reg){const{data}=await sb.from(t).select('*').eq('id',id).maybeSingle();reg=data;}
-    if(!reg)return;
+    let reg=null;
+    const{data,error:eLee}=await sb.from(t).select('*').eq('id',id).maybeSingle();
+    if(eLee)throw eLee;
+    reg=data||(CACHE[t]||[]).find(x=>String(x.id)===String(id));
+    if(!reg)return true;
     /* los movimientos que genera sola una ROP se borran y recrean cada vez
        que se edita; no tiene sentido llenar la papelera con eso */
-    if(reg.auto)return;
+    if(reg.auto)return true;
     const u=currentUser();
     const{error}=await sb.from('papelera').insert({
       tabla:t,registro_id:String(id),resumen:_descRegistro(t,id)||'',
       datos:reg,borrado_por:u?u.name:'—'});
     if(error){
-      if(/papelera/i.test(error.message||'')){PAPELERA_OK=false;
-        toast('Ojo: la papelera no está creada, esto se borra sin copia');}
-      else throw error;
+      if(/relation .*papelera.* does not exist|could not find the table/i.test(error.message||'')){PAPELERA_OK=false;
+        toast('Ojo: la papelera no está creada, esto se borra sin copia');return true;}
+      throw error;
     }
-  }catch(e){/* nunca impedir el borrado por un fallo de la papelera */}
+    return true;
+  }catch(e){
+    toast('No se borró: no se pudo guardar la copia en la Papelera ('+((e&&e.message)||'error')+')');
+    return false;
+  }
 }
 
 async function deleteRow(t,id){
   if(USING_SB&&!isLocalId(id)){
-    await aPapelera(t,id);
-    await sb.from(t).delete().eq('id',id);
-    return;
+    if(!(await aPapelera(t,id)))return false;
+    const{error}=await sb.from(t).delete().eq('id',id);
+    if(error){toast('No se pudo borrar: '+error.message);return false;}
+    return true;
   }
   LS.set(t,LS.get(t,[]).filter(x=>x.id!==id));
+  return true;
 }
 
 /* ---- utilidades ---- */
@@ -11414,12 +11432,12 @@ async function doDel(){
       }
     }
   }
-  await deleteRow(dt,delTarget.id);
+  const borrado=await deleteRow(dt,delTarget.id);
   closeModal();
   CACHE[dt]=await getAll(dt);
   if(dt==='rop'){CACHE.inventario=await getAll('inventario');CACHE.ventas=await getAll('ventas');}
   await cargarPapelera();render();updateCounts();
-  toast((PAPELERA_OK?'Eliminado · está en la Papelera':'Registro eliminado')+avisoVenta);
+  if(borrado)toast((PAPELERA_OK?'Eliminado · está en la Papelera':'Registro eliminado')+avisoVenta);
 }
 /* Duplicar una orden: abre el formulario de una ROP NUEVA (otro número, sin guardar
    todavía) con todo lo de la que está abierta -- piezas, descuentos de material,
