@@ -1938,9 +1938,19 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
 /* ---- ETAPA 4: MODO OSCURO (data-theme="dark" en <html>; se elige con el botón de la luna) ---- */
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --n-0:#1b1a19;--n-25:#121110;--n-50:#201f1d;--n-100:#272523;--n-200:#302e2b;--n-300:#3d3a37;
-  --n-400:#6e6a65;--n-500:#a39f99;--n-600:#c2beb8;--n-700:#d6d3ce;--n-800:#e4e2de;--n-900:#eeedeb;
-  --side:#0d0c0b;--side-2:#161514;--side-3:#24221f;
+  /* v2 del oscuro (16/11/2026, guías de Material Design y prácticas de dark UI): nada de negro puro;
+     la profundidad se da con superficies cada vez MÁS CLARAS (fondo < tarjeta < elevado < ventana),
+     bordes translúcidos y texto blanco roto, no blanco puro */
+  --n-0:#1c1b1a;            /* tarjetas (elevación 1) */
+  --n-25:#131211;           /* fondo de la app */
+  --n-50:#242321;           /* hover, campos, cabecera de tabla (elevación 2) */
+  --n-100:rgba(255,255,255,.06);
+  --n-200:rgba(255,255,255,.09);   /* bordes */
+  --n-300:rgba(255,255,255,.16);   /* bordes fuertes */
+  --n-400:#6f6c67;--n-500:#9a9690;--n-600:#bdb9b3;--n-700:#d3d0cb;--n-800:#e2e0dc;--n-900:#ecebe8;
+  --side:#131211;--side-2:#1c1b1a;--side-3:#262422;
+  --wine:#9b3446;           /* vino de marca un poco más claro: sobre fondo oscuro el original se hundía */
+  --elev-3:#2a2826;         /* ventanas, menús, Atlas */
   --wine-50:rgba(214,145,155,.12);--wine-100:rgba(214,145,155,.24);--wine-soft:rgba(214,145,155,.12);--wine-line:rgba(214,145,155,.28);
   --st-proc:#6fcf8f;--st-proc-bg:rgba(31,122,61,.22);--st-proceso:#e8b44c;--st-proceso-bg:rgba(138,90,0,.26);
   --st-prog:#8db7f2;--st-prog-bg:rgba(29,95,191,.26);--st-sin:#b8b4ae;--st-sin-bg:rgba(255,255,255,.07);
@@ -1952,6 +1962,18 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
 :root[data-theme="dark"] input,:root[data-theme="dark"] select,:root[data-theme="dark"] textarea{background:var(--n-50);color:var(--ink);border-color:var(--n-300)}
 :root[data-theme="dark"] .tag{background:var(--n-50)}
 :root[data-theme="dark"] .btn:not(.ghost){color:#fff}
+/* menú lateral: mismo tono del fondo, separado por un borde, no un bloque negro */
+:root[data-theme="dark"] aside.side{border-right:1px solid var(--n-200)}
+/* lo que flota va en la superficie más clara (en oscuro las sombras casi no se ven) */
+:root[data-theme="dark"] .notif-panel,:root[data-theme="dark"] #atlasPanel,:root[data-theme="dark"] .confirm-box,
+:root[data-theme="dark"] .gsearch-box,:root[data-theme="dark"] #gsearchLayer>div{background:var(--elev-3);border-color:var(--n-300)}
+/* campos «hundidos» un poco más oscuros que la tarjeta */
+:root[data-theme="dark"] input,:root[data-theme="dark"] select,:root[data-theme="dark"] textarea{background:#171615;border-color:var(--n-300)}
+:root[data-theme="dark"] tbody tr:hover>td{background:rgba(255,255,255,.035)}
+:root[data-theme="dark"] th{background:var(--n-0)}
+:root[data-theme="dark"] .topbar{background:var(--n-25);border-bottom-color:var(--n-200)}
+:root[data-theme="dark"] .toolbar .seg button.on{background:var(--n-50);box-shadow:0 0 0 1px var(--n-300)}
+:root[data-theme="dark"] :focus-visible{outline-color:#e3929d}
 /* códigos (ROP-xxxx, DB-xxxx): antes usaban el color del menú lateral, que en oscuro es casi negro */
 .code{color:var(--n-900)}
 :root[data-theme="dark"] .code.lk,:root[data-theme="dark"] .lnk,:root[data-theme="dark"] #content a{color:#e3929d}
@@ -1963,6 +1985,8 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
 :root[data-theme="dark"] .fc-viejo,:root[data-theme="dark"] .due.late{color:#f3a29b}
 :root[data-theme="dark"] .cal-hot{color:#e3929d} :root[data-theme="dark"] .cal-hot .d{background:#e3929d}
 :root[data-theme="dark"] .tag.burro{background:rgba(99,102,241,.18);border-color:rgba(165,180,252,.35);color:#c7d2fe}
+/* etiqueta «producto» en cotizaciones: su color viene escrito en línea */
+:root[data-theme="dark"] .venc-tag[style*="ede9fe"]{background:rgba(139,92,246,.2)!important;border-color:rgba(196,181,253,.35)!important;color:#c4b5fd!important}
 :root[data-theme="dark"] .venc-tag{background:var(--warn-bg);border-color:var(--warn-line);color:#e8b44c}
 :root[data-theme="dark"] .st-lost{background:var(--bad-bg);color:#f3a29b} :root[data-theme="dark"] .st-lost .d{background:#f3a29b}
 
