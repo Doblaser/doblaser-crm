@@ -1919,7 +1919,8 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
 @media(max-width:760px){
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
   .kpi{padding:12px 13px}
-  .kpi .k-val{font-size:22px;margin-top:4px}
+  .kpi .k-val{font-size:21px;margin-top:4px}
+  .kpi .k-ico{display:none}   /* en dos columnas el ícono se montaba sobre cifras largas ($457.961.602) */
   .kpi .k-lbl{font-size:12px}
   .kpi .k-meta{font-size:11.5px;margin-top:4px;line-height:1.35}
 }
@@ -1989,6 +1990,17 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
 :root[data-theme="dark"] .venc-tag[style*="ede9fe"]{background:rgba(139,92,246,.2)!important;border-color:rgba(196,181,253,.35)!important;color:#c4b5fd!important}
 :root[data-theme="dark"] .venc-tag{background:var(--warn-bg);border-color:var(--warn-line);color:#e8b44c}
 :root[data-theme="dark"] .st-lost{background:var(--bad-bg);color:#f3a29b} :root[data-theme="dark"] .st-lost .d{background:#f3a29b}
+
+/* ---- ETAPA 5: accesibilidad ----
+   botones de ícono con área táctil mínima en pantallas táctiles (guía: 44 px; aquí 40 px
+   sin cambiar el dibujo, solo el área que recibe el toque) */
+@media (pointer:coarse){
+  .ic-btn,.ub-avbtn,#userBadge button,.notif-bell,.menu-btn{min-width:40px;min-height:40px}
+}
+/* quien pidió «reducir movimiento» en su sistema no ve animaciones */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
 
 /* ---- ventanas que flotan sí llevan sombra ---- */
 .modal,.notif-panel,#atlasPanel{box-shadow:var(--shadow-lg)}
@@ -3013,6 +3025,7 @@ function render(){
   if(VISTAS[VIEW])c.innerHTML=VISTAS[VIEW]();
   try{atlasBoton();}catch(e){}
   etiquetarTablas(c);
+  if(VIEW==='leads')setTimeout(leadsMapaPintar,0);
   if(VIEW==='estadisticas')drawStats();
 }
 
@@ -5715,11 +5728,105 @@ function renderLeads(){
   const avisoLead=avisoEscondidos([{n:coinciden.length-rows.length,
     txt:`en <b>${coinciden.length-rows.length}</b> cliente(s) de otra calificación`,
     btn:{lbl:'Ver todos',fn:"leadFilter='Todos';render()"}}]);
-  return avisoLead+`<div class="toolbar"><div class="seg">${['Todos',...CALIF].map(e=>`<button class="${e===leadFilter?'on':''}" onclick="leadFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="cli-pick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input list="cliList" id="cliPick" placeholder="Abrir ficha 360° de un cliente…" onchange="if(this.value){openClientReport(this.value);this.value='';}"><datalist id="cliList">${allClientNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div></div>`+
+  const mapa=`<div class="panel"><div class="panel-h"><h3>Mapa comercial</h3><span class="muted" id="leadsMapaN" style="font-size:12px"></span><div class="spacer"></div>
+      <button type="button" class="btn ghost sm" onclick="leadsTraerClientes()" title="Crea en Leads los clientes de cotizaciones, ventas y ROP que aún no están">Traer clientes del CRM</button>
+      <label class="btn ghost sm" style="cursor:pointer" title="CSV: empresa,municipio,direccion,telefono,whatsapp,email,sector,sitio_web,fuente">Importar prospectos (CSV)<input type="file" accept=".csv,text/csv" hidden onchange="leadsImportarCsv(this.files[0]);this.value=''"></label></div>
+    <div id="leadsMapa" style="height:400px;background:var(--n-50)"></div></div>`;
+  return avisoLead+mapa+`<div class="toolbar"><div class="seg">${['Todos',...CALIF].map(e=>`<button class="${e===leadFilter?'on':''}" onclick="leadFilter='${e}';render()">${e}</button>`).join('')}</div><div class="spacer"></div><div class="cli-pick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input list="cliList" id="cliPick" placeholder="Abrir ficha 360° de un cliente…" onchange="if(this.value){openClientReport(this.value);this.value='';}"><datalist id="cliList">${allClientNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div></div>`+
   panel('Prospectos y clientes',`${rows.length} de ${CACHE.leads.length}`,`<table><thead><tr><th>Empresa</th><th>Municipio</th><th>Contacto</th><th>Sector</th><th>Calif.</th><th>Estado</th><th>Asesor</th><th></th></tr></thead><tbody>
   ${rows.map(x=>`<tr><td>${cliLink(x.empresa)}<div class="muted" style="font-size:11.5px">${esc(x.direccion)}</div></td><td>${esc(x.municipio)}</td><td>${esc(x.telefono)}${x.whatsapp&&x.whatsapp.toLowerCase()==='si'?' · <span style="color:#16a34a">WA</span>':''}<div class="muted" style="font-size:11.5px">${esc(x.contacto)}</div></td><td><span class="muted" style="font-size:12.5px">${esc(x.sector)}</span></td><td><span class="pill ${calClass(x.calificacion)}"><span class="d"></span>${x.calificacion}</span></td><td><span class="pill ${leadPill(x.estado)}"><span class="d"></span>${x.estado}</span></td><td>${av(x.asesor)}</td><td>${rowActions('leads',x.id)}</td></tr>`).join('')||emptyRow(8)}
   </tbody></table>`);
 }
+
+/* =========================================================
+   MAPA COMERCIAL DE LEADS (16/11/2026, desde la cuenta personal de Claude de Daniel)
+   - Mapa (Leaflet + OpenStreetMap) con un punto por cliente/prospecto. Sin geocodificar
+     direcciones (eso cuesta y falla): cada punto va al centro de su municipio del Valle de
+     Aburrá con un desplazamiento fijo según el nombre, para que no se encimen.
+   - «Traer clientes del CRM»: crea en Leads los clientes de cotizaciones/ventas/ROP que aún
+     no están, con el correo, celular, contacto y NIT de su última cotización.
+   - «Importar prospectos (CSV)»: carga el listado investigado
+     (empresa,municipio,direccion,telefono,whatsapp,email,sector,sitio_web,fuente).
+   Ambos piden confirmación y escriben con saveRow, como si se crearan a mano.
+   ========================================================= */
+const MUNI_COORD={'medellin':[6.2442,-75.5812],'bello':[6.3373,-75.5579],'itagui':[6.1719,-75.6114],'envigado':[6.1759,-75.5917],
+  'sabaneta':[6.1515,-75.6166],'la estrella':[6.1576,-75.643],'caldas':[6.0911,-75.6357],'copacabana':[6.3463,-75.5089],
+  'girardota':[6.377,-75.4448],'barbosa':[6.4389,-75.3315],'rionegro':[6.1551,-75.3737],'guarne':[6.2792,-75.4436]};
+const normTxt=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+function muniCoord(m){const n=normTxt(m);for(const k in MUNI_COORD)if(n.includes(k))return MUNI_COORD[k];return null;}
+function hashTxt(t){let h=0;for(const c of String(t))h=(h*31+c.charCodeAt(0))|0;return h;}
+const CALIF_COLOR={Caliente:'#7b1e2b',Tibio:'#c27803',Frio:'#1d5fbf',NR:'#78756f'};
+function waNum(x){const d=String(x||'').replace(/\D/g,'');if(d.length===10&&d[0]==='3')return '57'+d;if(d.length===12&&d.startsWith('57'))return d;return '';}
+async function leadsMapaPintar(){
+  const el=document.getElementById('leadsMapa');if(!el)return;
+  if(!document.getElementById('leafletCss')){const l=document.createElement('link');l.id='leafletCss';l.rel='stylesheet';l.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(l);}
+  try{await cargarLib('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');}catch(e){el.innerHTML='<div class="empty">No se pudo cargar el mapa (sin conexión).</div>';return;}
+  if(window._leadsMapa){try{window._leadsMapa.remove();}catch(e){}}
+  const map=L.map(el,{scrollWheelZoom:false}).setView([6.25,-75.58],11);window._leadsMapa=map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+  let n=0;
+  (CACHE.leads||[]).filter(match).forEach(x=>{
+    const c=muniCoord(x.municipio);if(!c)return;
+    const h=hashTxt(x.empresa||x.id),dx=((h%1000)/1000-.5)*.03,dy=(((h>>10)%1000)/1000-.5)*.03;
+    const wa=x.whatsapp&&/^s[ií]/i.test(x.whatsapp)?waNum(x.telefono):waNum(x.whatsapp);
+    const html=`<b>${esc(x.empresa)}</b><br>${esc(x.municipio)}${x.direccion?' · '+esc(x.direccion):''}<br>`+
+      (x.telefono?`☎ ${esc(x.telefono)}<br>`:'')+(wa?`<a href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a> · `:'')+
+      (x.email?`<a href="mailto:${esc(x.email)}">${esc(x.email)}</a>`:'<span style="color:#78756f">sin correo</span>')+
+      `<br><span style="color:#78756f">${esc(x.calificacion||'')} · ${esc(x.estado||'')}</span>`;
+    L.circleMarker([c[0]+dy,c[1]+dx],{radius:6,weight:1,color:'#fff',fillColor:CALIF_COLOR[x.calificacion]||'#78756f',fillOpacity:.9}).addTo(map).bindPopup(html);
+    n++;
+  });
+  const lbl=document.getElementById('leadsMapaN');if(lbl)lbl.textContent=n+' en el mapa';
+}
+function leadsExiste(nombre){const n=normTxt(nombre);return (CACHE.leads||[]).some(l=>normTxt(l.empresa)===n);}
+async function leadsTraerClientes(){
+  const porCliente={};
+  const add=(nom,extra)=>{const k=normTxt(nom);if(!k||k.length<2)return;const a=porCliente[k]||(porCliente[k]={empresa:String(nom).trim()});
+    for(const f of ['email','celular','contacto','nit','ubicacion','fecha'])if(extra&&extra[f]&&(!a[f]||(extra.fecha||'')>(a.fecha||'')))a[f]=extra[f];};
+  (CACHE.cotizaciones||[]).forEach(c=>add(c.cliente,c));
+  (CACHE.ventas||[]).forEach(v=>add(v.cliente,{nit:v.nit,fecha:v.fecha}));
+  (CACHE.rop||[]).forEach(r=>add(r.cliente,null));
+  const nuevos=Object.values(porCliente).filter(c=>!leadsExiste(c.empresa));
+  if(!nuevos.length){toast('Todos los clientes del CRM ya están en Leads');return;}
+  if(!confirm(`Se crearán ${nuevos.length} clientes en Leads (con el correo, celular y contacto de su última cotización cuando los haya). ¿Seguir?`))return;
+  const u=currentUser(),quien=u?u.name:'—';let ok=0;
+  for(const c of nuevos){
+    const row={empresa:c.empresa,municipio:c.ubicacion||'',telefono:c.celular||'',whatsapp:waNum(c.celular)?'Si':'',email:c.email||'',
+      contacto:c.contacto||'',sector:'',calificacion:'Caliente',estado:'Ganado',asesor:quien,direccion:'',
+      notas:'Cliente que ya compró o cotizó (traído del CRM el '+today()+')'+(c.nit?' · NIT '+c.nit:'')};
+    if(await saveRow('leads',row)!==false)ok++;
+    if(ok%20===0)toast('Creando… '+ok+' de '+nuevos.length);
+  }
+  CACHE.leads=await getAll('leads');render();updateCounts();toast(ok+' clientes del CRM agregados a Leads');
+}
+function leadsCsv(txt){
+  const filas=[];let f=[],c='',q=false;
+  for(let i=0;i<txt.length;i++){const ch=txt[i];
+    if(q){if(ch==='"'){if(txt[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}
+    else if(ch==='"')q=true;else if(ch===','){f.push(c);c='';}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&txt[i+1]==='\n')i++;f.push(c);c='';if(f.some(x=>x.trim()))filas.push(f);f=[];}
+    else c+=ch;}
+  f.push(c);if(f.some(x=>x.trim()))filas.push(f);
+  const h=(filas.shift()||[]).map(x=>normTxt(x));
+  return filas.map(r=>Object.fromEntries(h.map((k,i)=>[k,(r[i]||'').trim()])));
+}
+async function leadsImportarCsv(file){
+  if(!file)return;const datos=leadsCsv(await file.text());
+  const nuevos=datos.filter(d=>d.empresa&&!leadsExiste(d.empresa));
+  if(!nuevos.length){toast('No hay prospectos nuevos en el archivo');return;}
+  if(!confirm(`El archivo trae ${datos.length} empresas; ${nuevos.length} son nuevas. ¿Crearlas en Leads como «Por contactar»?`))return;
+  const u=currentUser(),quien=u?u.name:'—';let ok=0;
+  for(const d of nuevos){
+    const wa=waNum(d.whatsapp);
+    const row={empresa:d.empresa,municipio:d.municipio||'',direccion:d.direccion||'',telefono:d.telefono||d.whatsapp||'',whatsapp:wa?'Si':'',
+      email:d.email||'',sector:d.sector||'',calificacion:'Frio',estado:'Por contactar',asesor:quien,contacto:'',
+      notas:['Prospecto investigado '+today(),d.whatsapp&&d.telefono?'WhatsApp '+d.whatsapp:'',d.sitio_web?'Web '+d.sitio_web:'',d.fuente?'Fuente '+d.fuente:''].filter(Boolean).join(' · ')};
+    if(await saveRow('leads',row)!==false)ok++;
+    if(ok%25===0)toast('Importando… '+ok+' de '+nuevos.length);
+  }
+  CACHE.leads=await getAll('leads');render();updateCounts();toast(ok+' prospectos importados a Leads');
+}
+
 let leadFilter='Todos';
 
 function renderCot(){
