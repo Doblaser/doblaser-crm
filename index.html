@@ -1431,6 +1431,9 @@ html.side-off .menu-btn{display:grid !important}
 .atlas-adj button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:#111827;color:#fff;cursor:pointer;line-height:1;padding:0}
 .atlas-resp .ar-cons{margin-top:8px;font-size:11px;color:var(--ink-3)}
 .atlas-esc{display:flex;gap:8px;margin-bottom:8px}
+.atlas-esc{align-items:flex-end}
+/* 18/11: era una sola línea y el texto largo o el aviso no se veían; ahora crece hasta 6 líneas */
+.atlas-esc textarea{resize:none;overflow-y:auto;max-height:9.5em;line-height:1.4;flex:1;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;background:var(--card,#fff);color:inherit}
 .atlas-esc input{flex:1;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:16px;
   background:var(--card,#fff);color:inherit}
 .atlas-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -2004,6 +2007,16 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
 
 /* ---- ventanas que flotan sí llevan sombra ---- */
 .modal,.notif-panel,#atlasPanel{box-shadow:var(--shadow-lg)}
+</style>
+<style id="tablet-9et">
+/* 9et: tablet y portátil chico (761–1100 px). La barra superior no cabía en una línea
+   y la búsqueda y los botones de acción quedaban fuera de la pantalla. */
+@media(min-width:761px) and (max-width:1100px){
+  .topbar{flex-wrap:wrap;row-gap:8px}
+  .topbar #vSub{display:none}
+  .topbar .search{flex:1 1 220px;min-width:180px}
+  .main>*{min-width:0}
+}
 </style>
 </head>
 <body>
@@ -6868,7 +6881,7 @@ function atlasAbrir(){
       <div class="atlas-resp" id="atlasResp" hidden></div>
       <div class="atlas-adj" id="atlasAdj"></div>
       <form class="atlas-esc" onsubmit="event.preventDefault();atlasEscrito()">
-        <input id="atlasTexto" type="text" autocomplete="off" placeholder="O escríbelo aquí…">
+        <textarea id="atlasTexto" rows="1" autocomplete="off" placeholder="O escríbelo aquí…" oninput="atlasCrece(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit();}"></textarea>
         <button type="submit" class="btn ghost">Enviar</button></form>
       <div class="atlas-acc">
         <button type="button" class="btn ghost" onclick="atlasGuardar()">Anotar</button>
@@ -6925,7 +6938,7 @@ function atlasCerrar(){
 }
 function atlasBorrar(){
   ATLAS.hist=[];ATLAS.ultTexto='';
-  const ta=document.getElementById('atlasTexto');if(ta)ta.value='';
+  const ta=document.getElementById('atlasTexto');if(ta){ta.value='';atlasCrece(ta);}
   atlasEst('');atlasDicho('');atlasMostrar(null);
 }
 /* el círculo: interrumpe a Atlas, o retoma la conversación si estaba en pausa */
@@ -7026,10 +7039,11 @@ function atlasProcesar(texto){
 function atlasNorm(s){
   return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 }
+function atlasCrece(el){if(!el)return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight+2,152)+'px';}
 function atlasEscrito(){
   const ta=document.getElementById('atlasTexto');
   const texto=(ta.value||'').trim()||((ATLAS.adj||[]).length?'Mira la imagen':'');if(!texto||ATLAS.estado==='pensando')return;
-  ATLAS.conv=false;atlasParar();atlasCallar();ta.value='';atlasDicho(texto);
+  ATLAS.conv=false;atlasParar();atlasCallar();ta.value='';atlasCrece(ta);atlasDicho(texto);
   atlasEnviar(texto);
 }
 const ATLAS_TIPO={correccion_datos:'Corrección de datos',falla_programa:'Falla del programa',mejora:'Mejora',pregunta:'Pregunta',no_claro:'No quedó claro'};
@@ -8145,7 +8159,7 @@ function pzAAtlas(){
   const nota=(document.getElementById('pzNota').value||'').trim();
   ATLAS.adj=[pzJpeg(1400,0.75)];pzCerrar();atlasAbrir();atlasPintaAdj();
   ATLAS.conv=false;atlasParar();atlasEstado('idle');
-  const ta=document.getElementById('atlasTexto');if(ta){ta.value=nota;ta.placeholder='¿Qué hago con la imagen? (o envía así)';ta.focus();}
+  const ta=document.getElementById('atlasTexto');if(ta){ta.value=nota;ta.placeholder='¿Qué hago con la imagen? (o envía así)';atlasCrece(ta);ta.focus();}
 }
 function pzVerSug(id,i){
   const s=(CACHE.sugerencias||[]).find(z=>String(z.id)===String(id));
