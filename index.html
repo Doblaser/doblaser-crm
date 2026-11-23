@@ -1149,6 +1149,7 @@ html.side-off .menu-btn{display:grid !important}
 .pg-res .panel{margin-bottom:0}
 .pg-line{position:absolute;top:0;bottom:0;border-left:1px solid var(--line-2);pointer-events:none}
 .pg-break{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(120,110,100,.10) 0 6px,rgba(120,110,100,.22) 6px 12px);pointer-events:none;text-align:center;z-index:3}
+.pg-hdur{display:flex;justify-content:space-between;align-items:center;gap:6px}.pg-hdur b{font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums}
 .pg-alm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 3px;margin:3px 0 4px;font-size:10.5px;color:var(--ink-3);align-items:center}
 .pg-alm span{grid-column:1/-1;font-weight:600;line-height:1.1}
 .pg-hor td.pg-hc .pg-alm input{margin:0;min-width:0}
@@ -5047,7 +5048,7 @@ function pgPersonalHTML(){
       tot+=fest;
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
         ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)">${pgAlmCeldaHTML(e,dw,t,dis)}<input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
-        ${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>`:''}</td>`;}).join('');
+        <div class="pg-hdur">${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>`:'<span></span>'}${t?`<b title="Horas trabajadas ese día, sin desayuno ni almuerzo">${pgHc(pgDurTurno(t))}</b>`:''}</div></td>`;}).join('');
     return `<tr><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b><i class="pg-punto"></i>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
   return `<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
