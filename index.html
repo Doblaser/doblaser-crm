@@ -1154,7 +1154,7 @@ html.side-off .menu-btn{display:grid !important}
 .pg-alm span{grid-column:1/-1;font-weight:600;line-height:1.1}
 .pg-hor td.pg-hc .pg-alm input{margin:0;min-width:0}
 .pg-alm select{font-size:11.5px;padding:2px 1px;border:1px solid var(--line);border-radius:5px;background:var(--card);max-width:62px}
-.pg-alm.propio{color:#b45309}.pg-alm.no span{text-decoration:line-through}.pg-alm.no input{opacity:.4}
+.pg-alm.propio{color:#b45309}.pg-alm.fuera span{color:#b91c1c}.pg-alm.fuera span::after{content:' · fuera del turno, no se descuenta';font-weight:500}.pg-alm.fuera input{border-color:#dc2626!important;background:#fef2f2!important}.pg-alm.no span{text-decoration:line-through}.pg-alm.no input{opacity:.4}
 .pg-hor{table-layout:fixed}.pg-hor th,.pg-hor td{padding:6px 5px!important}.pg-hor td.pg-hc{min-width:0!important}.pg-hor th:first-child{width:104px}.pg-hor th:last-child{width:64px}
 .pg-hor td.pg-emp{word-break:break-word}
 .pg-break em{font-style:normal;font-size:9.5px;color:var(--ink-2);position:absolute;bottom:2px;left:0;right:0;font-weight:600}
@@ -5085,14 +5085,22 @@ function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(
 function pgAlmDe(t,k='alm'){if(t&&t[k]&&t[k].no)return null;const a=pgAlmOk(t&&t[k])?t[k]:pgDescGlobal(k);return a?{ini:+a.ini,fin:+a.fin}:null;}
 function pgAlmDurOpts(min){const v=[10,15,20,30,40,45,60,75,90,120];if(min&&!v.includes(min))v.push(min);
   return `<option value="0" ${!min?'selected':''}>No</option>`+v.sort((a,b)=>a-b).map(x=>`<option value="${x}" ${x===min?'selected':''}>${x<60?x+' min':pgHc(x)}</option>`).join('');}
+/* 23/11: un descanso fuera del turno no se descuenta (p. ej. 4:30 a. m. en un turno
+   de 11:10 a. m. a 9:00 p. m.): se marca en rojo para que se corrija. */
+function pgDentroTurno(t,a){if(!a||!t)return true;const fin=pgCruza(t)?t.fin+1440:t.fin;
+  const ok=x=>x.ini>=t.ini&&x.fin<=fin;return ok(a)||ok({ini:a.ini+1440,fin:a.fin+1440});}
 function pgAlmCeldaHTML(e,dw,t,dis){
   return ['des','alm'].map(k=>{const P=PG_DESC_PROP[k],no=!!(t[k]&&t[k].no),a=pgAlmDe(t,k),propio=no||pgAlmOk(t[k]),dur=no?0:(a?a.fin-a.ini:P.dur);
-    return `<div class="pg-alm ${propio?'propio':''} ${no?'no':''}" title="${no?'Sin '+P.lbl.toLowerCase()+' este día':P.lbl+' de este día'+(propio?'':' (el de la planta)')}"><span>${P.lbl}</span><input ${dis} type="time" step="300" ${no?'disabled':''} value="${a?pgHora2(a.ini):''}" onchange="pgHorAlm('${e.id}',${dw},'ini',this.value,'${k}')"><select ${dis} onchange="pgHorAlm('${e.id}',${dw},'dur',this.value,'${k}')">${pgAlmDurOpts(dur)}</select></div>`;}).join('');
+    const fuera=!no&&a&&!pgDentroTurno(t,a);
+    return `<div class="pg-alm ${propio?'propio':''} ${no?'no':''} ${fuera?'fuera':''}" title="${fuera?'Queda fuera del turno: NO se está descontando. Revisa a. m. / p. m.':no?'Sin '+P.lbl.toLowerCase()+' este día':P.lbl+' de este día'+(propio?'':' (el de la planta)')}"><span>${P.lbl}</span><input ${dis} type="time" step="300" ${no?'disabled':''} value="${a?pgHora2(a.ini):''}" onchange="pgHorAlm('${e.id}',${dw},'ini',this.value,'${k}')"><select ${dis} onchange="pgHorAlm('${e.id}',${dw},'dur',this.value,'${k}')">${pgAlmDurOpts(dur)}</select></div>`;}).join('');
 }
 function pgHorAlm(id,dw,q,v,k='alm'){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   const P=PG_DESC_PROP[k],f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f);if(!t){render();return;}
   const a=pgAlmDe(t,k)||pgAlmDe({},k)||{ini:P.def[0],fin:P.def[1]};let ini=a.ini,dur=a.fin-a.ini;
   if(q==='ini'){if(!v){render();return;}ini=pgMin(v);}else dur=Math.max(0,+v||0);
+  if(dur>0&&!pgDentroTurno(t,{ini,fin:ini+dur})){const alt=(ini+720)%1440;
+    if(pgDentroTurno(t,{ini:alt,fin:alt+dur})){ini=alt;toast('Lo pasé a '+pgHora(ini)+' porque a esa hora sí está en turno');}
+    else toast('Ojo: '+P.lbl.toLowerCase()+' fuera del turno, no se va a descontar');}
   const n={ini:t.ini,fin:t.fin};['alm','des'].forEach(x=>{if(t[x]&&t[x].no)n[x]={no:1};else if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
   n[k]=dur>0?{ini,fin:ini+dur}:{no:1};pgHorSem(id,true)[dw]=n;
   pgGuardarCfg();render();
