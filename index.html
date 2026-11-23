@@ -12067,6 +12067,8 @@ function cotTexto(c){
    Si hay una ficha abierta, pregunta antes: recargar descarta lo que no se haya guardado. */
 function crmRecargar(){
   if(document.querySelector('.overlay.show')&&!confirm('Hay una ventana abierta. Si recargas, se pierde lo que no hayas guardado. ¿Recargar de todos modos?'))return;
+  /* 23/11/2026: volver a la misma pestaña después de recargar */
+  try{sessionStorage.setItem('crm_vuelve',JSON.stringify({view:VIEW,pgTab:PG.tab,pgFecha:PG.fecha,y:window.scrollY}));}catch(e){}
   location.reload();
 }
 function cargarLib(url){
@@ -13723,7 +13725,10 @@ async function startApp(){
   if(USING_SB){subscribeRealtime();subscribeMensajes();}
   startPresence();
   startNotifPolling();
-  setView(firstView());
+  let vu=null;try{vu=JSON.parse(sessionStorage.getItem('crm_vuelve')||'null');sessionStorage.removeItem('crm_vuelve');}catch(e){}
+  if(vu&&vu.pgTab)PG.tab=vu.pgTab;if(vu&&vu.pgFecha)PG.fecha=vu.pgFecha;
+  setView(vu&&vu.view&&META[vu.view]&&canView(vu.view)?vu.view:firstView());
+  if(vu&&vu.y)setTimeout(()=>window.scrollTo(0,vu.y),400);
 }
 (async function(){
   initSupabase();
