@@ -1149,7 +1149,13 @@ html.side-off .menu-btn{display:grid !important}
 .pg-res .panel{margin-bottom:0}
 .pg-line{position:absolute;top:0;bottom:0;border-left:1px solid var(--line-2);pointer-events:none}
 .pg-break{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(120,110,100,.10) 0 6px,rgba(120,110,100,.22) 6px 12px);pointer-events:none;text-align:center;z-index:3}
-.pg-alm{display:flex;align-items:center;gap:4px;margin:4px 0;font-size:11px;color:var(--ink-3)}.pg-alm span{font-weight:600;min-width:62px}.pg-alm input{width:112px!important;font-size:12px!important;padding:3px 4px!important}.pg-alm select{font-size:12px!important;padding:3px!important;width:auto!important}.pg-alm.propio{color:#b45309}
+.pg-alm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 3px;margin:3px 0 4px;font-size:10.5px;color:var(--ink-3);align-items:center}
+.pg-alm span{grid-column:1/-1;font-weight:600;line-height:1.1}
+.pg-hor td.pg-hc .pg-alm input{margin:0;min-width:0}
+.pg-alm select{font-size:11.5px;padding:2px 1px;border:1px solid var(--line);border-radius:5px;background:var(--card);max-width:62px}
+.pg-alm.propio{color:#b45309}.pg-alm.no span{text-decoration:line-through}.pg-alm.no input{opacity:.4}
+.pg-hor{table-layout:fixed}.pg-hor th,.pg-hor td{padding:6px 5px!important}.pg-hor td.pg-hc{min-width:0!important}.pg-hor th:first-child{width:104px}.pg-hor th:last-child{width:64px}
+.pg-hor td.pg-emp{word-break:break-word}
 .pg-break em{font-style:normal;font-size:9.5px;color:var(--ink-2);position:absolute;bottom:2px;left:0;right:0;font-weight:600}
 .pg-track.ed{cursor:default}
 .pg-track.ed.tapsel{cursor:copy;background:#fdf6f7}
@@ -1814,6 +1820,20 @@ td.c,th.c{text-align:center}
   .rb-row-h .spacer{flex:1 1 100%;height:0}
   .rbcorr{max-width:none}
 }
+.rlj-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center}
+.rlj{width:300px;background:var(--card,#fff);border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3);font-family:inherit}
+.rlj-top{background:var(--wine,#7a1f2b);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:flex-end;gap:12px}
+.rlj-hm{font-size:52px;font-weight:300;line-height:1}.rlj-hm b{font-weight:300;cursor:pointer;opacity:.6}.rlj-hm b.on{opacity:1}
+.rlj-ap{display:flex;flex-direction:column;gap:4px}.rlj-ap b{cursor:pointer;opacity:.6;font-size:16px;font-weight:600}.rlj-ap b.on{opacity:1}
+.rlj-dial{position:relative;width:240px;height:240px;margin:18px auto;border-radius:50%;background:#eee;user-select:none;cursor:pointer}
+.rlj-n{position:absolute;width:34px;height:34px;margin:-17px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:15px;color:#222;z-index:2;pointer-events:none}
+.rlj-n.on{color:#fff}
+.rlj-hand{position:absolute;left:50%;top:50%;width:2px;background:var(--wine,#7a1f2b);transform-origin:50% 0;z-index:1}
+.rlj-dot{position:absolute;width:36px;height:36px;margin:-18px;border-radius:50%;background:var(--wine,#7a1f2b);z-index:1}
+.rlj-c{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px;border-radius:50%;background:var(--wine,#7a1f2b)}
+.rlj-acc{display:flex;justify-content:flex-end;gap:8px;padding:0 14px 14px}
+.rlj-acc button{background:none;border:0;color:var(--wine,#7a1f2b);font:inherit;font-weight:600;font-size:14px;padding:8px 10px;cursor:pointer;border-radius:8px}
+.rlj-acc button:hover{background:rgba(0,0,0,.05)}
 </style>
 <script>/* tema guardado en este navegador (modo oscuro), antes de pintar para que no parpadee */
 try{if(localStorage.getItem('crm_tema')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}
@@ -3904,14 +3924,16 @@ function pgAlmOk(a){return !!(a&&+a.fin>+a.ini);}
 const PG_DESC_PROP={des:{re:/desayuno/i,lbl:'Desayuno',def:[540,555],dur:15},alm:{re:/almuerzo/i,lbl:'Almuerzo',def:[720,780],dur:60}};
 function pgAlmMaq(f,maq){const m=pgCfg().maquinas.find(x=>x.id===maq);if(!m)return null;const o={};
   for(const n of pgOperarios(pgDia(f),m)){const t=pgTurnoEmp(pgEmpleado(n),f);if(!t)continue;
-    Object.keys(PG_DESC_PROP).forEach(k=>{if(!o[k]&&pgAlmOk(t[k]))o[k]=t[k];});}return o;}
+    Object.keys(PG_DESC_PROP).forEach(k=>{if(!o[k]&&t[k]&&(t[k].no||pgAlmOk(t[k])))o[k]=t[k];});}return o;}
 function pgDescGlobal(k){const c=pgCfg();return (c.descansos||[]).find(d=>PG_DESC_PROP[k].re.test(d.lbl||''))||null;}
 function pgAlmGlobal(){return pgDescGlobal('alm');}
 /* x = fecha (con y = máquina) o un turno {alm,des} */
 function pgDescansos(x,y){
   const t=typeof x==='string'?pgAlmMaq(x,y):(x&&typeof x==='object'?x:null);
   let ds=pgDescansosPlanta();if(!t)return ds;
-  Object.keys(PG_DESC_PROP).forEach(k=>{const a=t[k],P=PG_DESC_PROP[k];if(!pgAlmOk(a))return;
+  Object.keys(PG_DESC_PROP).forEach(k=>{const a=t[k],P=PG_DESC_PROP[k];
+    if(a&&a.no){ds=ds.filter(d=>!P.re.test(d.lbl));return;}   /* anulado ese día (p. ej. sábado de media jornada) */
+    if(!pgAlmOk(a))return;
     ds=ds.filter(d=>!P.re.test(d.lbl)).concat([{ini:+a.ini,fin:+a.fin,lbl:P.lbl}]);});
   return ds.sort((a,b)=>a.ini-b.ini);
 }
@@ -3962,7 +3984,7 @@ function pgEmpleado(nombre){const n=(nombre||'').trim().toLowerCase();if(!n)retu
 function pgTurnoEmp(e,f){
   if(!e)return undefined;
   const h=((pgCfg().horarios||{})[pgLunes(f)]||{})[e.id]||{},o=h[pgDiaSem(f)];
-  const pr=k=>o&&pgAlmOk(o[k])?{ini:+o[k].ini,fin:+o[k].fin}:(pgAlmOk(e[k])?e[k]:undefined);
+  const pr=k=>o&&o[k]&&o[k].no?{no:1}:(o&&pgAlmOk(o[k])?{ini:+o[k].ini,fin:+o[k].fin}:(pgAlmOk(e[k])?e[k]:undefined));
   const alm=pr('alm'),des=pr('des');
   if(o)return o.libre?null:{ini:+o.ini,fin:+o.fin,alm,des};
   if(pgFestivo(f))return null;   /* festivo: descansa, salvo que se le ponga turno esa semana */
@@ -5042,7 +5064,7 @@ function pgPersonalHTML(){
 function pgHorSem(id,crear){const c=pgCfg(),l=pgLunes(PG.fecha);c.horarios=c.horarios||{};if(crear){c.horarios[l]=c.horarios[l]||{};c.horarios[l][id]=c.horarios[l][id]||{};}return ((c.horarios[l]||{})[id])||{};}
 function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   const f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f)||{ini:e.ini,fin:e.fin};
-  const n={ini:t.ini,fin:t.fin,[k]:pgMin(v)};['alm','des'].forEach(k=>{if(pgAlmOk(t[k]))n[k]={ini:+t[k].ini,fin:+t[k].fin};});
+  const n={ini:t.ini,fin:t.fin,[k]:pgMin(v)};['alm','des'].forEach(k=>{if(t[k]&&t[k].no)n[k]={no:1};else if(pgAlmOk(t[k]))n[k]={ini:+t[k].ini,fin:+t[k].fin};});
   if(n.fin===n.ini){toast('La entrada y la salida no pueden ser la misma hora');render();return;}
   const h=pgHorSem(id,true);h[dw]=n;
   /* el primer día que trabaja de lunes a viernes manda: el mismo turno pasa a los
@@ -5056,21 +5078,21 @@ function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(
   if(cop)toast('Mismo horario puesto hasta el viernes ('+cop+' día'+(cop>1?'s':'')+' más)');
   if(pgCruza(n))toast('Turno de noche: entra '+pgHora(n.ini)+' y sale '+pgHora(n.fin)+' del día siguiente · '+pgHc(pgDurTurno(n)));}
 /* almuerzo del día: a qué hora sale y cuánto dura (23/11/2026) */
-function pgAlmDe(t,k='alm'){const a=pgAlmOk(t&&t[k])?t[k]:pgDescGlobal(k);return a?{ini:+a.ini,fin:+a.fin}:null;}
+function pgAlmDe(t,k='alm'){if(t&&t[k]&&t[k].no)return null;const a=pgAlmOk(t&&t[k])?t[k]:pgDescGlobal(k);return a?{ini:+a.ini,fin:+a.fin}:null;}
 function pgAlmDurOpts(min){const v=[10,15,20,30,40,45,60,75,90,120];if(min&&!v.includes(min))v.push(min);
-  return v.sort((a,b)=>a-b).map(x=>`<option value="${x}" ${x===min?'selected':''}>${pgHc(x)}</option>`).join('');}
+  return `<option value="0" ${!min?'selected':''}>No</option>`+v.sort((a,b)=>a-b).map(x=>`<option value="${x}" ${x===min?'selected':''}>${x<60?x+' min':pgHc(x)}</option>`).join('');}
 function pgAlmCeldaHTML(e,dw,t,dis){
-  return ['des','alm'].map(k=>{const P=PG_DESC_PROP[k],a=pgAlmDe(t,k),propio=pgAlmOk(t[k]),dur=a?a.fin-a.ini:P.dur;
-    return `<div class="pg-alm ${propio?'propio':''}" title="${P.lbl} de este día${propio?'':' (el de la planta)'}"><span>${P.lbl}</span><input ${dis} type="time" step="300" value="${a?pgHora2(a.ini):''}" onchange="pgHorAlm('${e.id}',${dw},'ini',this.value,'${k}')"><select ${dis} onchange="pgHorAlm('${e.id}',${dw},'dur',this.value,'${k}')">${pgAlmDurOpts(dur)}</select></div>`;}).join('');
+  return ['des','alm'].map(k=>{const P=PG_DESC_PROP[k],no=!!(t[k]&&t[k].no),a=pgAlmDe(t,k),propio=no||pgAlmOk(t[k]),dur=no?0:(a?a.fin-a.ini:P.dur);
+    return `<div class="pg-alm ${propio?'propio':''} ${no?'no':''}" title="${no?'Sin '+P.lbl.toLowerCase()+' este día':P.lbl+' de este día'+(propio?'':' (el de la planta)')}"><span>${P.lbl}</span><input ${dis} type="time" step="300" ${no?'disabled':''} value="${a?pgHora2(a.ini):''}" onchange="pgHorAlm('${e.id}',${dw},'ini',this.value,'${k}')"><select ${dis} onchange="pgHorAlm('${e.id}',${dw},'dur',this.value,'${k}')">${pgAlmDurOpts(dur)}</select></div>`;}).join('');
 }
 function pgHorAlm(id,dw,q,v,k='alm'){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   const P=PG_DESC_PROP[k],f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f);if(!t){render();return;}
-  const a=pgAlmDe(t,k)||{ini:P.def[0],fin:P.def[1]};let ini=a.ini,dur=a.fin-a.ini;
-  if(q==='ini'){if(!v){render();return;}ini=pgMin(v);}else dur=Math.max(5,+v||P.dur);
-  const n={ini:t.ini,fin:t.fin};['alm','des'].forEach(x=>{if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
-  n[k]={ini,fin:ini+dur};pgHorSem(id,true)[dw]=n;
+  const a=pgAlmDe(t,k)||pgAlmDe({},k)||{ini:P.def[0],fin:P.def[1]};let ini=a.ini,dur=a.fin-a.ini;
+  if(q==='ini'){if(!v){render();return;}ini=pgMin(v);}else dur=Math.max(0,+v||0);
+  const n={ini:t.ini,fin:t.fin};['alm','des'].forEach(x=>{if(t[x]&&t[x].no)n[x]={no:1};else if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
+  n[k]=dur>0?{ini,fin:ini+dur}:{no:1};pgHorSem(id,true)[dw]=n;
   pgGuardarCfg();render();
-  toast(P.lbl+' de '+e.nombre+': '+pgHora(ini)+'–'+pgHora(ini+dur)+' ese día');}
+  toast(dur>0?P.lbl+' de '+e.nombre+': '+pgHora(ini)+'–'+pgHora(ini+dur)+' ese día':e.nombre+' sin '+P.lbl.toLowerCase()+' ese día');}
 function pgHorLibre(id,dw,libre){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   pgHorSem(id,true)[dw]=libre?{libre:1}:{ini:e.ini,fin:e.fin};pgGuardarCfg();render();}
 function pgHorBase(id,dw){if(!pgPuede())return;const h=pgHorSem(id,true);h[dw]=null;   /* null y no delete: así no revive al juntar con otro equipo */pgGuardarCfg();render();}
@@ -13731,6 +13753,73 @@ async function startApp(){
   setView(vu&&vu.view&&META[vu.view]&&canView(vu.view)?vu.view:firstView());
   if(vu&&vu.y)setTimeout(()=>window.scrollTo(0,vu.y),400);
 }
+
+/* RELOJ DE RUEDA EN PC (23/11/2026). Daniel: "quiero que para poner la hora en pc
+   se vea como en teléfono con esa rueda de reloj". En equipos con mouse, todo
+   input type=time abre este reloj: primero la hora, luego los minutos (de 5 en 5,
+   o el paso del campo si es mayor). Con teclado (Tab) se sigue pudiendo escribir. */
+(function(){
+  if(!window.matchMedia||!matchMedia('(pointer:fine)').matches)return;
+  let R=null;
+  const pad=n=>String(n).padStart(2,'0');
+  function pinta(){
+    const {h,m,modo}=R,el=R.box;
+    const h12=h%12||12;
+    el.querySelector('.rlj-hm').innerHTML=`<b class="${modo==='h'?'on':''}" data-k="h">${h12}</b>:<b class="${modo==='m'?'on':''}" data-k="m">${pad(m)}</b>`;
+    el.querySelectorAll('.rlj-ap b').forEach(b=>b.classList.toggle('on',(b.dataset.ap==='pm')===(h>=12)));
+    const d=el.querySelector('.rlj-dial'),rad=96;
+    const vals=modo==='h'?[12,1,2,3,4,5,6,7,8,9,10,11]:[0,5,10,15,20,25,30,35,40,45,50,55];
+    const sel=modo==='h'?h12:m;
+    const ang=modo==='h'?(h12%12)*30:m*6;
+    let html='<span class="rlj-c" style="z-index:3"></span>';
+    const a=(ang-90)*Math.PI/180,cx=120+rad*Math.cos(a),cy=120+rad*Math.sin(a);
+    html+=`<span class="rlj-hand" style="height:${rad}px;transform:rotate(${ang+180}deg)"></span><span class="rlj-dot" style="left:${cx}px;top:${cy}px"></span>`;
+    vals.forEach((v,i)=>{const b=(i*30-90)*Math.PI/180;
+      html+=`<span class="rlj-n ${v===sel?'on':''}" style="left:${120+rad*Math.cos(b)}px;top:${120+rad*Math.sin(b)}px">${modo==='h'?v:pad(v)}</span>`;});
+    d.innerHTML=html;
+  }
+  function desdeMouse(ev,fin){
+    const r=R.box.querySelector('.rlj-dial').getBoundingClientRect();
+    let ang=Math.atan2(ev.clientY-r.top-120,ev.clientX-r.left-120)*180/Math.PI+90;if(ang<0)ang+=360;
+    if(R.modo==='h'){let h=Math.round(ang/30)%12;R.h=(R.h>=12?12:0)+h;}
+    else{const st=R.step;R.m=(Math.round(ang/6/st)*st)%60;}
+    pinta();
+    if(fin&&R.modo==='h'){R.modo='m';setTimeout(pinta,120);}
+  }
+  function cerrar(){if(R){R.bg.remove();R=null;}}
+  function abrir(inp){
+    const v=(inp.value||'').split(':');let h=+v[0],m=+v[1];
+    if(isNaN(h)){h=7;m=0;}
+    const step=Math.max(5,Math.round((+inp.step||300)/60));
+    const bg=document.createElement('div');bg.className='rlj-bg';
+    bg.innerHTML=`<div class="rlj"><div class="rlj-top"><div class="rlj-hm"></div><div class="rlj-ap"><b data-ap="am">a. m.</b><b data-ap="pm">p. m.</b></div></div>
+      <div class="rlj-dial"></div>
+      <div class="rlj-acc"><button type="button" data-a="borrar">Borrar</button><button type="button" data-a="cancel">Cancelar</button><button type="button" data-a="ok">Establecer</button></div></div>`;
+    document.body.appendChild(bg);
+    R={inp,h,m:Math.round(m/step)*step%60,modo:'h',step,box:bg.querySelector('.rlj'),bg};
+    pinta();
+    let arr=false;const dial=bg.querySelector('.rlj-dial');
+    dial.addEventListener('mousedown',e=>{arr=true;desdeMouse(e,false);});
+    window.addEventListener('mousemove',function mv(e){if(!R){window.removeEventListener('mousemove',mv);return;}if(arr)desdeMouse(e,false);});
+    window.addEventListener('mouseup',function up(e){if(!R){window.removeEventListener('mouseup',up);return;}if(arr){arr=false;desdeMouse(e,true);}});
+    bg.addEventListener('click',e=>{
+      if(e.target===bg)return cerrar();
+      const k=e.target.dataset.k;if(k){R.modo=k;pinta();return;}
+      const ap=e.target.dataset.ap;if(ap){if(ap==='pm'&&R.h<12)R.h+=12;if(ap==='am'&&R.h>=12)R.h-=12;pinta();return;}
+      const a=e.target.dataset.a;if(!a)return;
+      if(a==='ok'||a==='borrar'){const i=R.inp,val=a==='ok'?pad(R.h)+':'+pad(R.m):'';cerrar();
+        if(i.value!==val){i.value=val;i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));}return;}
+      cerrar();
+    });
+    document.addEventListener('keydown',function kd(e){if(!R){document.removeEventListener('keydown',kd);return;}if(e.key==='Escape')cerrar();});
+  }
+  document.addEventListener('mousedown',e=>{
+    const i=e.target.closest&&e.target.closest('input[type=time]');
+    if(!i||i.disabled||i.readOnly||e.button!==0)return;
+    e.preventDefault();abrir(i);
+  },true);
+  document.addEventListener('click',e=>{const i=e.target.closest&&e.target.closest('input[type=time]');if(i&&!i.disabled)e.preventDefault();},true);
+})();
 (async function(){
   initSupabase();
   if(!USING_SB)seedData();
