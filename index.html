@@ -1154,6 +1154,7 @@ html.side-off .menu-btn{display:grid !important}
 .pg-alm span{grid-column:1/-1;font-weight:600;line-height:1.1}
 .pg-hor td.pg-hc .pg-alm input{margin:0;min-width:0}
 .pg-alm select{font-size:11.5px;padding:2px 1px;border:1px solid var(--line);border-radius:5px;background:var(--card);max-width:62px}
+.pg-errhor{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13px}.pg-errhor ul{margin:4px 0 0 18px;padding:0}
 .pg-alm.propio{color:#b45309}.pg-alm.fuera span{color:#b91c1c}.pg-alm.fuera span::after{content:' · fuera del turno, no se descuenta';font-weight:500}.pg-alm.fuera input{border-color:#dc2626!important;background:#fef2f2!important}.pg-alm.no span{text-decoration:line-through}.pg-alm.no input{opacity:.4}
 .pg-hor{table-layout:fixed}.pg-hor th,.pg-hor td{padding:6px 5px!important}.pg-hor td.pg-hc{min-width:0!important}.pg-hor th:first-child{width:104px}.pg-hor th:last-child{width:64px}
 .pg-hor td.pg-emp{word-break:break-word}
@@ -5062,6 +5063,9 @@ function pgPersonalHTML(){
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
     <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos. <b>El festivo que no se trabaja cuenta como laborado</b> (${pgHc(+c.festivoMin||PG_FESTIVO_MIN)} de jornada ordinaria): por ley la semana se reduce en las horas de ese día, así que no hay que reponerlo ni aparece como horas faltantes.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:pgMinSemana(e,fechas)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
+    ${(()=>{const L=[];(c.personal||[]).forEach(e=>fechas.forEach(f=>{const t=pgTurnoEmp(e,f);if(!t)return;
+        ['des','alm'].forEach(k=>{const a=pgAlmDe(t,k);if(a&&!pgDentroTurno(t,a))L.push(esc(e.nombre)+' '+PG_DSEM[pgDiaSem(f)]+' '+(+f.slice(8))+': '+PG_DESC_PROP[k].lbl.toLowerCase()+' '+pgHora(a.ini)+' fuera del turno ('+pgHora(t.ini)+'–'+pgHora(t.fin)+')');});}));
+      return L.length?`<div class="pg-errhor">⚠ <b>${L.length} descanso${L.length>1?'s':''} fuera del turno</b> (no se están descontando, corrígelos):<ul>${L.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:'';})()}
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fVis.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
 }
@@ -5080,6 +5084,8 @@ function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(
     for(let d=dw+1;d<=5;d++)if(pgTurnoEmp(e,fd(d))){h[d]={ini:n.ini,fin:n.fin};['alm','des'].forEach(k=>{if(n[k])h[d][k]={...n[k]};});cop++;}
   pgGuardarCfg();render();
   if(cop)toast('Mismo horario puesto hasta el viernes ('+cop+' día'+(cop>1?'s':'')+' más)');
+  {const t2=pgTurnoEmp(e,f),mal=['des','alm'].filter(k=>{const a=pgAlmDe(t2,k);return a&&!pgDentroTurno(t2,a);});
+   if(mal.length)alert('Ojo: con ese horario el '+mal.map(k=>PG_DESC_PROP[k].lbl.toLowerCase()).join(' y el ')+' de '+e.nombre+' queda fuera del turno y no se descuenta. Corrígelo (sale en rojo).');}
   if(pgCruza(n))toast('Turno de noche: entra '+pgHora(n.ini)+' y sale '+pgHora(n.fin)+' del día siguiente · '+pgHc(pgDurTurno(n)));}
 /* almuerzo del día: a qué hora sale y cuánto dura (23/11/2026) */
 function pgAlmDe(t,k='alm'){if(t&&t[k]&&t[k].no)return null;const a=pgAlmOk(t&&t[k])?t[k]:pgDescGlobal(k);return a?{ini:+a.ini,fin:+a.fin}:null;}
@@ -5100,7 +5106,7 @@ function pgHorAlm(id,dw,q,v,k='alm'){if(!pgPuede())return;const e=pgCfg().person
   if(q==='ini'){if(!v){render();return;}ini=pgMin(v);}else dur=Math.max(0,+v||0);
   if(dur>0&&!pgDentroTurno(t,{ini,fin:ini+dur})){const alt=(ini+720)%1440;
     if(pgDentroTurno(t,{ini:alt,fin:alt+dur})){ini=alt;toast('Lo pasé a '+pgHora(ini)+' porque a esa hora sí está en turno');}
-    else toast('Ojo: '+P.lbl.toLowerCase()+' fuera del turno, no se va a descontar');}
+    else{alert('No se guardó: el '+P.lbl.toLowerCase()+' de '+pgHora(ini)+' a '+pgHora(ini+dur)+' queda fuera del turno de '+e.nombre+' ('+pgHora(t.ini)+' a '+pgHora(t.fin)+'). Pon una hora entre la entrada y la salida.');render();return;}}
   const n={ini:t.ini,fin:t.fin};['alm','des'].forEach(x=>{if(t[x]&&t[x].no)n[x]={no:1};else if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
   n[k]=dur>0?{ini,fin:ini+dur}:{no:1};pgHorSem(id,true)[dw]=n;
   pgGuardarCfg();render();
