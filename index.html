@@ -5034,12 +5034,14 @@ function pgPersonalHTML(){
   const c=pgCfg(),ed=pgPuede(),dis=ed?'':'disabled',lunes=pgLunes(PG.fecha),hoy=pgHoy();
   const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
   const sem=(c.horarios||{})[lunes]||{};
+  /* 23/11: el domingo solo sale si alguien trabaja ese domingo (ocupaba espacio) */
+  const fVis=fechas.filter(f=>pgDiaSem(f)!==0||(c.personal||[]).some(e=>pgTurnoEmp(e,f)||pgAporteFestivo(e,f)));
   const enMaq=e=>c.maquinas.filter(m=>(m.operario||'').trim().toLowerCase()===e.nombre.toLowerCase()).map(m=>m.nombre).join(', ');
   const col=pgColoresEmp(c.personal);
   const filas=(c.personal||[]).map((e,i)=>{
     const cl=col[e.id||e.nombre]||PG_PAL[0];
     let tot=0;
-    const celdas=fechas.map(f=>{const dw=pgDiaSem(f),t=pgTurnoEmp(e,f),cambio=!!(sem[e.id]&&sem[e.id][dw]);
+    const celdas=fVis.map(f=>{const dw=pgDiaSem(f),t=pgTurnoEmp(e,f),cambio=!!(sem[e.id]&&sem[e.id][dw]);
       const fest=pgAporteFestivo(e,f);
       if(t)tot+=pgDurTurno(t);
       tot+=fest;
@@ -5058,7 +5060,7 @@ function pgPersonalHTML(){
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
     <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos. <b>El festivo que no se trabaja cuenta como laborado</b> (${pgHc(+c.festivoMin||PG_FESTIVO_MIN)} de jornada ordinaria): por ley la semana se reduce en las horas de ese día, así que no hay que reponerlo ni aparece como horas faltantes.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:pgMinSemana(e,fechas)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
-    ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fechas.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
+    ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fVis.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
 }
 function pgHorSem(id,crear){const c=pgCfg(),l=pgLunes(PG.fecha);c.horarios=c.horarios||{};if(crear){c.horarios[l]=c.horarios[l]||{};c.horarios[l][id]=c.horarios[l][id]||{};}return ((c.horarios[l]||{})[id])||{};}
