@@ -1155,6 +1155,7 @@ html.side-off .menu-btn{display:grid !important}
 .pg-hor td.pg-hc .pg-alm input{margin:0;min-width:0}
 .pg-alm select{font-size:11.5px;padding:2px 1px;border:1px solid var(--line);border-radius:5px;background:var(--card);max-width:62px}
 .pg-errhor{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13px}.pg-errhor ul{margin:4px 0 0 18px;padding:0}
+.pg-rec th{white-space:normal;vertical-align:bottom;font-size:10.5px}.pg-pct{color:var(--wine);text-transform:none;letter-spacing:0;font-weight:700}.pg-rec .pg-rex{color:#b91c1c;font-weight:700}.pg-rec tfoot td{border-top:2px solid var(--line)}
 .pg-alm.propio{color:#b45309}.pg-alm.fuera span{color:#b91c1c}.pg-alm.fuera span::after{content:' · fuera del turno, no se descuenta';font-weight:500}.pg-alm.fuera input{border-color:#dc2626!important;background:#fef2f2!important}.pg-alm.no span{text-decoration:line-through}.pg-alm.no input{opacity:.4}
 .pg-hor{table-layout:fixed}.pg-hor th,.pg-hor td{padding:6px 5px!important}.pg-hor td.pg-hc{min-width:0!important}.pg-hor th:first-child{width:104px}.pg-hor th:last-child{width:64px}
 .pg-hor td.pg-emp{word-break:break-word}
@@ -4926,6 +4927,61 @@ function pgColoresEmp(pers){
   return mapa;
 }
 const PG_JORNADA=42;   /* horas ordinarias a la semana; lo que pase son horas extra */
+
+/* =========================================================
+   RECARGOS Y HORAS EXTRA SEGÚN LA LEY COLOMBIANA  (23/11/2026)
+   - Trabajo nocturno: de 7:00 p. m. a 6:00 a. m. desde el 25/12/2025 (Ley 2466
+     de 2025; antes era desde las 9:00 p. m.). Recargo nocturno: 35 %.
+   - Dominical y festivo: 80 % desde 1/7/2025, 90 % desde 1/7/2026, 100 % desde
+     1/7/2027 (Ley 2466 de 2025).
+   - Hora extra diurna 25 %, extra nocturna 75 % (CST art. 168). En domingo o
+     festivo se suman: extra dominical diurna = 25 % + dominical; extra
+     dominical nocturna = 75 % + dominical. Nocturno en dominical = 35 % + dominical.
+   - Extras: lo que pase de la jornada semanal (42 h, menos lo que abona cada
+     festivo no trabajado). Son extra las ÚLTIMAS horas trabajadas de la semana.
+   Los minutos de desayuno y almuerzo no cuentan.
+   ========================================================= */
+function pgPctDominical(f){return f>='2027-07-01'?100:(f>='2026-07-01'?90:80);}
+function pgIniNoche(f){return f>='2025-12-25'?1140:1260;}
+const PG_REC_COLS=[
+  ['ordD','Ordinaria diurna',()=>0],
+  ['ordN','Recargo nocturno',()=>35],
+  ['domD','Dominical/festivo diurno',f=>pgPctDominical(f)],
+  ['domN','Dominical/festivo nocturno',f=>pgPctDominical(f)+35],
+  ['exD','Extra diurna',()=>25],
+  ['exN','Extra nocturna',()=>75],
+  ['exDomD','Extra dominical/festiva diurna',f=>25+pgPctDominical(f)],
+  ['exDomN','Extra dominical/festiva nocturna',f=>75+pgPctDominical(f)]];
+function pgDesglose(e,fechas){
+  const o={};PG_REC_COLS.forEach(c=>o[c[0]]=0);
+  const mins=[];   /* [fecha real, minuto del día] de cada minuto trabajado, en orden */
+  /* incluye el turno del domingo anterior que cruce a este lunes? no: cada turno es de su día */
+  fechas.slice().sort().forEach(f=>{
+    const t=pgTurnoEmp(e,f);if(!t)return;
+    const fin=pgCruza(t)?t.fin+1440:t.fin,ds=pgDescansos(t);
+    for(let m=t.ini;m<fin;m++){const md=m%1440;if(ds.some(d=>md>=d.ini&&md<d.fin))continue;
+      mins.push([m>=1440?pgSumar(f,1):f,md]);}
+  });
+  const lim=Math.max(0,PG_JORNADA*60-fechas.reduce((a,f)=>a+pgAporteFestivo(e,f),0));
+  mins.forEach(([f,md],i)=>{
+    const noche=md>=pgIniNoche(f)||md<360,dom=pgDiaSem(f)===0||!!pgFestivo(f),ex=i>=lim;
+    o[ex?(dom?(noche?'exDomN':'exDomD'):(noche?'exN':'exD')):(dom?(noche?'domN':'domD'):(noche?'ordN':'ordD'))]++;
+  });
+  o.total=mins.length;return o;
+}
+function pgRecargosHTML(fechas){
+  const c=pgCfg(),pers=c.personal||[];if(!pers.length)return '';
+  const f0=fechas[0],col=pgColoresEmp(pers);
+  const ds=pers.map(e=>({e,d:pgDesglose(e,fechas)}));
+  const usadas=PG_REC_COLS.filter(k=>ds.some(x=>x.d[k[0]]>0));
+  const tot={};usadas.forEach(k=>tot[k[0]]=ds.reduce((a,x)=>a+x.d[k[0]],0));
+  const cel=m=>m?pgHc(m):'<span style="color:var(--ink-3)">—</span>';
+  return panel('Horas y recargos de la semana','según la ley colombiana',`<div style="overflow-x:auto"><table class="pg-sem pg-rec">
+    <thead><tr><th>Empleado</th>${usadas.map(k=>`<th class="num">${k[1]}<div class="pg-pct">${k[2](f0)?'+'+k[2](f0)+' %':'sin recargo'}</div></th>`).join('')}<th class="num">Total</th></tr></thead>
+    <tbody>${ds.map(({e,d})=>{const cl=col[e.id||e.nombre]||PG_PAL[0];return `<tr><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b>${esc(e.nombre)}</b></td>${usadas.map(k=>`<td class="num tnum ${k[0].startsWith('ex')&&d[k[0]]?'pg-rex':''}">${cel(d[k[0]])}</td>`).join('')}<td class="num tnum"><b>${cel(d.total)}</b></td></tr>`;}).join('')}</tbody>
+    <tfoot><tr><td><b>Total</b></td>${usadas.map(k=>`<td class="num tnum"><b>${cel(tot[k[0]])}</b></td>`).join('')}<td class="num tnum"><b>${cel(ds.reduce((a,x)=>a+x.d.total,0))}</b></td></tr></tfoot></table></div>
+    <div class="fc-sub" style="margin-top:8px">Nocturno: de ${pgHora(pgIniNoche(f0))} a 6:00 a. m. (Ley 2466 de 2025). Dominical y festivo: ${pgPctDominical(f0)} %. Extra diurna 25 %, extra nocturna 75 %; en domingo o festivo se suma el recargo dominical. Son horas extra las últimas trabajadas de la semana después de ${PG_JORNADA} h (menos lo que abona un festivo no trabajado). No cuentan el desayuno ni el almuerzo. Los porcentajes son sobre el valor de la hora ordinaria.</div>`);
+}
 function pgHorasSemTxt(min){
   const j=PG_JORNADA*60;
   /* sin un solo turno en la semana no tiene sentido decir "faltan 42h": esa
@@ -5067,7 +5123,8 @@ function pgPersonalHTML(){
         ['des','alm'].forEach(k=>{const a=pgAlmDe(t,k);if(a&&!pgDentroTurno(t,a))L.push(esc(e.nombre)+' '+PG_DSEM[pgDiaSem(f)]+' '+(+f.slice(8))+': '+PG_DESC_PROP[k].lbl.toLowerCase()+' '+pgHora(a.ini)+' fuera del turno ('+pgHora(t.ini)+'–'+pgHora(t.fin)+')');});}));
       return L.length?`<div class="pg-errhor">⚠ <b>${L.length} descanso${L.length>1?'s':''} fuera del turno</b> (no se están descontando, corrígelos):<ul>${L.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:'';})()}
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fVis.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
-      :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}`;
+      :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}
+    ${pgRecargosHTML(fechas)}`;
 }
 function pgHorSem(id,crear){const c=pgCfg(),l=pgLunes(PG.fecha);c.horarios=c.horarios||{};if(crear){c.horarios[l]=c.horarios[l]||{};c.horarios[l][id]=c.horarios[l][id]||{};}return ((c.horarios[l]||{})[id])||{};}
 function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
