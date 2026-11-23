@@ -2922,7 +2922,7 @@ function mostrarDiag(){
 }
 function setView(v){
   if(!canView(v)){const f=firstView();if(v!==f){toast('No tienes acceso a esa secci\u00f3n');v=f;}else return;}
-  VIEW=v;document.querySelectorAll('#nav a,#botnav a').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
+  VIEW=v;try{sessionStorage.setItem('crm_vista',v);}catch(e){}document.querySelectorAll('#nav a,#botnav a').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
   const m=META[v];document.getElementById('vTitle').textContent=m.title;document.getElementById('vSub').textContent=m.sub;
   document.getElementById('addBtn').style.display=m.add?'inline-flex':'none';document.getElementById('addLbl').textContent=m.add||'';
   document.getElementById('searchBox').style.display=m.search?'flex':'none';document.getElementById('searchInput').value='';
@@ -13727,6 +13727,7 @@ async function startApp(){
   startNotifPolling();
   let vu=null;try{vu=JSON.parse(sessionStorage.getItem('crm_vuelve')||'null');sessionStorage.removeItem('crm_vuelve');}catch(e){}
   if(vu&&vu.pgTab)PG.tab=vu.pgTab;if(vu&&vu.pgFecha)PG.fecha=vu.pgFecha;
+  if(!vu||!vu.view){let v0=null;try{v0=sessionStorage.getItem('crm_vista');}catch(e){}if(v0)vu={...(vu||{}),view:v0};}
   setView(vu&&vu.view&&META[vu.view]&&canView(vu.view)?vu.view:firstView());
   if(vu&&vu.y)setTimeout(()=>window.scrollTo(0,vu.y),400);
 }
