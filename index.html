@@ -657,6 +657,20 @@ tr.inv-grp td{background:var(--bg);border-top:1px solid var(--line);padding-top:
 .cr-nov{margin-top:8px;font-size:11.5px;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:9px 11px}
 /* ---- Sugerencias ---- */
 .sug-card{margin-bottom:14px}
+/* Redes sociales */
+.red-est{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.red-comp{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:16px 20px}
+.red-comp>div{display:flex;flex-direction:column;gap:8px}
+.red-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.red-card{display:flex;flex-direction:column;overflow:hidden;margin:0}
+.red-img{width:100%;aspect-ratio:1/1;object-fit:cover;cursor:zoom-in;background:var(--n-100,#eee)}
+.red-cuerpo{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.red-cab{display:flex;align-items:center;gap:8px;font-size:12px}
+.red-cuerpo textarea{width:100%;font-size:13px;line-height:1.45}
+.red-acc{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
+.red-texto{white-space:pre-wrap;font-size:13px;line-height:1.45}
+.red-err{color:#e11d48;font-size:12px}
+@media(max-width:760px){.red-comp{grid-template-columns:1fr}.red-lista{grid-template-columns:1fr}}
 .sug-card .panel-h{gap:10px}
 .sug-estado-sel{font-size:12px;padding:5px 8px;border-radius:8px}
 .sug-meta{font-size:12.5px;margin-bottom:6px}
@@ -2061,6 +2075,7 @@ tr.rop-tr-color .rop-sub{color:var(--n-600);font-size:12.5px}
       <div class="lbl">Comercial</div>
       <a data-view="cotizaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="13" y2="18"/></svg>Cotizaciones <span class="count" id="c-cot">0</span></a>
       <a data-view="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>Clientes / Leads <span class="count" id="c-leads">0</span></a>
+      <a data-view="redes" data-vista-propia="1" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>Redes sociales <span class="count" id="c-redes">0</span></a>
       <div class="lbl">Análisis</div>
       <a data-view="estadisticas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>Estadísticas</a>
       <div class="lbl">Herramientas</div>
@@ -2137,7 +2152,7 @@ const ASESOR_OPC=['Daniel','Susana','Esteban','Sin asignar'];
 function asesorActual(){const u=(typeof currentUser==='function')?currentUser():null;return (u&&ASESOR_OPC.includes(u.name))?u.name:'Sin asignar';}
 const ALL_VIEWS=['resumen','ventas','rop','ropHistorial','inventario','cotizaciones','leads','estadisticas','precios','papelera','sugerencias','piezascli'];
 const DEV_VIEW='taller';
-const VIEW_LBL={taller:'Taller',facturacion:'Facturación',resumen:'Resumen',ventas:'Ventas',rop:'ROP',ropHistorial:'Historial de órdenes',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
+const VIEW_LBL={redes:'Redes sociales',taller:'Taller',facturacion:'Facturación',resumen:'Resumen',ventas:'Ventas',rop:'ROP',ropHistorial:'Historial de órdenes',inventario:'Inventario',cotizaciones:'Cotizaciones',leads:'Clientes / Leads',estadisticas:'Estadísticas',precios:'Lista de precios',papelera:'Papelera',sugerencias:'Sugerencias',piezascli:'Piezas por cliente'};
 const PERFILES_DEF=[
   {name:'Susana',role:'Gerente',views:ALL_VIEWS.slice()},
   {name:'Esteban',role:'Director operativo',views:['rop','inventario','cotizaciones','precios']},
@@ -2883,6 +2898,7 @@ const fotoSegura=a=>/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=]+$/
 let VIEW='resumen',CACHE={ventas:[],rop:[],leads:[],cotizaciones:[],inventario:[],papelera:[],sugerencias:[],piezascli:[]};
 let cotItems=[];
 const META={
+  redes:{title:'Redes sociales',sub:'Publicaciones automáticas en Instagram y Facebook · sube fotos, la IA escribe y se publican solas',add:false,search:true},
   facturacion:{title:'Facturación',sub:'Enlazar órdenes a facturas, cartera por cobrar y resumen para la declaración',add:false,search:true},
   taller:{title:'Taller',sub:'Bitácora, salud de los datos, despliegues y pendientes — solo para el desarrollador',add:false,search:true},
   resumen:{title:'Resumen',sub:'Panel general de operación comercial',add:false,search:false},
@@ -2913,6 +2929,8 @@ function updateCounts(){
   if(cs){const n=(CACHE.sugerencias||[]).filter(s=>s.estado==='Nueva').length;cs.textContent=n;cs.style.display=n?'':'none';}
   const cpz=document.getElementById('c-piezascli');
   if(cpz)cpz.textContent=(CACHE.piezascli||[]).length;
+  const crd=document.getElementById('c-redes');
+  if(crd){const n=(CACHE.redes||[]).filter(p=>p.estado==='Borrador').length;crd.textContent=n;crd.style.display=n?'':'none';}
 }
 async function loadAll(){
   for(const t of ['ventas','rop','leads','cotizaciones','inventario','piezascli'])CACHE[t]=await getAll(t);
@@ -2920,6 +2938,7 @@ async function loadAll(){
     FALLOS_CARGA.vacio='la nube respondió pero sin datos ('+((SB_CFG&&SB_CFG.url)||'')+')';avisoCarga();}
   await cargarPapelera();
   await cargarSugerencias();
+  await cargarRedes();
   updateCounts();
   loadNotifs();renderNotifBell();scanAlertas();alertarCorreccionesRecientes();await cargarMensajesPendientes();
   await cargarDev();
@@ -3058,7 +3077,7 @@ function etiquetarTablas(raiz){
 function render(){
   if(window._charts){window._charts.forEach(c=>{try{c.destroy()}catch(e){}});window._charts=[];}
   const c=document.getElementById('content');
-  const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,ropHistorial:renderRopHistorial,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli,taller:renderDev,facturacion:renderFacturacion};
+  const VISTAS={resumen:renderResumen,ventas:renderVentas,rop:renderRop,ropHistorial:renderRopHistorial,leads:renderLeads,cotizaciones:renderCot,precios:renderPrecios,estadisticas:renderStats,inventario:renderInventario,papelera:renderPapelera,sugerencias:renderSugerencias,piezascli:renderPiezasCli,taller:renderDev,facturacion:renderFacturacion,redes:renderRedes};
   if(VISTAS[VIEW])c.innerHTML=VISTAS[VIEW]();
   try{atlasBoton();}catch(e){}
   etiquetarTablas(c);
@@ -8308,6 +8327,180 @@ function pzVerSug(id,i){
   const src=s&&Array.isArray(s.imagenes)&&s.imagenes[i];if(!src)return;
   const v=document.createElement('div');v.className='pz-ver';v.onclick=()=>v.remove();
   const im=document.createElement('img');im.alt='Pantallazo';im.src=src;v.appendChild(im);document.body.appendChild(v);
+}
+/* ── Redes sociales (23/11/2026) ──
+   Fotos reales o imágenes IA → la función redes (Supabase) escribe el texto con
+   Claude → quedan en Borrador con fecha en el próximo cupo (lun/mié/vie 12:00
+   Colombia). Al Aprobar, el cron de pg_cron (cada 15 min) las publica solas en
+   Instagram y Facebook. Las imágenes van al bucket público "redes" porque Meta
+   exige una URL pública. Solo lo ven Daniel y Gerencia (canView). */
+const RED_ESTADOS=['Borrador','Aprobada','Publicada','Error'];
+const RED_CLASE={Borrador:'st-prog',Aprobada:'st-proceso',Publicada:'st-proc',Error:'st-lost'};
+const RED_CUPOS=[1,3,5],RED_HORA_UTC=17; // lun, mié, vie a las 12:00 de Colombia
+let redFiltro='Todas',REDES_EST=null;
+async function cargarRedes(){
+  if(!USING_SB||!sb){CACHE.redes=[];return}
+  try{const{data,error}=await sb.from('publicaciones').select('*').order('programadaPara',{ascending:false,nullsFirst:true}).limit(300);
+    CACHE.redes=error?[]:(data||[]);}catch(e){CACHE.redes=[]}
+}
+async function redesFn(body){
+  const r=await fetch(SB_CFG.url+'/functions/v1/redes',{method:'POST',
+    headers:{'Content-Type':'application/json',apikey:SB_CFG.key,Authorization:'Bearer '+(_sbTok||SB_CFG.key)},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({error:'respuesta inválida'}));
+  if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+async function redesEstado(){
+  try{REDES_EST=await redesFn({accion:'estado'});}catch(e){REDES_EST={error:e.message};}
+  if(VIEW==='redes')render();
+}
+function redProximoCupo(){
+  const ocup=new Set((CACHE.redes||[]).filter(p=>p.programadaPara&&p.estado!=='Publicada').map(p=>p.programadaPara.slice(0,10)));
+  const d=new Date();d.setUTCHours(RED_HORA_UTC,0,0,0);
+  if(d<=new Date(Date.now()+30*60000))d.setUTCDate(d.getUTCDate()+1);
+  for(let i=0;i<120;i++,d.setUTCDate(d.getUTCDate()+1)){
+    if(RED_CUPOS.includes(d.getUTCDay())&&!ocup.has(d.toISOString().slice(0,10)))return d.toISOString();
+  }
+  return d.toISOString();
+}
+function redFechaLocal(iso){ // para <input type=datetime-local> en hora de Colombia
+  if(!iso)return '';const d=new Date(new Date(iso).getTime()-5*3600000);return d.toISOString().slice(0,16);
+}
+function redFechaTxt(iso){
+  if(!iso)return 'sin fecha';
+  return new Date(iso).toLocaleString('es-CO',{timeZone:'America/Bogota',weekday:'long',day:'numeric',month:'long',hour:'numeric',minute:'2-digit'});
+}
+function redImgJpeg(file){
+  return new Promise((ok,mal)=>{
+    const im=new Image();im.onload=()=>{
+      const k=Math.min(1,1440/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      c.toBlob(b=>b?ok(b):mal(new Error('No se pudo leer la foto')),'image/jpeg',0.86);URL.revokeObjectURL(im.src);
+    };im.onerror=()=>mal(new Error('Formato de imagen no soportado'));im.src=URL.createObjectURL(file);
+  });
+}
+async function redSubir(blob){
+  const ruta='fotos/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.jpg';
+  const{error}=await sb.storage.from('redes').upload(ruta,blob,{contentType:'image/jpeg'});
+  if(error)throw error;
+  return sb.storage.from('redes').getPublicUrl(ruta).data.publicUrl;
+}
+async function redCrear(imagen,origen,nota){
+  const u=currentUser(),quien=u?u.name:'—',ahora=new Date().toISOString();
+  let texto='';
+  try{texto=(await redesFn({accion:'texto',imagen,origen,nota})).texto;}catch(e){texto='';toast('No se pudo escribir el texto: '+e.message);}
+  const row={texto,imagen,origen,nota,estado:'Borrador',programadaPara:redProximoCupo(),
+    createdBy:quien,createdAt:ahora,updatedBy:quien,updatedAt:ahora};
+  const{data,error}=await sb.from('publicaciones').insert(row).select().single();
+  if(error)throw error;
+  CACHE.redes.unshift(data);
+}
+function redMsg(t){const el=document.getElementById('redMsg');if(el)el.textContent=t||'';}
+async function redFotos(){
+  const inp=document.getElementById('redArchivos'),nota=(document.getElementById('redNota').value||'').trim();
+  const files=[...(inp.files||[])];if(!files.length){toast('Elige una o varias fotos');return}
+  const bt=document.getElementById('redBtnFotos');bt.disabled=true;
+  try{
+    for(let i=0;i<files.length;i++){
+      redMsg(`Foto ${i+1} de ${files.length}: subiendo y escribiendo el texto…`);
+      await redCrear(await redSubir(await redImgJpeg(files[i])),'foto',nota);
+    }
+    toast(files.length+' borrador(es) listos para revisar');
+  }catch(e){toast('Error: '+(e.message||e));}
+  bt.disabled=false;redMsg('');render();updateCounts();
+}
+async function redIA(){
+  const prompt=(document.getElementById('redPrompt').value||'').trim();
+  if(!prompt){toast('Describe la imagen que quieres');return}
+  const bt=document.getElementById('redBtnIA');bt.disabled=true;
+  try{
+    redMsg('Generando la imagen con IA (puede tardar ~20 s)…');
+    const{url}=await redesFn({accion:'imagen',prompt});
+    redMsg('Escribiendo el texto…');
+    await redCrear(url,'ia',prompt);toast('Borrador con imagen IA listo');
+  }catch(e){toast('Error: '+(e.message||e));}
+  bt.disabled=false;redMsg('');render();updateCounts();
+}
+async function redGuardar(id,cambios,msg){
+  const p=(CACHE.redes||[]).find(x=>String(x.id)===String(id));if(!p)return;
+  const u=currentUser();
+  const fila={...cambios,updatedBy:u?u.name:'—',updatedAt:new Date().toISOString()};
+  const{error}=await sb.from('publicaciones').update(fila).eq('id',p.id);
+  if(error){toast('No se pudo guardar: '+error.message);return false}
+  Object.assign(p,fila);if(msg)toast(msg);render();updateCounts();return true;
+}
+function redLeer(id){
+  const t=document.getElementById('redT_'+id),f=document.getElementById('redF_'+id);
+  const out={};if(t)out.texto=t.value;
+  if(f&&f.value)out.programadaPara=new Date(f.value+':00-05:00').toISOString();
+  return out;
+}
+async function redAprobar(id){
+  const c=redLeer(id);if(!c.texto||!c.texto.trim()){toast('La publicación no tiene texto');return}
+  await redGuardar(id,{...c,estado:'Aprobada'},'Aprobada: sale sola '+redFechaTxt(c.programadaPara));
+}
+async function redReescribir(id){
+  const p=(CACHE.redes||[]).find(x=>String(x.id)===String(id));if(!p)return;
+  toast('Reescribiendo…');
+  try{const{texto}=await redesFn({accion:'texto',imagen:p.imagen,origen:p.origen,nota:p.nota});await redGuardar(id,{texto},'Texto nuevo');}
+  catch(e){toast('Error: '+e.message);}
+}
+async function redPublicarYa(id){
+  if(!REDES_EST||!REDES_EST.meta){toast('Primero hay que conectar Instagram y Facebook');return}
+  if(!confirm('¿Publicar ahora mismo en Instagram y Facebook?'))return;
+  await redGuardar(id,{...redLeer(id),estado:'Aprobada'});
+  toast('Publicando…');
+  try{const r=await redesFn({accion:'publicar',id});toast(r.estado==='Publicada'?'¡Publicada!':'Con errores: '+r.errores.join(' · '));}
+  catch(e){toast('Error: '+e.message);}
+  await cargarRedes();render();updateCounts();
+}
+async function redBorrar(id){
+  if(!confirm('¿Eliminar esta publicación? (si ya salió en redes, allá no se borra)'))return;
+  const{error}=await sb.from('publicaciones').delete().eq('id',id);
+  if(error){toast('No se pudo eliminar');return}
+  CACHE.redes=CACHE.redes.filter(p=>String(p.id)!==String(id));render();updateCounts();
+}
+function redCard(p){
+  const ed=p.estado==='Borrador'||p.estado==='Error'||p.estado==='Aprobada';
+  const res=p.resultado||{},errs=(res.errores||[]).join(' · ');
+  return `<div class="panel red-card">
+    <img class="red-img" src="${esc(p.imagen)}" alt="Imagen de la publicación" loading="lazy" onclick="window.open('${esc(p.imagen)}')">
+    <div class="red-cuerpo">
+      <div class="red-cab"><span class="pill ${RED_CLASE[p.estado]||'st-sin'}"><span class="d"></span>${esc(p.estado)}</span>
+        <span class="muted">${p.origen==='ia'?'Imagen IA':'Foto real'} · ${esc(p.createdBy||'')}</span><div class="spacer"></div>
+        <button class="ic-btn del" title="Eliminar" onclick="redBorrar('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>
+      ${ed?`<textarea id="redT_${p.id}" rows="8">${esc(p.texto||'')}</textarea>
+        <div class="red-acc"><label>Sale el <input type="datetime-local" id="redF_${p.id}" value="${redFechaLocal(p.programadaPara)}"></label>
+          <div class="spacer"></div>
+          <button class="btn ghost sm" onclick="redReescribir('${p.id}')">Reescribir con IA</button>
+          ${p.estado==='Aprobada'?`<button class="btn ghost sm" onclick="redGuardar('${p.id}',{...redLeer('${p.id}'),estado:'Borrador'},'Devuelta a borrador')">Pausar</button>`
+            :`<button class="btn sm" onclick="redAprobar('${p.id}')">Aprobar</button>`}
+          <button class="btn ghost sm" onclick="redPublicarYa('${p.id}')">Publicar ya</button></div>`
+      :`<div class="red-texto">${esc(p.texto||'')}</div><div class="muted" style="margin-top:8px">Publicada ${redFechaTxt(res.fecha||p.updatedAt)}</div>`}
+      ${errs?`<div class="red-err">${esc(errs)}</div>`:''}
+    </div></div>`;
+}
+function renderRedes(){
+  if(!REDES_EST){REDES_EST={cargando:true};redesEstado();}
+  const E=REDES_EST,ok=(b,si,no)=>`<span class="pill ${b?'st-proc':'st-lost'}"><span class="d"></span>${b?si:no}</span>`;
+  const estado=E.cargando?'<span class="muted">Revisando conexiones…</span>':E.error?`<span class="red-err">${esc(E.error)}</span>`:
+    `${ok(E.meta,'Instagram y Facebook conectados','Instagram/Facebook sin conectar')} ${ok(E.textoIA,'Textos con IA','Sin IA de textos')} ${ok(E.imagenesIA,'Imágenes IA','Imágenes IA sin activar')}`;
+  const todos=(CACHE.redes||[]).filter(match),rows=todos.filter(p=>redFiltro==='Todas'||p.estado===redFiltro);
+  const cola=todos.filter(p=>p.estado==='Aprobada').sort((a,b)=>String(a.programadaPara).localeCompare(String(b.programadaPara)));
+  const comp=`<div class="panel"><div class="panel-h"><h3>Nueva publicación</h3><div class="spacer"></div><div class="red-est">${estado}</div></div>
+    <div class="red-comp">
+      <div><label class="muted">Fotos reales de trabajos (una publicación por foto)</label>
+        <input type="file" id="redArchivos" accept="image/*" multiple>
+        <input id="redNota" placeholder="Nota opcional: qué es, material, proceso… (sin nombre del cliente)">
+        <button class="btn" id="redBtnFotos" onclick="redFotos()">Subir y escribir textos</button></div>
+      <div><label class="muted">O una imagen ultrarrealista hecha con IA</label>
+        <textarea id="redPrompt" rows="3" placeholder="Ej. láser de fibra cortando lámina de acero de 3 mm con chispas, planta industrial"></textarea>
+        <button class="btn ghost" id="redBtnIA" onclick="redIA()" ${E.imagenesIA?'':'disabled title="Falta activar la IA de imágenes"'}>Generar imagen y texto</button></div>
+    </div><div id="redMsg" class="muted" style="padding:0 20px 14px"></div></div>
+    <div class="panel"><div style="padding:12px 20px">Próximas en salir: ${cola.length?cola.slice(0,5).map(p=>`<b>${redFechaTxt(p.programadaPara)}</b>`).join(' · '):'<span class="muted">nada aprobado todavía — aprueba borradores para llenar la semana (lun, mié y vie a las 12:00)</span>'}</div></div>`;
+  const chips=`<div class="toolbar"><div class="seg">${['Todas',...RED_ESTADOS].map(e=>{const n=todos.filter(p=>p.estado===e).length;return `<button class="${e===redFiltro?'on':''}" onclick="redFiltro='${e}';render()">${e}${e!=='Todas'&&n?` (${n})`:''}</button>`}).join('')}</div></div>`;
+  return comp+chips+(rows.length?`<div class="red-lista">${rows.map(redCard).join('')}</div>`:'<div class="cr-empty" style="padding:26px">Sin publicaciones todavía. Sube las primeras fotos de trabajos.</div>');
 }
 const SUG_ESTADOS=['Nueva','En revisión','Hecha','Descartada'];
 const SUG_CLASE={Nueva:'st-prog','En revisión':'st-proceso',Hecha:'st-proc',Descartada:'st-lost'};
@@ -13642,7 +13835,7 @@ function userViews(){
 /* La papelera es el registro de cambios del CRM: quien borro que y cuando.
    Por eso es de Daniel y de nadie mas, con candado por NOMBRE y no por
    permisos, para que ningun perfil de acceso total se la gane solo. */
-function canView(v){if(v===DEV_VIEW)return esDev();if(v==='papelera')return esDev();if(v==='facturacion')return esContable();return userViews().includes(v);}
+function canView(v){if(v===DEV_VIEW)return esDev();if(v==='redes')return isAdmin();if(v==='papelera')return esDev();if(v==='facturacion')return esContable();return userViews().includes(v);}
 function firstView(){const v=userViews();return v.includes('resumen')?'resumen':(v[0]||'resumen');}
 function applyNavPerms(){
   const allowed=userViews();
