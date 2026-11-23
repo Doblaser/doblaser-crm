@@ -5079,11 +5079,15 @@ function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(
      días siguientes hasta el viernes que trabaja (no a festivos ni a los que descansa).
      Cambiar un día de la mitad de la semana cambia solo ese día. (Daniel, 30/10/2026.) */
   const fd=d=>pgSumar(pgLunes(PG.fecha),d-1);
+  /* 23/11/2026 (Daniel): el horario del lunes —o del martes si el lunes es festivo—
+     se copia a todos los días hasta el sábado, trabaje o no ese día, menos los
+     festivos. Después se ajusta a mano el día que no se trabaje o cambie. */
   let cop=0;
-  if(dw>=1&&dw<=5&&![1,2,3,4,5].some(d=>d<dw&&pgTurnoEmp(e,fd(d))))
-    for(let d=dw+1;d<=5;d++)if(pgTurnoEmp(e,fd(d))){h[d]={ini:n.ini,fin:n.fin};['alm','des'].forEach(k=>{if(n[k])h[d][k]={...n[k]};});cop++;}
+  const primero=[1,2,3,4,5,6].find(d=>!pgFestivo(fd(d)));
+  if(dw===primero)
+    for(let d=dw+1;d<=6;d++)if(!pgFestivo(fd(d))){h[d]={ini:n.ini,fin:n.fin};['alm','des'].forEach(k=>{if(n[k])h[d][k]={...n[k]};});cop++;}
   pgGuardarCfg();render();
-  if(cop)toast('Mismo horario puesto hasta el viernes ('+cop+' día'+(cop>1?'s':'')+' más)');
+  if(cop)toast('Mismo horario puesto hasta el sábado ('+cop+' día'+(cop>1?'s':'')+' más)');
   {const t2=pgTurnoEmp(e,f),mal=['des','alm'].filter(k=>{const a=pgAlmDe(t2,k);return a&&!pgDentroTurno(t2,a);});
    if(mal.length)alert('Ojo: con ese horario el '+mal.map(k=>PG_DESC_PROP[k].lbl.toLowerCase()).join(' y el ')+' de '+e.nombre+' queda fuera del turno y no se descuenta. Corrígelo (sale en rojo).');}
   if(pgCruza(n))toast('Turno de noche: entra '+pgHora(n.ini)+' y sale '+pgHora(n.fin)+' del día siguiente · '+pgHc(pgDurTurno(n)));}
@@ -5108,7 +5112,9 @@ function pgHorAlm(id,dw,q,v,k='alm'){if(!pgPuede())return;const e=pgCfg().person
     if(pgDentroTurno(t,{ini:alt,fin:alt+dur})){ini=alt;toast('Lo pasé a '+pgHora(ini)+' porque a esa hora sí está en turno');}
     else{alert('No se guardó: el '+P.lbl.toLowerCase()+' de '+pgHora(ini)+' a '+pgHora(ini+dur)+' queda fuera del turno de '+e.nombre+' ('+pgHora(t.ini)+' a '+pgHora(t.fin)+'). Pon una hora entre la entrada y la salida.');render();return;}}
   const n={ini:t.ini,fin:t.fin};['alm','des'].forEach(x=>{if(t[x]&&t[x].no)n[x]={no:1};else if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
-  n[k]=dur>0?{ini,fin:ini+dur}:{no:1};pgHorSem(id,true)[dw]=n;
+  n[k]=dur>0?{ini,fin:ini+dur}:{no:1};const hs=pgHorSem(id,true);hs[dw]=n;
+  {const fd=d=>pgSumar(pgLunes(PG.fecha),d-1),primero=[1,2,3,4,5,6].find(d=>!pgFestivo(fd(d)));
+   if(dw===primero)for(let d=dw+1;d<=6;d++){const td=pgTurnoEmp(e,fd(d));if(td&&!pgFestivo(fd(d)))hs[d]={...(hs[d]&&!hs[d].libre?hs[d]:{ini:td.ini,fin:td.fin}),[k]:{...n[k]}};}}
   pgGuardarCfg();render();
   toast(dur>0?P.lbl+' de '+e.nombre+': '+pgHora(ini)+'–'+pgHora(ini+dur)+' ese día':e.nombre+' sin '+P.lbl.toLowerCase()+' ese día');}
 function pgHorLibre(id,dw,libre){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
