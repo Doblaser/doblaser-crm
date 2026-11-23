@@ -5035,7 +5035,7 @@ function pgPersonalHTML(){
   const dias=[1,2,3,4,5,6,0],fechas=dias.map(i=>pgSumar(lunes,i===0?6:i-1));
   const sem=(c.horarios||{})[lunes]||{};
   /* 23/11: el domingo solo sale si alguien trabaja ese domingo (ocupaba espacio) */
-  const fVis=fechas.filter(f=>pgDiaSem(f)!==0||(c.personal||[]).some(e=>pgTurnoEmp(e,f)||pgAporteFestivo(e,f)));
+  const fVis=fechas.filter(f=>pgDiaSem(f)!==0||PG.verDom);   /* el domingo se ve solo con el botón */
   const enMaq=e=>c.maquinas.filter(m=>(m.operario||'').trim().toLowerCase()===e.nombre.toLowerCase()).map(m=>m.nombre).join(', ');
   const col=pgColoresEmp(c.personal);
   const filas=(c.personal||[]).map((e,i)=>{
@@ -5055,6 +5055,7 @@ function pgPersonalHTML(){
       <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,7);render()">Siguiente ▶</button>
       ${fechas.includes(hoy)?'':`<button type="button" class="btn ghost sm" onclick="PG.fecha=pgHoy();render()">Esta semana</button>`}
       <button type="button" class="btn ghost sm" onclick="verHorarioImagen()" title="Ver el horario de la semana como imagen y compartirlo">🖼 Ver como imagen</button>
+      <button type="button" class="btn ghost sm" onclick="PG.verDom=!PG.verDom;render()">${PG.verDom?'Ocultar domingo':'Ver domingo'}</button>
       <div class="spacer"></div>
       ${ed?`<button type="button" class="btn ghost sm" onclick="pgHorCopiar()" title="Pone en esta semana los mismos cambios de la semana anterior">Copiar la semana anterior</button>
       <button type="button" class="btn sm" onclick="pgEmpAgregar()">+ Agregar empleado</button>`:''}</div>
