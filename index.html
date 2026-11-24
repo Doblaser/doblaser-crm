@@ -5140,7 +5140,7 @@ function pgPersonalHTML(){
     <div class="pg-42"><b>Jornada ordinaria: ${PG_JORNADA} horas a la semana.</b> Lo que pase de ${PG_JORNADA} h se cuenta como <b>horas extra</b>. Las horas se cuentan sin almuerzo ni descansos. <b>El festivo que no se trabaja cuenta como laborado</b> (${pgHc(+c.festivoMin||PG_FESTIVO_MIN)} de jornada ordinaria): por ley la semana se reduce en las horas de ese día, así que no hay que reponerlo ni aparece como horas faltantes.${(()=>{const ex=(c.personal||[]).map(e=>({e,h:pgMinSemana(e,fechas)})).filter(x=>x.h>PG_JORNADA*60);return ex.length?' <span style="color:#b91c1c;font-weight:700">Esta semana tienen horas extra: '+ex.map(x=>esc(x.e.nombre)+' ('+pgHc(x.h-PG_JORNADA*60)+')').join(', ')+'.</span>':'';})()}</div>
     <div class="fc-intro">El horario de cada operario dice en qué horas puede trabajar su máquina. En el programa del día, lo que queda fuera de su turno sale sombreado, no se puede programar ahí, y la programación automática lo respeta. Hay aviso si un trabajo queda fuera del turno, si el operario descansa ese día o si la misma persona queda en dos máquinas a la misma hora. Cada empleado tiene un <b>horario base</b> y aquí se cambia solo lo de esta semana (en amarillo). El nombre tiene que ser igual al que se pone como operario de la máquina.</div>
     ${(()=>{const L=[];(c.personal||[]).forEach(e=>fechas.forEach(f=>{const t=pgTurnoEmp(e,f);if(!t)return;
-        ['des','alm'].forEach(k=>{const a=pgAlmDe(t,k);if(a&&!pgDentroTurno(t,a))L.push(esc(e.nombre)+' '+PG_DSEM[pgDiaSem(f)]+' '+(+f.slice(8))+': '+PG_DESC_PROP[k].lbl.toLowerCase()+' '+pgHora(a.ini)+' fuera del turno ('+pgHora(t.ini)+'–'+pgHora(t.fin)+')');});}));
+        ['des','alm'].forEach(k=>{const a=pgAlmDe(t,k);if(false&&a&&!pgDentroTurno(t,a))L.push(esc(e.nombre)+' '+PG_DSEM[pgDiaSem(f)]+' '+(+f.slice(8))+': '+PG_DESC_PROP[k].lbl.toLowerCase()+' '+pgHora(a.ini)+' fuera del turno ('+pgHora(t.ini)+'–'+pgHora(t.fin)+')');});}));
       return L.length?`<div class="pg-errhor">⚠ <b>${L.length} descanso${L.length>1?'s':''} fuera del turno</b> (no se están descontando, corrígelos):<ul>${L.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:'';})()}
     ${(c.personal||[]).length?panel('Horarios de la semana',(c.personal||[]).length+' empleados',`<div style="overflow-x:auto"><table class="pg-sem pg-hor"><thead><tr><th>Empleado</th>${fVis.map(f=>`<th class="${f===hoy?'hoy':''}">${PG_DSEM[pgDiaSem(f)]} ${+f.slice(8)}${pgFestivo(f)?`<div style="color:#b91c1c;text-transform:none;letter-spacing:0">festivo</div>`:''}</th>`).join('')}<th class="num">Horas</th></tr></thead><tbody>${filas}</tbody></table></div>`)
       :`<div class="fc-vacio">Todavía no hay empleados. ${ed?'<button type="button" class="lnk" onclick="pgEmpAgregar()">Agrega el primero</button>.':''}</div>`}
@@ -5166,7 +5166,7 @@ function pgHorSet(id,dw,k,v){if(!pgPuede())return;const e=pgCfg().personal.find(
   pgGuardarCfg();render();
   if(cop)toast('Mismo horario puesto hasta el sábado ('+cop+' día'+(cop>1?'s':'')+' más)');
   {const t2=pgTurnoEmp(e,f),mal=['des','alm'].filter(k=>{const a=pgAlmDe(t2,k);return a&&!pgDentroTurno(t2,a);});
-   if(mal.length)alert('Ojo: con ese horario el '+mal.map(k=>PG_DESC_PROP[k].lbl.toLowerCase()).join(' y el ')+' de '+e.nombre+' queda fuera del turno y no se descuenta. Corrígelo (sale en rojo).');}
+   if(false&&mal.length)alert('Ojo: con ese horario el '+mal.map(k=>PG_DESC_PROP[k].lbl.toLowerCase()).join(' y el ')+' de '+e.nombre+' queda fuera del turno y no se descuenta. Corrígelo (sale en rojo).');}
   if(pgCruza(n))toast('Turno de noche: entra '+pgHora(n.ini)+' y sale '+pgHora(n.fin)+' del día siguiente · '+pgHc(pgDurTurno(n)));}
 /* almuerzo del día: a qué hora sale y cuánto dura (23/11/2026) */
 function pgAlmDe(t,k='alm'){if(t&&t[k]&&t[k].no)return null;const a=pgAlmOk(t&&t[k])?t[k]:pgDescGlobal(k);return a?{ini:+a.ini,fin:+a.fin}:null;}
@@ -5178,16 +5178,14 @@ function pgDentroTurno(t,a){if(!a||!t)return true;const fin=pgCruza(t)?t.fin+144
   const ok=x=>x.ini>=t.ini&&x.fin<=fin;return ok(a)||ok({ini:a.ini+1440,fin:a.fin+1440});}
 function pgAlmCeldaHTML(e,dw,t,dis){
   return ['des','alm'].map(k=>{const P=PG_DESC_PROP[k],no=!!(t[k]&&t[k].no),a=pgAlmDe(t,k),propio=no||pgAlmOk(t[k]),dur=no?0:(a?a.fin-a.ini:P.dur);
-    const fuera=!no&&a&&!pgDentroTurno(t,a);
+    const fuera=false;   /* 24/11: sin restricción de hora para comer */
     return `<div class="pg-alm ${propio?'propio':''} ${no?'no':''} ${fuera?'fuera':''}" title="${fuera?'Queda fuera del turno: NO se está descontando. Revisa a. m. / p. m.':no?'Sin '+P.lbl.toLowerCase()+' este día':P.lbl+' de este día'+(propio?'':' (el de la planta)')}"><span>${P.lbl}</span><input ${dis} type="time" step="300" ${no?'disabled':''} value="${a?pgHora2(a.ini):''}" onchange="pgHorAlm('${e.id}',${dw},'ini',this.value,'${k}')"><select ${dis} onchange="pgHorAlm('${e.id}',${dw},'dur',this.value,'${k}')">${pgAlmDurOpts(dur)}</select></div>`;}).join('');
 }
 function pgHorAlm(id,dw,q,v,k='alm'){if(!pgPuede())return;const e=pgCfg().personal.find(x=>x.id===id);if(!e)return;
   const P=PG_DESC_PROP[k],f=pgSumar(pgLunes(PG.fecha),dw===0?6:dw-1),t=pgTurnoEmp(e,f);if(!t){render();return;}
   const a=pgAlmDe(t,k)||pgAlmDe({},k)||{ini:P.def[0],fin:P.def[1]};let ini=a.ini,dur=a.fin-a.ini;
   if(q==='ini'){if(!v){render();return;}ini=pgMin(v);}else dur=Math.max(0,+v||0);
-  if(dur>0&&!pgDentroTurno(t,{ini,fin:ini+dur})){const alt=(ini+720)%1440;
-    if(pgDentroTurno(t,{ini:alt,fin:alt+dur})){ini=alt;toast('Lo pasé a '+pgHora(ini)+' porque a esa hora sí está en turno');}
-    else{alert('No se guardó: el '+P.lbl.toLowerCase()+' de '+pgHora(ini)+' a '+pgHora(ini+dur)+' queda fuera del turno de '+e.nombre+' ('+pgHora(t.ini)+' a '+pgHora(t.fin)+'). Pon una hora entre la entrada y la salida.');render();return;}}
+  /* 24/11: Daniel — el almuerzo/desayuno puede ir a cualquier hora (turnos nocturnos también comen) */
   const n={ini:t.ini,fin:t.fin};['alm','des'].forEach(x=>{if(t[x]&&t[x].no)n[x]={no:1};else if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
   n[k]=dur>0?{ini,fin:ini+dur}:{no:1};const hs=pgHorSem(id,true);hs[dw]=n;
   {const fd=d=>pgSumar(pgLunes(PG.fecha),d-1),primero=[1,2,3,4,5,6].find(d=>!pgFestivo(fd(d)));
