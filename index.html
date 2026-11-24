@@ -3885,7 +3885,7 @@ const PG_UNI={Corte:'láminas',Doblez:'piezas',Soldadura:'piezas',Pintura:'pieza
 const PG_HECHO={Corte:'Láminas cortadas',Doblez:'Piezas dobladas',Soldadura:'Piezas soldadas',Pintura:'Piezas pintadas'};
 const PG_ACTS=['Mantenimiento','Limpieza','Capacitación','Trabajo interno','Montaje'];
 const PG_EST={completo:'Terminado',parcial:'A medias',nohecho:'No se hizo'};
-const PG_CFG_DEF={inicio:360,fin:1200,paso:15,
+const PG_CFG_DEF={inicio:360,fin:1200,paso:5,
   descansos:[{ini:720,fin:780,lbl:'Almuerzo'}],
   maquinas:[{id:'laser',nombre:'Láser',proc:'Corte',operario:''},
             {id:'dobladora',nombre:'Dobladora',proc:'Doblez',operario:''},
@@ -3928,6 +3928,7 @@ function pgNormCfg(v){
   const c=JSON.parse(JSON.stringify(PG_CFG_DEF));
   if(!v||typeof v!=='object')return c;
   ['inicio','fin','paso','segGolpe','mmHora'].forEach(k=>{if(+v[k]>0)c[k]=+v[k];});
+  if(c.paso===15&&!v.paso5)c.paso=5;c.paso5=1;   /* 24/11: Daniel quitó la cuadrícula de 15 min; ahora de 5 en 5 */
   if(Array.isArray(v.descansos))c.descansos=v.descansos.filter(d=>d&&+d.fin>+d.ini).map(d=>({ini:+d.ini,fin:+d.fin,lbl:d.lbl||'Descanso'}));
   if(Array.isArray(v.maquinas)&&v.maquinas.length)c.maquinas=v.maquinas.filter(m=>m&&m.id).map(m=>({id:String(m.id),nombre:m.nombre||'Máquina',proc:PG_PROCS.includes(m.proc)?m.proc:'Corte',operario:m.operario||''}));
   if(Array.isArray(v.personal))c.personal=v.personal.filter(e=>e&&e.id&&(e.nombre||'').trim()).map(e=>({id:String(e.id),nombre:e.nombre.trim(),ini:+e.ini||420,fin:+e.fin||1020,dias:Array.isArray(e.dias)?e.dias.map(Number):[1,2,3,4,5,6],...(pgAlmOk(e.alm)?{alm:{ini:+e.alm.ini,fin:+e.alm.fin}}:{}),...(pgAlmOk(e.des)?{des:{ini:+e.des.ini,fin:+e.des.fin}}:{})}));
@@ -4520,10 +4521,10 @@ function pgDragIni(e,tipo,id,proc){
   try{e.dataTransfer.setData('text/plain',tipo+':'+id);e.dataTransfer.effectAllowed='move';}catch(_){}
 }
 function pgDragFin(){PG.drag=null;document.querySelectorAll('.pg-track.over').forEach(t=>t.classList.remove('over'));}
-function pgTiempoDeX(e,tr){const c=pgCfg(),rc=tr.getBoundingClientRect();const x=Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width));const p=c.paso||15;return Math.round((c.inicio+x*(c.fin-c.inicio))/p)*p;}
+function pgTiempoDeX(e,tr){const c=pgCfg(),rc=tr.getBoundingClientRect();const x=Math.max(0,Math.min(1,(e.clientX-rc.left)/rc.width));const p=c.paso||5;return Math.round((c.inicio+x*(c.fin-c.inicio))/p)*p;}
 function pgOver(e){
   if(!PG.drag)return;e.preventDefault();const tr=e.currentTarget;tr.classList.add('over');
-  const g=tr.querySelector('.pg-guia');if(!g)return;const c=pgCfg(),p=c.paso||15;
+  const g=tr.querySelector('.pg-guia');if(!g)return;const c=pgCfg(),p=c.paso||5;
   const T=Math.max(c.inicio,Math.round((pgTiempoDeX(e,tr)-(PG.drag.off||0))/p)*p);
   g.style.left=((T-c.inicio)/(c.fin-c.inicio)*100)+'%';g.dataset.h=pgHora(T);
 }
@@ -4531,7 +4532,7 @@ function pgLeave(e){const tr=e.currentTarget;if(!e.relatedTarget||!tr.contains(e
 function pgDrop(e,maq){
   e.preventDefault();e.currentTarget.classList.remove('over');
   const dg=PG.drag;PG.drag=null;if(!dg)return;
-  const c=pgCfg(),p=c.paso||15;const T=Math.round((pgTiempoDeX(e,e.currentTarget)-(dg.off||0))/p)*p;
+  const c=pgCfg(),p=c.paso||5;const T=Math.round((pgTiempoDeX(e,e.currentTarget)-(dg.off||0))/p)*p;
   if(dg.tipo==='blq')pgMover(dg.id,maq,T);else pgColocar(maq,T,dg);
 }
 function pgElegir(tipo,id,proc){
@@ -4545,7 +4546,7 @@ function pgColocar(maq,T,it){
   const f=PG.fecha,c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);if(!m)return;
   if(it.tipo==='rop'&&it.proc&&it.proc!==m.proc){toast('Esa fila es de '+m.proc.toLowerCase()+'. El '+it.proc.toLowerCase()+' va en una máquina de '+it.proc.toLowerCase());return;}
   const h=pgHueco(f,maq,T);
-  if(h.disp<(c.paso||15)){toast('No queda espacio libre en esa parte del día');return;}
+  if(h.disp<(c.paso||5)){toast('No queda espacio libre en esa parte del día');return;}
   let b,msg='';
   if(it.tipo==='act'){b={id:pgId(),maq,tipo:'act',act:it.id,ini:h.ini,min:Math.min(60,h.disp),nota:''};}
   else{
@@ -4569,7 +4570,7 @@ function pgMover(id,maq,T){
   const c=pgCfg(),m=c.maquinas.find(x=>x.id===maq);
   if(b.tipo==='rop'&&m&&m.proc!==b.proc){toast('Ese bloque es de '+b.proc.toLowerCase()+' y esa máquina es de '+m.proc.toLowerCase());return;}
   const h=pgHueco(f,maq,T,id);
-  if(h.disp<(c.paso||15)){toast('No cabe ahí');return;}
+  if(h.disp<(c.paso||5)){toast('No cabe ahí');return;}
   b.maq=maq;b.ini=h.ini;
   if(b.min>h.disp){toast('Solo cupo '+pgHc(h.disp)+'; lo demás vuelve a quedar pendiente');b.min=h.disp;}
   pgGuardar(f);render();
@@ -4579,7 +4580,7 @@ function pgResizeIni(e,id){
   const el=e.currentTarget.closest('.pg-b'),tr=el&&el.closest('.pg-track');if(!tr)return;
   el.setAttribute('draggable','false');
   const f=PG.fecha,b=pgDia(f).bloques.find(x=>x.id===id);if(!b)return;
-  const c=pgCfg(),p=c.paso||15,span=c.fin-c.inicio;
+  const c=pgCfg(),p=c.paso||5,span=c.fin-c.inicio;
   const nx=pgDia(f).bloques.filter(x=>x.maq===b.maq&&x.id!==id&&x.ini>b.ini).sort((a,z)=>a.ini-z.ini)[0];
   const vf=pgVentana(f,b.maq).fin;
   const max=pgTrabajo(b.ini,Math.min(vf,nx?nx.ini:vf),f,b.maq);
@@ -4605,7 +4606,7 @@ function pgSetNota(v){const f=PG.fecha;pgDia(f,true).nota=(v||'').trim();pgGuard
    órdenes que más pronto se entregan, respetando corte → doblez → soldadura ---- */
 function pgAuto(){
   if(!pgPuede())return;
-  const f=PG.fecha,c=pgCfg(),d=pgDia(f,true),p=c.paso||15;
+  const f=PG.fecha,c=pgCfg(),d=pgDia(f,true),p=c.paso||5;
   const rops=pgRops().filter(r=>r.estado!=='Procesado').sort(pgPorEntrega);
   const maqs=c.maquinas.slice().sort((a,b)=>PG_PROCS.indexOf(a.proc)-PG_PROCS.indexOf(b.proc));
   let n=0;const puestos=[];
@@ -4706,7 +4707,7 @@ function pgEditar(id){
 function pgEDurMas(h){const e=document.getElementById('pgEDur');if(e)e.value=Math.max(0.25,Math.round(((+e.value||0)+h)*4)/4);}
 function pgEditGuardar(id){
   const f=PG.fecha,d=pgDia(f,true),b=d.bloques.find(x=>x.id===id);if(!b)return;
-  const c=pgCfg(),p=c.paso||15;
+  const c=pgCfg(),p=c.paso||5;
   const ini=+document.getElementById('pgEIni').value;
   let min=Math.max(p,Math.round((+document.getElementById('pgEDur').value||0)*60/p)*p);
   const h=pgHueco(f,b.maq,ini,id);
@@ -4898,17 +4899,17 @@ function pgAjustesHTML(){
     <td class="nw">${ed?`<button type="button" class="pg-mini" onclick="pgCfgMover(${i},-1)" title="Subir">▲</button> <button type="button" class="pg-mini" onclick="pgCfgMover(${i},1)" title="Bajar">▼</button> <button type="button" class="pg-mini" onclick="pgCfgQuitar('maq',${i})" title="Quitar">✕</button>`:''}</td></tr>`).join('');
   const desc=c.descansos.map((x,i)=>`<tr>
     <td class="pg-w40"><input ${dis} value="${esc(x.lbl)}" onchange="pgCfgDesc(${i},'lbl',this.value)"></td>
-    <td><input ${dis} type="time" step="900" value="${pgHora2(x.ini)}" onchange="pgCfgDesc(${i},'ini',pgMin(this.value))"></td>
-    <td><input ${dis} type="time" step="900" value="${pgHora2(x.fin)}" onchange="pgCfgDesc(${i},'fin',pgMin(this.value))"></td>
+    <td><input ${dis} type="time" step="300" value="${pgHora2(x.ini)}" onchange="pgCfgDesc(${i},'ini',pgMin(this.value))"></td>
+    <td><input ${dis} type="time" step="300" value="${pgHora2(x.fin)}" onchange="pgCfgDesc(${i},'fin',pgMin(this.value))"></td>
     <td>${ed?`<button type="button" class="pg-mini" onclick="pgCfgQuitar('desc',${i})" title="Quitar">✕</button>`:''}</td></tr>`).join('');
   return `<div class="fc-intro">${ed?'Los cambios se guardan solos y los ven todos los equipos.':'Solo el director operativo y gerencia pueden cambiar esto.'} Una máquina por fila del horario: si hay dos dobladoras, pon dos máquinas con proceso Doblez.</div>
   <div class="pg-aj">
     ${panel('Máquinas y operarios',c.maquinas.length+' máquinas',`<div class="pg-aj-in"><table><thead><tr><th style="text-align:left;font-size:11px;color:var(--ink-3)">Máquina</th><th style="text-align:left;font-size:11px;color:var(--ink-3)">Proceso</th><th style="text-align:left;font-size:11px;color:var(--ink-3)">Operario</th><th></th></tr></thead><tbody>${maqs}</tbody></table>
       ${ed?`<button type="button" class="btn ghost sm" style="margin-top:8px" onclick="pgCfgAgregar('maq')">+ Agregar máquina</button>`:''}</div>`)}
     ${panel('Horario de trabajo','capacidad '+fmtMin(pgCapacidad())+' por máquina al día',`<div class="pg-aj-in">
-      <div style="display:flex;gap:10px"><div style="flex:1"><label>Entrada</label><input ${dis} type="time" step="900" value="${pgHora2(c.inicio)}" onchange="pgCfgSet('inicio',pgMin(this.value))"></div>
-      <div style="flex:1"><label>Salida</label><input ${dis} type="time" step="900" value="${pgHora2(c.fin)}" onchange="pgCfgSet('fin',pgMin(this.value))"></div>
-      <div style="flex:1"><label>Cuadrícula</label><select ${dis} onchange="pgCfgSet('paso',+this.value)">${[15,30,60].map(p=>`<option value="${p}" ${c.paso===p?'selected':''}>${p} min</option>`).join('')}</select></div></div>
+      <div style="display:flex;gap:10px"><div style="flex:1"><label>Entrada</label><input ${dis} type="time" step="300" value="${pgHora2(c.inicio)}" onchange="pgCfgSet('inicio',pgMin(this.value))"></div>
+      <div style="flex:1"><label>Salida</label><input ${dis} type="time" step="300" value="${pgHora2(c.fin)}" onchange="pgCfgSet('fin',pgMin(this.value))"></div>
+      <div style="flex:1"><label>Cuadrícula</label><select ${dis} onchange="pgCfgSet('paso',+this.value)">${[5,10,15,30,60].map(p=>`<option value="${p}" ${c.paso===p?'selected':''}>${p} min</option>`).join('')}</select></div></div>
       <label style="margin-top:14px">Descansos (no cuentan como horas de trabajo)</label>
       <table><tbody>${desc}</tbody></table>
       ${ed?`<button type="button" class="btn ghost sm" style="margin-top:8px" onclick="pgCfgAgregar('desc')">+ Agregar descanso</button>`:''}</div>`)}
@@ -5123,7 +5124,7 @@ function pgPersonalHTML(){
       if(t)tot+=pgDurTurno(t);
       tot+=fest;
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
-        ${t?`<input ${dis} type="time" step="900" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)">${pgAlmCeldaHTML(e,dw,t,dis)}<input ${dis} type="time" step="900" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
+        ${t?`<input ${dis} type="time" step="300" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)">${pgAlmCeldaHTML(e,dw,t,dis)}<input ${dis} type="time" step="300" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
         <div class="pg-hdur">${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>`:'<span></span>'}${t?`<b title="Horas trabajadas ese día, sin desayuno ni almuerzo">${pgHc(pgDurTurno(t))}</b>`:''}</div></td>`;}).join('');
     return `<tr><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b><i class="pg-punto"></i>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
@@ -5208,7 +5209,7 @@ function pgEmpDlg(){
   box.innerHTML=`<div class="confirm-box fact-box"><div class="fc-t">${PG._emp>=0?'Horario base de '+esc(e.nombre):'Nuevo empleado'}</div>
     <div class="fc-cli">El horario de siempre. Los cambios de una semana se hacen en la tabla.</div>
     <div class="fc-campos"><div style="flex:2"><label>Nombre (igual al que va como operario)</label><input id="pgEmN" value="${esc(e.nombre)}" placeholder="Ej: Carlos"></div></div>
-    <div class="fc-campos"><div><label>Entra</label><input id="pgEmI" type="time" step="900" value="${pgHora2(e.ini)}"></div><div><label>Sale</label><input id="pgEmF" type="time" step="900" value="${pgHora2(e.fin)}"></div></div>
+    <div class="fc-campos"><div><label>Entra</label><input id="pgEmI" type="time" step="300" value="${pgHora2(e.ini)}"></div><div><label>Sale</label><input id="pgEmF" type="time" step="300" value="${pgHora2(e.fin)}"></div></div>
     <label style="font-size:11px;color:var(--ink-3)">Días que trabaja</label>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 6px">${[1,2,3,4,5,6,0].map(d=>`<label class="pg-chk"><input type="checkbox" class="pgEmD" value="${d}" ${e.dias.includes(d)?'checked':''}> ${PG_DSEM[d]}</label>`).join('')}</div>
     <div class="fc-sub">El almuerzo y los descansos de "Máquinas y horario" se descuentan solos.</div>
