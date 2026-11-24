@@ -1225,6 +1225,11 @@ html.side-off .menu-btn{display:grid !important}
 .pg-punto{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ec);
   margin-right:6px;vertical-align:1px;flex:0 0 auto}
 .pg-hor td.pg-hc.libre{background:#f5f3f0}
+/* 24/11: el color de cada empleado ocupa toda su fila para ubicarlo rápido */
+.pg-hor tr.pg-fila>td{background:var(--ef)!important;border-bottom:2px solid color-mix(in srgb,var(--ec) 35%,transparent)}
+.pg-hor tr.pg-fila>td.pg-hc.cambio{box-shadow:inset 0 0 0 2px #f59e0b}
+.pg-hor tr.pg-fila>td.pg-hc.libre{background:repeating-linear-gradient(135deg,var(--ef) 0 8px,color-mix(in srgb,var(--ef) 70%,#d6d3d1) 8px 16px)!important}
+.pg-hor tr.pg-fila>td.pg-tot{border-right:5px solid var(--ec)}
 .pg-hor /* turno que sale al día siguiente */
 .pg-fest{font-size:10.5px;font-weight:700;color:#b45309;margin-top:2px}
 .pg-noche{font-size:10.5px;font-weight:700;color:#6d28d9;background:#f3e8ff;
@@ -4998,7 +5003,7 @@ function pgRecargosHTML(fechas){
   const cel=m=>m?pgHc(m):'<span style="color:var(--ink-3)">—</span>';
   return panel('Horas y recargos de la semana','según la ley colombiana',`<div style="overflow-x:auto"><table class="pg-sem pg-rec">
     <thead><tr><th>Empleado</th>${usadas.map(k=>`<th class="num">${k[1]}<div class="pg-pct">${k[2](f0)?'+'+k[2](f0)+' %':'sin recargo'}</div></th>`).join('')}<th class="num">Total</th></tr></thead>
-    <tbody>${ds.map(({e,d})=>{const cl=col[e.id||e.nombre]||PG_PAL[0];return `<tr><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b>${esc(e.nombre)}</b></td>${usadas.map(k=>`<td class="num tnum ${k[0].startsWith('ex')&&d[k[0]]?'pg-rex':''}">${cel(d[k[0]])}</td>`).join('')}<td class="num tnum"><b>${cel(d.total)}</b></td></tr>`;}).join('')}</tbody>
+    <tbody>${ds.map(({e,d})=>{const cl=col[e.id||e.nombre]||PG_PAL[0];return `<tr class="pg-fila" style="--ec:${cl.b};--ef:${cl.f}"><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b>${esc(e.nombre)}</b></td>${usadas.map(k=>`<td class="num tnum ${k[0].startsWith('ex')&&d[k[0]]?'pg-rex':''}">${cel(d[k[0]])}</td>`).join('')}<td class="num tnum"><b>${cel(d.total)}</b></td></tr>`;}).join('')}</tbody>
     <tfoot><tr><td><b>Total</b></td>${usadas.map(k=>`<td class="num tnum"><b>${cel(tot[k[0]])}</b></td>`).join('')}<td class="num tnum"><b>${cel(ds.reduce((a,x)=>a+x.d.total,0))}</b></td></tr></tfoot></table></div>
     <div class="fc-sub" style="margin-top:8px">Nocturno: de ${pgHora(pgIniNoche(f0))} a 6:00 a. m. (Ley 2466 de 2025). Dominical y festivo: ${pgPctDominical(f0)} %. Extra diurna 25 %, extra nocturna 75 %; en domingo o festivo se suma el recargo dominical. Son horas extra las últimas trabajadas de la semana después de ${PG_JORNADA} h (menos lo que abona un festivo no trabajado). No cuentan el desayuno ni el almuerzo. Los porcentajes son sobre el valor de la hora ordinaria.</div>`);
 }
@@ -5126,7 +5131,7 @@ function pgPersonalHTML(){
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
         ${t?`<input ${dis} type="time" step="300" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)">${pgAlmCeldaHTML(e,dw,t,dis)}<input ${dis} type="time" step="300" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
         <div class="pg-hdur">${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>`:'<span></span>'}${t?`<b title="Horas trabajadas ese día, sin desayuno ni almuerzo">${pgHc(pgDurTurno(t))}</b>`:''}</div></td>`;}).join('');
-    return `<tr><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b><i class="pg-punto"></i>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
+    return `<tr class="pg-fila" style="--ec:${cl.b};--ef:${cl.f}"><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b><i class="pg-punto"></i>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
   return `<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
       <button type="button" class="btn ghost sm" onclick="PG.fecha=pgSumar(PG.fecha,-7);render()">◀ Anterior</button>
