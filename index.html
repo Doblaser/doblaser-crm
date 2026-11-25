@@ -3948,7 +3948,7 @@ function pgCfg(){return PG.cfg||(PG.cfg=pgNormCfg(null));}
    pgDescansos() acepta (alm) o (fecha, máquina). */
 function pgAlmOk(a){return !!(a&&+a.fin>+a.ini);}
 /* 23/11: el desayuno (15 min) también se mueve a mano, igual que el almuerzo */
-const PG_DESC_PROP={des:{re:/desayuno/i,lbl:'Desayuno',def:[540,555],dur:15},alm:{re:/almuerzo/i,lbl:'Almuerzo',def:[720,780],dur:60}};
+const PG_DESC_PROP={des:{re:/desayuno|break/i,lbl:'Break',def:[540,555],dur:15},alm:{re:/almuerzo/i,lbl:'Almuerzo',def:[720,780],dur:60}};
 function pgAlmMaq(f,maq){const m=pgCfg().maquinas.find(x=>x.id===maq);if(!m)return null;const o={};
   for(const n of pgOperarios(pgDia(f),m)){const t=pgTurnoEmp(pgEmpleado(n),f);if(!t)continue;
     Object.keys(PG_DESC_PROP).forEach(k=>{if(!o[k]&&t[k]&&(t[k].no||pgAlmOk(t[k])))o[k]=t[k];});}return o;}
@@ -5004,7 +5004,7 @@ function pgRecargosHTML(fechas){
     <thead><tr><th>Empleado</th>${usadas.map(k=>`<th class="num">${k[1]}<div class="pg-pct">${k[2](f0)?'+'+k[2](f0)+' %':'sin recargo'}</div></th>`).join('')}<th class="num">Total</th></tr></thead>
     <tbody>${ds.map(({e,d})=>{const cl=col[e.id||e.nombre]||PG_PAL[0];return `<tr class="pg-fila" style="--ec:${cl.b};--ef:${cl.f}"><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b>${esc(e.nombre)}</b></td>${usadas.map(k=>`<td class="num tnum ${k[0].startsWith('ex')&&d[k[0]]?'pg-rex':''}">${cel(d[k[0]])}</td>`).join('')}<td class="num tnum"><b>${cel(d.total)}</b></td></tr>`;}).join('')}</tbody>
     <tfoot><tr><td><b>Total</b></td>${usadas.map(k=>`<td class="num tnum"><b>${cel(tot[k[0]])}</b></td>`).join('')}<td class="num tnum"><b>${cel(ds.reduce((a,x)=>a+x.d.total,0))}</b></td></tr></tfoot></table></div>
-    <div class="fc-sub" style="margin-top:8px">Nocturno: de ${pgHora(pgIniNoche(f0))} a 6:00 a. m. (Ley 2466 de 2025). Dominical y festivo: ${pgPctDominical(f0)} %. Extra diurna 25 %, extra nocturna 75 %; en domingo o festivo se suma el recargo dominical. Son horas extra las últimas trabajadas de la semana después de ${PG_JORNADA} h (menos lo que abona un festivo no trabajado). No cuentan el desayuno ni el almuerzo. Los porcentajes son sobre el valor de la hora ordinaria.</div>`);
+    <div class="fc-sub" style="margin-top:8px">Nocturno: de ${pgHora(pgIniNoche(f0))} a 6:00 a. m. (Ley 2466 de 2025). Dominical y festivo: ${pgPctDominical(f0)} %. Extra diurna 25 %, extra nocturna 75 %; en domingo o festivo se suma el recargo dominical. Son horas extra las últimas trabajadas de la semana después de ${PG_JORNADA} h (menos lo que abona un festivo no trabajado). No cuentan el break ni el almuerzo. Los porcentajes son sobre el valor de la hora ordinaria.</div>`);
 }
 function pgHorasSemTxt(min){
   const j=PG_JORNADA*60;
@@ -5032,6 +5032,7 @@ function horarioDocHTML(lunes){
   const celda=(e,f)=>{
     const t=pgTurnoEmp(e,f),fest=pgAporteFestivo(e,f);
     if(t)return `<div class="hh">${pgHora2(t.ini)} – ${pgHora2(t.fin)}</div>
+      ${pgDescansos(t).filter(d=>pgCruza(t)||(d.ini<t.fin&&d.fin>t.ini)).map(d=>`<div class="hd">${esc(/desayuno/i.test(d.lbl)?'Break':d.lbl)}: ${pgHora2(d.ini%1440)} · ${d.fin-d.ini} min</div>`).join('')}
       <div class="hd">${pgCruza(t)?'+1 día · ':''}${pgHc(pgDurTurno(t))}</div>`;
     if(fest)return `<div class="hf">Festivo</div><div class="hd">cuenta ${pgHc(fest)}</div>`;
     return '<div class="hl">Descansa</div>';
@@ -5129,7 +5130,7 @@ function pgPersonalHTML(){
       tot+=fest;
       return `<td class="pg-hc ${cambio?'cambio':''} ${t?'':'libre'}" title="${cambio?'Cambiado solo para esta semana':'Horario base'}">
         ${t?`<input ${dis} type="time" step="300" value="${pgHora2(t.ini)}" onchange="pgHorSet('${e.id}',${dw},'ini',this.value)">${pgAlmCeldaHTML(e,dw,t,dis)}<input ${dis} type="time" step="300" value="${pgHora2(t.fin)}" onchange="pgHorSet('${e.id}',${dw},'fin',this.value)">${pgCruza(t)?'<div class="pg-noche" title="Sale al d\u00eda siguiente">+1 d\u00eda \u00b7 '+pgHc(pgDurTurno(t))+'</div>':''}`:(fest?'<div class="pg-hl">Festivo</div><div class="pg-fest" title="El festivo no se trabaja, pero descuenta jornada: cuenta como laborado contra las '+PG_JORNADA+' h">cuenta '+pgHc(fest)+'</div>':'<div class="pg-hl">No trabaja</div>')}
-        <div class="pg-hdur">${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>`:'<span></span>'}${t?`<b title="Horas trabajadas ese día, sin desayuno ni almuerzo">${pgHc(pgDurTurno(t))}</b>`:''}</div></td>`;}).join('');
+        <div class="pg-hdur">${ed?`<button type="button" class="lnk" onclick="pgHorLibre('${e.id}',${dw},${t?1:0})">${t?'descansa':'trabaja'}</button>`:'<span></span>'}${t?`<b title="Horas trabajadas ese día, sin break ni almuerzo">${pgHc(pgDurTurno(t))}</b>`:''}</div></td>`;}).join('');
     return `<tr class="pg-fila" style="--ec:${cl.b};--ef:${cl.f}"><td class="pg-emp" style="--ec:${cl.b};background:${cl.f}"><b><i class="pg-punto"></i>${esc(e.nombre)}</b><div class="fc-sub">${esc(enMaq(e)||'sin máquina fija')}</div>${ed?`<button type="button" class="lnk" style="font-size:11.5px" onclick="pgEmpQuitar(${i})">quitar</button>`:''}</td>${celdas}<td class="num tnum pg-tot">${pgHorasSemTxt(tot)}</td></tr>`;
   }).join('');
   return `<div class="pg-bar"><span class="pg-fecha">Semana del ${pgCorta(lunes)}</span>
