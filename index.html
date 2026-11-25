@@ -9762,7 +9762,7 @@ function remisionHTML(r,fechaFiltro,firmaDataUrl,recibe){
     rows=piezas.map((p,i)=>{
       const tot=+p.cant||0;
       const entAcum=_entregadoDe(bitCorte,p.desc,tot);
-      const entMostrar=fechaFiltro?(entregaTotalOrden?entAcum:(entHoyMap[(p.desc||'').trim()]||0)):entAcum;
+      const entMostrar=fechaFiltro?(entregaTotalOrden?entAcum:_entregadoDe(_cor.hoy.filter(x=>x.piezaDesc),p.desc,tot)):entAcum;
       const pend=Math.max(0,tot-entAcum);
       const est=estadoEntregaPieza(entAcum,tot);
       totalPend+=pend;
@@ -10661,8 +10661,12 @@ function _entregadoDe(bitacora,desc,total){
   /* "Entrega total" sin pieza elegida = toda la orden quedó entregada de
      una vez (útil en órdenes sin lista de piezas armada) */
   if(bit.some(b=>b.tipo==='total'&&!b.piezaDesc))return +total||0;
-  return bit.filter(b=>(b.tipo==='parcial'||b.tipo==='total')&&(b.piezaDesc||'').trim()===desc)
-    .reduce((a,b)=>a+(+b.cantEntregada||0),0);
+  let ms=bit.filter(b=>(b.tipo==='parcial'||b.tipo==='total')&&(b.piezaDesc||'').trim()===desc);
+  /* 25/11: dos piezas con la misma descripción (p. ej. LONGARINA x4 y x36) se
+     sumaban entre sí. Cada entrega guarda piezaTotal: si distingue, se usa. */
+  if(total&&new Set(ms.map(b=>+b.piezaTotal||0)).size>1&&ms.some(b=>+b.piezaTotal===+total))
+    ms=ms.filter(b=>+b.piezaTotal===+total);
+  return ms.reduce((a,b)=>a+(+b.cantEntregada||0),0);
 }
 function ropEntregadoPieza(desc,total){return _entregadoDe(ropBitacora,desc,total);}
 /* verde = completa, amarillo = algo entregado, rojo = nada; null = sin cantidad definida */
@@ -13243,7 +13247,7 @@ function resumenEntrega(r,fechaFiltro){
   const lineas=piezas.map(p=>{
     const tot=+p.cant||0;
     const entAcum=_entregadoDe(bitCorte,p.desc,tot);
-    const cant=fechaFiltro?(total?entAcum:(entHoyMap[(p.desc||'').trim()]||0)):entAcum;
+    const cant=fechaFiltro?(total?entAcum:_entregadoDe(_cor.hoy.filter(x=>x.piezaDesc),p.desc,tot)):entAcum;
     return {desc:(p.desc||'').trim()||'—',mat:(p.mat||'').trim(),cant,tot,pend:Math.max(0,tot-entAcum)};
   }).filter(l=>!fechaFiltro||l.cant>0);
   if(lineas.length)return {lineas,pend:lineas.reduce((a,l)=>a+l.pend,0)};
