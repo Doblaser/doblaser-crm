@@ -5043,8 +5043,8 @@ function horarioDocHTML(lunes){
     const maq=enMaq(e),cl=col[e.id||e.nombre]||PG_PAL[0];
     return `<tr><td class="emp" style="border-left:6px solid ${cl.b};background:${cl.f}"><b style="color:${cl.b}">${esc(e.nombre)}</b>${maq?`<div class="sub">${esc(maq)}</div>`:''}</td>`
       +fechas.map(f=>{const t=pgTurnoEmp(e,f),fe=pgAporteFestivo(e,f);
-        return `<td class="c${t?'':(fe?' fest':' libre')}">${celda(e,f)}</td>`;}).join('')
-      +`<td class="c tot">${!tot?'<b>\u2014</b><div class="hd">sin turnos</div>':`<b>${pgHc(tot)}</b>${tot>j?`<div class="ex">+${pgHc(tot-j)} extra</div>`:(tot<j?`<div class="fa">faltan ${pgHc(j-tot)}</div>`:'<div class="ok">completa</div>')}`}</td></tr>`;
+        return `<td class="c${t?'':(fe?' fest':' libre')}"${fe&&!t?'':` style="background:${cl.f}"`}>${celda(e,f)}</td>`;}).join('')
+      +`<td class="c tot" style="background:${cl.f}">${!tot?'<b>\u2014</b><div class="hd">sin turnos</div>':`<b>${pgHc(tot)}</b>${tot>j?`<div class="ex">+${pgHc(tot-j)} extra</div>`:(tot<j?`<div class="fa">faltan ${pgHc(j-tot)}</div>`:'<div class="ok">completa</div>')}`}</td></tr>`;
   }).join('');
   const hayFest=fechas.some(f=>pgFestivo(f));
   const dom=pgSumar(lunes,6);
