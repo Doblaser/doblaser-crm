@@ -4492,6 +4492,7 @@ function pgLadoHTML(uso,ed){
     const ult=ps.map(p=>(uso[r.id+'|'+p]||{}).ultimo||'').sort().pop()||'';
     return {r,ti,ps,pend,sinT,ult};
   });
+  rs=rs.filter(x=>/^(en proceso|programad[oa])$/i.test((x.r.estado||'').trim())||x.ult);
   if(t)rs=rs.filter(x=>[x.r.rop,x.r.cliente,x.r.subtitulo].join(' ').toLowerCase().includes(t));
   const card=x=>{
     const r=x.r,al=ropAlert(r),col=pgColor(r.id);
