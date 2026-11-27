@@ -1124,6 +1124,8 @@ html.side-off .menu-btn{display:grid !important}
 .pg-chip.ok span{color:var(--st-proc)}
 .pg-chip.sin{border-style:dashed;color:var(--ink-3);background:var(--card)}
 .pg-chip em{font-style:normal;font-size:9.5px;color:#92400e;margin-left:3px}
+.pg-cals{display:flex;flex-wrap:wrap;gap:4px;flex-basis:100%;margin:-1px 0 2px 12px;padding-left:6px;border-left:2px solid var(--line)}
+.pg-chip.pg-cal{font-size:10.5px;padding:2px 6px 3px}
 .pg-mini{min-width:26px;height:26px;border-radius:6px;border:1px solid var(--line);font-size:12px;color:var(--ink-2);background:var(--card);padding:0 6px}
 .pg-mini:hover{background:var(--bg)}
 .pg-acts{display:flex;flex-wrap:wrap;gap:5px}
@@ -4216,12 +4218,80 @@ function pgConsumo(b,rep){
 /* por orden y proceso: rep = lo reportado como hecho que todavía no se pasó al
    % de avance de la orden (rep.apl guarda cuánto de ese reporte ya se pasó),
    fut = lo programado que todavía no tiene reporte */
-function pgUso(){
-  const u={};
+/* =========================================================
+   TIEMPO DE CORTE POR CALIBRE  (27/11/2026, Daniel)
+   "Anidamos a máquina por calibre": cuando una orden se corta en las dos
+   máquinas, cada una lleva sus calibres y su propio tiempo. Antes la orden
+   tenía un solo número de Corte y los dos bloques tomaban el mismo.
+   - r.tiempos.CortePorCal = {'material|calibre': minutos} (escrito a mano,
+     opcional, sin migración). Lo que no se escribe se estima de la
+     cotización (lmin de cada ítem según su material/calibre) y se reparte
+     del total de Corte de la orden.
+   - Un bloque de Corte con alcance.calibres gasta solo de esos calibres;
+     sin alcance gasta de todos, en proporción.
+   ========================================================= */
+function pgCalsCorte(r){return pgMatsDe(r).filter(m=>(m.clase||'lamina')==='lamina');}
+function pgEstCortePorCal(r){
+  const mats=pgCalsCorte(r),o={};mats.forEach(m=>o[m.k]=0);
+  if(!mats.length)return o;
+  const c=r&&r.cotId&&(CACHE.cotizaciones||[]).find(k=>String(k.id)===String(r.cotId));
+  let suelto=0;
+  const poner=(txt,min)=>{if(!(min>0))return;
+    const m=mats.length===1?mats[0]:mats.find(x=>pgPiezaEsDe({mat:txt},x));
+    if(m)o[m.k]+=min;else suelto+=min;};
+  if(c&&Array.isArray(c.items))c.items.forEach(it=>{if(!it)return;
+    const base=[it.material,it.calibre].map(x=>(x||'').trim()).filter(Boolean).join(' ');
+    if(it.subpiezas&&it.subpiezas.length)it.subpiezas.forEach(sp=>poner(((sp&&sp.nombre)||'')+' '+base,(+(sp&&sp.calc&&sp.calc.lmin)||0)*Math.max(1,+(sp&&sp.cant)||1)));
+    else poner(base,+(it.calc&&it.calc.lmin)||0);});
+  /* lo que no se pudo emparejar se reparte como lo emparejado (o por láminas) */
+  const tot=mats.reduce((a,m)=>a+o[m.k],0),lam=mats.reduce((a,m)=>a+(+m.cant||0),0);
+  if(suelto>0)mats.forEach(m=>{o[m.k]+=suelto*(tot?o[m.k]/tot:(lam?(+m.cant||0)/lam:1/mats.length));});
+  return o;
+}
+/* [{k,material,calibre,cant,min,manual}] — suma = el Corte de la orden */
+function pgCortePorCal(r,ti){
+  const mats=pgCalsCorte(r);if(!mats.length)return [];
+  const T=(((ti||pgTiempos(r)).Corte)||{}).min||0;
+  const man=(r.tiempos&&r.tiempos.CortePorCal&&typeof r.tiempos.CortePorCal==='object')?r.tiempos.CortePorCal:{};
+  const est=pgEstCortePorCal(r);
+  const out=mats.map(m=>({k:m.k,material:m.material,calibre:m.calibre,cant:m.cant,min:+man[m.k]>0?+man[m.k]:0,manual:+man[m.k]>0}));
+  const libres=out.filter(x=>!x.manual),resto=Math.max(0,T-out.reduce((a,x)=>a+x.min,0));
+  const wE=libres.reduce((a,x)=>a+(est[x.k]||0),0),wL=libres.reduce((a,x)=>a+(+x.cant||0),0);
+  libres.forEach(x=>{x.min=Math.round(resto*(wE?(est[x.k]||0)/wE:(wL?(+x.cant||0)/wL:1/libres.length)));});
+  return out;
+}
+const pgCalTxt=x=>(x.calibre?'cal. '+x.calibre:x.material.replace(/\s*\(.*\)/,''));
+/* pendiente de un calibre: su tiempo × (1 − avance) − lo hecho/programado de él */
+function pgPendienteCal(r,k,uso,cs){
+  if(!r||r.estado==='Procesado')return 0;
+  const x0=(cs||pgCortePorCal(r)).find(x=>x.k===k);if(!x0||!x0.min)return 0;
+  const av=ropAvance(r).Corte||0;if(av>=100)return 0;
+  const x=(uso||pgUso())[r.id+'|Corte|'+k]||{rep:0,fut:0};
+  return Math.max(0,Math.round(x0.min*(1-av/100)-x.rep-x.fut));
+}
+/* lo que falta de los calibres de un bloque (o de toda la orden si no tiene) */
+function pgPendienteBloque(r,b,uso){
+  const a=pgAlcance(b);
+  if(b.proc!=='Corte'||!a.calibres.length)return pgPendiente(r,b.proc,null,uso);
+  const cs=pgCortePorCal(r);if(cs.length<2)return pgPendiente(r,b.proc,null,uso);
+  return a.calibres.reduce((s,k)=>s+pgPendienteCal(r,k,uso,cs),0);
+}
+function pgUso(excl){
+  const u={},csDe={};
   Object.keys(PG.dias).sort().forEach(f=>{const d=PG.dias[f];
-    (d.bloques||[]).forEach(b=>{if(b.tipo!=='rop')return;
+    (d.bloques||[]).forEach(b=>{if(b.tipo!=='rop'||b.id===excl)return;
       const k=b.ropId+'|'+b.proc;const x=u[k]||(u[k]={rep:0,fut:0,prog:0,ultimo:'',fin:0,cant:0});
       const rep=(d.reportes||{})[b.id];if(rep&&rep.estado)x.rep+=Math.max(0,pgConsumo(b,rep)-(+rep.apl||0));else x.fut+=b.min;x.prog+=b.min;
+      if(b.proc==='Corte'){
+        if(!(b.ropId in csDe)){const r=pgRopPorId(b.ropId);csDe[b.ropId]=r?pgCortePorCal(r):[];}
+        const cs=csDe[b.ropId];
+        if(cs.length>1){
+          const a=pgAlcance(b);let sel=a.calibres.length?cs.filter(c=>a.calibres.indexOf(c.k)>=0):cs;if(!sel.length)sel=cs;
+          const w=sel.reduce((s,c)=>s+c.min,0);
+          const rp=rep&&rep.estado?Math.max(0,pgConsumo(b,rep)-(+rep.apl||0)):0,fu=rep&&rep.estado?0:b.min;
+          sel.forEach(c=>{const q=w?c.min/w:1/sel.length,kk=b.ropId+'|Corte|'+c.k;const y=u[kk]||(u[kk]={rep:0,fut:0});y.rep+=rp*q;y.fut+=fu*q;});
+        }
+      }
       const fb=pgFin(b.ini,b.min,f,b.maq);if(f>x.ultimo||(f===x.ultimo&&fb>x.fin)){x.ultimo=f;x.fin=fb;}
       if(rep&&+rep.cant>0)x.cant+=+rep.cant;});});
   return u;
@@ -4483,6 +4553,17 @@ function pgAvisoSecuencia(b,f,uso){
   }
   return '';
 }
+/* un chip por calibre debajo del Corte: se arrastra a la máquina que lo anida */
+function pgChipsCal(r,ti,uso,ed,sel){
+  const cs=pgCortePorCal(r,ti);if(cs.length<2)return '';
+  return '<div class="pg-cals">'+cs.map((c,i)=>{
+    const pe=pgPendienteCal(r,c.k,uso,cs),csel=sel&&PG.sel.proc==='Corte'&&PG.sel.cal===i;
+    const txt=c.min?(pe>0?'faltan '+pgHc(pe):'✓'):'sin tiempo';
+    const tip=c.material+(c.calibre?' cal. '+c.calibre:'')+' · '+fmtMin(c.min)+(c.manual?' (de la orden)':' (repartido del corte total)')+(pe>0?' · faltan '+fmtMin(pe):'')+' — arrástralo a la máquina que corta este calibre';
+    return `<div class="pg-chip pg-cal ${c.min&&pe<=0?'ok':''} ${csel?'sel':''}" title="${esc(tip)}"
+      ${ed&&pe>0?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','Corte',${i})" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','Corte',${i})"`:''}><b>${esc(pgCalTxt(c))}</b> <span>${txt}</span>${c.manual?'':'<em>rep.</em>'}</div>`;
+  }).join('')+'</div>';
+}
 function pgLadoHTML(uso,ed){
   const t=PG.busca.trim().toLowerCase(),hoy=pgHoy();
   let rs=pgRops().slice().sort(pgPorEntrega).map(r=>{
@@ -4505,7 +4586,8 @@ function pgLadoHTML(uso,ed){
       const txt=hecho?'hecho ✓':(tot?(pe>0?'faltan '+pgHc(pe):'programado ✓'):'sin tiempo');
       const tip=hecho?p+' ya está al 100% en la orden':(tot?p+': '+fmtMin(tot)+' en total ('+(x.ti[p].fuente==='cot'?'estimado de la cotización':'de la orden')+')'+(av?' · avance '+av+'%':'')+' · hecho o programado '+fmtMin(u)+(pe>0?' · faltan '+fmtMin(pe):''):p+' sin tiempo cargado: toca ✎ para ponerlo');
       return `<div class="pg-chip ${hecho||(tot&&pe<=0)?'ok':''} ${!tot&&!hecho?'sin':''} ${csel?'sel':''}" title="${esc(tip)}"
-        ${ed&&!hecho?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','${p}')" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','${p}')"`:''}><b>${p}</b> <span>${txt}</span>${x.ti[p].fuente==='cot'&&!hecho?'<em>est.</em>':''}${tot&&!hecho?`<i style="width:${pct}%"></i>`:''}</div>`;
+        ${ed&&!hecho?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','${p}')" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','${p}')"`:''}><b>${p}</b> <span>${txt}</span>${x.ti[p].fuente==='cot'&&!hecho?'<em>est.</em>':''}${tot&&!hecho?`<i style="width:${pct}%"></i>`:''}</div>`
+      +(p==='Corte'&&!hecho&&tot?pgChipsCal(r,x.ti,uso,ed,sel):'');
     }).join('');
     const tarde=x.ult&&r.entrega&&x.ult>r.entrega;
     return `<div class="pg-card ${sel&&!PG.sel.proc?'sel':''}" style="--bb:${col.bb}" ${ed?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','')" ondragend="pgDragFin()" onclick="pgElegir('rop','${r.id}','')"`:''}>
@@ -4529,9 +4611,9 @@ function pgLadoHTML(uso,ed){
 }
 
 /* ---- arrastrar, tocar, mover, estirar ---- */
-function pgDragIni(e,tipo,id,proc){
+function pgDragIni(e,tipo,id,proc,cal){
   e.stopPropagation();
-  PG.drag={tipo,id:String(id),proc:proc||'',off:0};
+  PG.drag={tipo,id:String(id),proc:proc||'',off:0,cal:cal==null?null:+cal};
   if(tipo==='blq'){const b=pgDia(PG.fecha).bloques.find(x=>x.id===id);const tr=e.currentTarget.closest('.pg-track');if(b&&tr)PG.drag.off=pgTiempoDeX(e,tr)-b.ini;}
   try{e.dataTransfer.setData('text/plain',tipo+':'+id);e.dataTransfer.effectAllowed='move';}catch(_){}
 }
@@ -4550,9 +4632,9 @@ function pgDrop(e,maq){
   const c=pgCfg(),p=c.paso||5;const T=Math.round((pgTiempoDeX(e,e.currentTarget)-(dg.off||0))/p)*p;
   if(dg.tipo==='blq')pgMover(dg.id,maq,T);else pgColocar(maq,T,dg);
 }
-function pgElegir(tipo,id,proc){
-  const s=PG.sel;id=String(id);
-  PG.sel=(s&&s.tipo===tipo&&s.id===id&&s.proc===proc)?null:{tipo,id,proc:proc||''};
+function pgElegir(tipo,id,proc,cal){
+  const s=PG.sel;id=String(id);cal=cal==null?null:+cal;
+  PG.sel=(s&&s.tipo===tipo&&s.id===id&&s.proc===proc&&s.cal===cal)?null:{tipo,id,proc:proc||'',cal};
   render();if(PG.sel)toast('Ahora toca la fila de la máquina, en la hora donde va');
 }
 function pgClickTrack(e,maq){if(!PG.sel)return;pgColocar(maq,pgTiempoDeX(e,e.currentTarget),PG.sel);}
@@ -4567,14 +4649,21 @@ function pgColocar(maq,T,it){
   else{
     const r=pgRopPorId(it.id);if(!r)return;
     const p=m.proc,ti=pgTiempos(r);
-    const pend=pgPendiente(r,p,ti);
+    let pend=pgPendiente(r,p,ti),alc=null;
+    if(p==='Corte'&&it.cal!=null){
+      const cs=pgCortePorCal(r,ti),c0=cs[it.cal];
+      if(c0){alc={calibres:[c0.k],piezas:[]};pend=pgPendienteCal(r,c0.k,null,cs);
+        if(pend<=0)msg=r.rop+': el '+pgCalTxt(c0)+' ya estaba programado completo; se puso 1 h';}
+    }
     let min=pend;
-    if(!ti[p])msg=r.rop+' no tiene '+p.toLowerCase()+' entre sus procesos; se puso 1 h';
+    if(msg){}
+    else if(!ti[p])msg=r.rop+' no tiene '+p.toLowerCase()+' entre sus procesos; se puso 1 h';
     else if(!ti[p].min)msg=r.rop+' no tiene horas de '+p.toLowerCase()+'; se puso 1 h (ajústala o cárgala con ✎)';
     else if(pend<=0)msg=r.rop+' ya tenía todo el '+p.toLowerCase()+' programado; se puso 1 h';
     if(!(min>0))min=60;
     if(min>h.disp){if(!msg)msg='Cupieron '+pgHc(h.disp)+' aquí; quedan '+pgHc(min-h.disp)+' para otro día';min=h.disp;}
     b={id:pgId(),maq,tipo:'rop',ropId:String(r.id),rop:r.rop,proc:p,ini:h.ini,min,nota:''};
+    if(alc)b.alcance=alc;
     if(r.estado==='Sin procesar')pgActualizarRop(r,{estado:'Programado'});
   }
   pgDia(f,true).bloques.push(b);PG.sel=null;pgGuardar(f);render();
@@ -4726,6 +4815,15 @@ function pgEditar(id){
     info=ti&&ti.min?`La orden tiene <b>${fmtMin(ti.min)}</b> de ${b.proc.toLowerCase()} (${ti.fuente==='cot'?'estimado de la cotización':'de la orden'})${av?', con '+av+'% de avance':''}. Con todo lo programado ${pend>0?`<b>faltan ${fmtMin(pend)}</b>`:'ya está cubierto'}.`
       :`Esta orden no tiene horas de ${b.proc.toLowerCase()} cargadas.`;
     PG._pend=pend;
+    if(b.proc==='Corte'){
+      const cs=pgCortePorCal(r);
+      if(cs.length>1){
+        const uso=pgUso();
+        info+='<br>Por calibre: '+cs.map(c=>'<b>'+esc(pgCalTxt(c))+'</b> '+fmtMin(c.min)+(pgPendienteCal(r,c.k,uso,cs)>0?' (faltan '+fmtMin(pgPendienteCal(r,c.k,uso,cs))+')':' ✓')).join(' · ')
+          +'. Marca abajo los calibres de esta máquina y las horas se ponen solas.';
+        if(pgHayAlcance(b)&&pgAlcance(b).calibres.length)PG._pend=pgPendienteBloque(r,b,uso);
+      }
+    }
     que='<div id="pgQueBox">'+pgQueHacerHTML(r,b.proc,b)+'</div>';
   }
   const rep=d.reportes[b.id];
@@ -4795,7 +4893,7 @@ function pgPasarDia(id){
 }
 function pgContinuar(id){
   const f=PG.fecha,b=pgDia(f).bloques.find(x=>x.id===id);if(!b)return;
-  const r=pgRopPorId(b.ropId);const pend=pgPendiente(r,b.proc);
+  const r=pgRopPorId(b.ropId);const pend=pgPendienteBloque(r,b);
   if(pend<=0){toast('No falta nada de esa orden');return;}
   let f2=pgHabil(f,1),h=null;
   for(let i=0;i<10&&!h;i++){h=pgPrimerHueco(f2,b.maq,pend);if(!h)f2=pgHabil(f2,1);}
@@ -4816,6 +4914,9 @@ function pgTiemposDlg(id){
     <div class="fc-cli">${esc(r.cliente||'')}${r.subtitulo?' · '+esc(r.subtitulo):''}</div>
     <div class="fc-intro" style="margin:0 0 12px;font-size:12.5px">Horas que toma cada proceso para <b>toda la orden</b>. Con esto se llenan los bloques del horario. Se guardan en la orden, en "Tiempos de producción".${Object.keys(est).some(k=>est[k]>0)?' Lo gris es lo que se estima de la cotización.':''}</div>
     <div class="fc-campos">${PG_PROCS.map(p=>`<div><label>${p}${ps.includes(p)?'':' (no está en la orden)'}</label><input type="number" min="0" step="0.25" id="pgT_${p}" value="${+t[p]?+(t[p]/60).toFixed(2):''}" placeholder="${+est[p]?'≈ '+(est[p]/60).toFixed(1)+' h':'horas'}"></div>`).join('')}</div>
+    ${(()=>{const cs=pgCortePorCal(r);if(cs.length<2)return '';const man=t.CortePorCal||{};
+      return `<div class="fc-sub" style="margin:10px 0 4px"><b>Corte por calibre</b><span class="muted" style="font-weight:400"> — cada calibre se anida y se corta aparte. Lo que dejes vacío se reparte del corte total.</span></div>
+      <div class="fc-campos">${cs.map((c,i)=>`<div><label>${esc(c.material.replace(/\s*\(.*\)/,''))}${c.calibre?' cal. '+esc(c.calibre):''}${c.cant?' · '+c.cant+' lám.':''}</label><input type="number" min="0" step="0.25" id="pgTC_${i}" value="${+man[c.k]?+(man[c.k]/60).toFixed(2):''}" placeholder="≈ ${(c.min/60).toFixed(1)} h"></div>`).join('')}</div>`;})()}
     <div class="fc-acc"><button type="button" class="btn ghost" onclick="pgCerrar()">Cancelar</button><button type="button" class="btn" onclick="pgTiemposGuardar('${r.id}')">Guardar</button></div></div>`;
   box.classList.add('show');
   setTimeout(()=>{const e=document.getElementById('pgT_'+(ps[0]||'Corte'));if(e)e.focus();},30);
@@ -4824,6 +4925,17 @@ async function pgTiemposGuardar(id){
   const r=pgRopPorId(id);if(!r)return;
   const t={...((r.tiempos&&typeof r.tiempos==='object')?r.tiempos:{})};
   PG_PROCS.forEach(p=>{const e=document.getElementById('pgT_'+p);if(!e)return;const h=+e.value||0;if(h>0)t[p]=Math.round(h*60);else delete t[p];});
+  const cs=pgCortePorCal(r);
+  if(cs.length>1){
+    const man={};let sum=0,todos=true;
+    cs.forEach((c,i)=>{const e=document.getElementById('pgTC_'+i);const h=e?(+e.value||0):0;if(h>0){man[c.k]=Math.round(h*60);sum+=man[c.k];}else todos=false;});
+    if(Object.keys(man).length){
+      t.CortePorCal=man;
+      /* si se escribieron todos los calibres, el corte total es su suma;
+         si no, el total no puede quedar por debajo de lo escrito */
+      if(todos||!(+t.Corte>=sum))t.Corte=todos?sum:Math.max(sum,Math.round(cs.filter(c=>!man[c.k]).reduce((a,c)=>a+c.min,0))+sum);
+    }else delete t.CortePorCal;
+  }
   pgCerrar();
   if(await pgActualizarRop(r,{tiempos:t})){toast('Horas guardadas en '+r.rop);render();}
 }
@@ -5454,6 +5566,15 @@ function pgAlcCal(k){
     const d=(p.desc||'').trim(),j=a.piezas.indexOf(d);
     if(i>=0){if(j>=0)a.piezas.splice(j,1);}else if(j<0)a.piezas.push(d);
   });
+  /* corte: las horas del bloque pasan a ser las de los calibres marcados
+     (lo que les falta sin contar este bloque) */
+  if(PG._alcProc==='Corte'){
+    const r=PG._alcR,cs=pgCortePorCal(r),e=document.getElementById('pgEDur');
+    if(e&&cs.length>1&&a.calibres.length){
+      const uso=pgUso(PG._alcId),min=a.calibres.reduce((s,kk)=>s+pgPendienteCal(r,kk,uso,cs),0);
+      if(min>0){e.value=+(Math.ceil(min/15)*15/60).toFixed(2);toast('Horas del bloque: '+pgHc(min)+' (lo que falta de esos calibres)');}
+    }
+  }
   pgAlcRefrescar();
 }
 function pgAlcPieza(i){
@@ -11453,6 +11574,8 @@ function ropTiempoSet(k,v){
 }
 function ropTiemposSave(){
   const out={};ropTiemposProcs().forEach(([k])=>{if(+ropTiemposVal[k]>0)out[k]=+ropTiemposVal[k];});
+  /* el corte por calibre se edita en Programación (✎); aquí solo se conserva */
+  if(out.Corte&&ropTiemposVal.CortePorCal&&typeof ropTiemposVal.CortePorCal==='object')out.CortePorCal=ropTiemposVal.CortePorCal;
   return out;
 }
 /* vista "Tiempos": horas por proceso por mes (mes de entrega, o de ingreso si no tiene) */
