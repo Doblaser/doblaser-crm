@@ -1124,6 +1124,17 @@ html.side-off .menu-btn{display:grid !important}
 .pg-chip.ok span{color:var(--st-proc)}
 .pg-chip.sin{border-style:dashed;color:var(--ink-3);background:var(--card)}
 .pg-chip em{font-style:normal;font-size:9.5px;color:#92400e;margin-left:3px}
+.tp-cal{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:10px 12px}
+.tp-cal-t{font-size:13px;font-weight:700;margin-bottom:6px}.tp-cal-t span{font-weight:400;color:var(--ink-3);font-size:12px}
+.tp-cal-tb{width:100%;border-collapse:collapse;font-size:12.5px}
+.tp-cal-tb th{text-align:left;font-size:11px;color:var(--ink-3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
+.tp-cal-tb td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+.tp-cal-tb tr:last-child td{border-bottom:0}
+.tp-cal-tb .num{text-align:right}
+.tp-cal-tb input{width:84px;text-align:right;padding:5px 7px;border:1px solid var(--line);border-radius:7px}
+.tp-cal-k{font-weight:700;white-space:nowrap}.tp-cal-k small{display:block;font-weight:400;color:var(--ink-3)}
+.tp-cal-pz div{line-height:1.35}.tp-cal-pz i{color:var(--ink-3);font-style:normal;margin-left:4px}
+.tp-cal-o{font-size:11.5px;color:var(--ink-3)}.tp-cal-o i{font-style:normal}
 .pg-cals{flex-basis:100%;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:4px 6px;margin-top:2px}
 .pg-cals-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:1px 0 3px}
 .pg-cal-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;padding:4px 2px;border-top:1px solid var(--line)}
@@ -4265,13 +4276,13 @@ function pgCortePorCal(r,ti){
   const T=(((ti||pgTiempos(r)).Corte)||{}).min||0;
   const man=(r.tiempos&&r.tiempos.CortePorCal&&typeof r.tiempos.CortePorCal==='object')?r.tiempos.CortePorCal:{};
   const est=pgEstCortePorCal(r);
-  const out=mats.map(m=>({k:m.k,material:m.material,calibre:m.calibre,cant:m.cant,min:+man[m.k]>0?+man[m.k]:0,manual:+man[m.k]>0}));
+  const out=mats.map(m=>({k:m.k,material:m.material,calibre:m.calibre,cant:m.cant,und:m.und||0,min:+man[m.k]>0?+man[m.k]:0,manual:+man[m.k]>0}));
   const libres=out.filter(x=>!x.manual),resto=Math.max(0,T-out.reduce((a,x)=>a+x.min,0));
-  const wE=libres.reduce((a,x)=>a+(est[x.k]||0),0),wL=libres.reduce((a,x)=>a+(+x.cant||0),0);
-  libres.forEach(x=>{x.min=Math.round(resto*(wE?(est[x.k]||0)/wE:(wL?(+x.cant||0)/wL:1/libres.length)));});
+  const wE=libres.reduce((a,x)=>a+(est[x.k]||0),0),pe=x=>(+x.cant||+x.und||0),wL=libres.reduce((a,x)=>a+pe(x),0);
+  libres.forEach(x=>{x.min=Math.round(resto*(wE?(est[x.k]||0)/wE:(wL?pe(x)/wL:1/libres.length)));});
   return out;
 }
-const pgCalTxt=x=>(x.calibre?'cal. '+x.calibre:x.material.replace(/\s*\(.*\)/,''));
+const pgCalTxt=x=>{const f=pgFamiliaDe(x.material||'');return (f?f.toUpperCase()+' ':'')+(x.calibre||(f?'':String(x.material||'').replace(/\s*\(.*\)/,'')));};
 /* pendiente de un calibre: su tiempo × (1 − avance) − lo hecho/programado de él */
 function pgPendienteCal(r,k,uso,cs){
   if(!r||r.estado==='Procesado')return 0;
@@ -5495,6 +5506,13 @@ function pgMatsDe(r){
     if(!vis[k]){vis[k]={k,material:x.material,calibre:x.calibre||'',clase:x.clase||'lamina',cant:0,dims:[]};out.push(vis[k]);}
     vis[k].cant+=(+x.cant||0);
     const d=invDims(x);if(d&&d!=='—'&&vis[k].dims.indexOf(d)<0)vis[k].dims.push(d);
+  });
+  /* sin láminas cargadas: los calibres salen de las piezas ("CR 22", "CR 12") */
+  if(!out.some(m=>m.clase==='lamina'))pgPiezasDe(r).forEach(p=>{
+    const fam=pgFamiliaDe(p.mat||''),cal=pgCalibreDe(p.mat||'');if(!fam&&!cal)return;
+    const k='pz|'+fam+'|'+cal;
+    if(!vis[k]){vis[k]={k,material:fam?fam.toUpperCase():(p.mat||'').trim(),calibre:cal,clase:'lamina',cant:0,und:0,dims:[],dePiezas:true};out.push(vis[k]);}
+    vis[k].und+=(+p.cant||0);
   });
   return out;
 }
@@ -10681,6 +10699,7 @@ function ropProcSel(){
   return [...box.querySelectorAll('input:checked')].map(i=>i.value);
 }
 function renderRopPz(){
+  setTimeout(()=>{try{renderRopTiempos();}catch(e){}},0);   /* el corte por calibre sigue a las piezas */
   const c=document.getElementById('ropPzRows');if(!c)return;
   if(!ropPiezas.length){c.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin piezas. Pulsa “+ Pieza” para listar qué se fabrica.</div>';return;}
   c.innerHTML=ropPiezas.map((p,i)=>{
@@ -10722,6 +10741,7 @@ function rpEdit(i,k,v){
   }
   if(k==='cant'||k==='desc'){renderRopPz();renderRopBitacora();}
   else if(k==='precio')renderRopPz();
+  else if(k==='mat')renderRopTiempos();
 }
 function rpFromCot(){
   const sel=document.getElementById('f_cotId');
@@ -11592,15 +11612,68 @@ function ropTiemposProcs(){
   const st=ropStages({procesos:ropProcSel(),cotId:(document.getElementById('f_cotId')||{}).value,avance:ropAvanceVal,fases:[]});
   return TIEMPO_PROC.filter(([k])=>st.includes(k));
 }
+/* ---- corte por calibre dentro de la orden (27/11/2026, Daniel: "esos tiempos
+   de cotización deben salir hasta aquí separados por calibre, muy detallado").
+   Cada calibre trae sus minutos (escritos, o de la cotización), sus piezas y
+   unidades; el corte total es la suma. Se guarda en tiempos.CortePorCal, lo
+   mismo que usa Programación para mandar cada calibre a su máquina. */
+function ropFormComoRop(){
+  return {consumo:ropConsumo,piezas:ropPiezas,cotId:(document.getElementById('f_cotId')||{}).value||'',tiempos:ropTiemposVal};
+}
+function ropCorteCalFilas(){
+  const r=ropFormComoRop(),gs=pgCalsCorte(r);if(gs.length<2)return null;
+  const est=pgEstCortePorCal(r),sumEst=Math.round(Object.values(est).reduce((a,b)=>a+b,0));
+  const T=+ropTiemposVal.Corte||sumEst;
+  const cs=pgCortePorCal(r,{Corte:{min:T}});
+  const pzs=pgPiezasDe(r);
+  return cs.map(c=>{
+    const g=gs.find(x=>x.k===c.k)||c;
+    const suyas=pzs.filter(p=>pgPiezaEsDe(p,g));
+    return {...c,fuente:c.manual?'orden':(sumEst?'cot':'rep'),est:Math.round(est[c.k]||0),piezas:suyas,und:suyas.reduce((a,p)=>a+(+p.cant||0),0)};
+  });
+}
 function renderRopTiempos(){
   const box=document.getElementById('ropTiemposBox');if(!box)return;
   const ps=ropTiemposProcs();
   if(!ps.length){box.innerHTML='<div class="muted" style="font-size:12px">Marca arriba los procesos de la orden para registrar sus tiempos.</div>';return;}
+  const cal=ps.some(([k])=>k==='Corte')?ropCorteCalFilas():null;
+  if(cal){   /* el corte queda como la suma de sus calibres */
+    const m={};cal.forEach(c=>{if(c.manual&&c.min>0)m[c.k]=c.min;});
+    if(Object.keys(m).length)ropTiemposVal.CortePorCal=m;else delete ropTiemposVal.CortePorCal;
+    ropTiemposVal.Corte=cal.reduce((a,c)=>a+c.min,0);
+  }
   box.innerHTML=`<div class="tp-grid">${ps.map(([k,l])=>`<div class="tp-row">
       <span class="tp-lbl">${esc(l)}</span>
-      <input type="number" min="0" step="1" value="${+ropTiemposVal[k]||''}" placeholder="min" oninput="ropTiempoSet('${k}',this.value)">
+      <input type="number" min="0" step="1" id="tpIn_${k}" value="${+ropTiemposVal[k]||''}" placeholder="min" ${k==='Corte'&&cal?'readonly title="Es la suma de los calibres de abajo"':''} oninput="ropTiempoSet('${k}',this.value)">
       <span class="tp-h" id="tpH_${k}">${+ropTiemposVal[k]?fmtMin(ropTiemposVal[k]):''}</span>
-    </div>`).join('')}</div><div class="tp-tot">Total de la orden <strong id="tpTot">${fmtMin(ropTiemposTotal())}</strong></div>`;
+    </div>`).join('')}</div>${cal?ropCorteCalHTML(cal):''}<div class="tp-tot">Total de la orden <strong id="tpTot">${fmtMin(ropTiemposTotal())}</strong></div>`;
+  window._tpCal=cal;
+}
+function ropCorteCalHTML(cal){
+  const F={orden:'escrito',cot:'de la cotización',rep:'repartido por unidades'};
+  return `<div class="tp-cal"><div class="tp-cal-t">Corte láser por calibre <span>— cada calibre se anida y se corta aparte; el corte láser de arriba es la suma</span></div>
+    <table class="tp-cal-tb"><thead><tr><th>Calibre</th><th>Piezas</th><th class="num">Und</th><th class="num">Minutos</th><th>Horas</th><th>Origen</th></tr></thead><tbody>
+    ${cal.map((c,i)=>`<tr><td class="tp-cal-k">${esc(pgCalTxt(c))}${c.cant?'<small>'+c.cant+' lám.</small>':''}</td>
+      <td class="tp-cal-pz">${c.piezas.length?c.piezas.map(p=>`<div>${esc((p.desc||'').trim())} <i>${+p.cant||0} und</i></div>`).join(''):'<span class="muted">sin piezas de este calibre</span>'}</td>
+      <td class="num">${c.und||'—'}</td>
+      <td class="num"><input type="number" min="0" step="1" value="${c.min||''}" placeholder="min" oninput="ropTiempoCalSet(${i},this.value)"></td>
+      <td class="tp-h" id="tpCH_${i}">${c.min?fmtMin(c.min):''}</td>
+      <td class="tp-cal-o" id="tpCO_${i}">${F[c.fuente]}${c.fuente!=='cot'&&c.est?' <i>(cot. '+fmtMin(c.est)+')</i>':''}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+/* escribir un calibre fija TODOS en lo que muestran, para que no se
+   re-repartan al cambiar uno; el corte es la suma */
+function ropTiempoCalSet(i,v){
+  const cal=window._tpCal||[];const c=cal[i];if(!c)return;
+  c.min=Math.max(0,Math.round(+v||0));c.manual=true;c.fuente='orden';
+  const m={};cal.forEach(x=>{if(x.min>0)m[x.k]=x.min;});
+  ropTiemposVal.CortePorCal=m;
+  ropTiemposVal.Corte=cal.reduce((a,x)=>a+(+x.min||0),0);
+  const h=document.getElementById('tpCH_'+i);if(h)h.textContent=c.min?fmtMin(c.min):'';
+  const o=document.getElementById('tpCO_'+i);if(o)o.textContent='escrito';
+  const ci=document.getElementById('tpIn_Corte');if(ci)ci.value=ropTiemposVal.Corte||'';
+  const ch=document.getElementById('tpH_Corte');if(ch)ch.textContent=ropTiemposVal.Corte?fmtMin(ropTiemposVal.Corte):'';
+  const t=document.getElementById('tpTot');if(t)t.textContent=fmtMin(ropTiemposTotal());
 }
 function ropTiemposTotal(){return ropTiemposProcs().reduce((a,[k])=>a+(+ropTiemposVal[k]||0),0);}
 function ropTiempoSet(k,v){
@@ -11610,7 +11683,7 @@ function ropTiempoSet(k,v){
 }
 function ropTiemposSave(){
   const out={};ropTiemposProcs().forEach(([k])=>{if(+ropTiemposVal[k]>0)out[k]=+ropTiemposVal[k];});
-  /* el corte por calibre se edita en Programación (✎); aquí solo se conserva */
+  /* el corte por calibre (tabla de la orden o ✎ de Programación) */
   if(out.Corte&&ropTiemposVal.CortePorCal&&typeof ropTiemposVal.CortePorCal==='object')out.CortePorCal=ropTiemposVal.CortePorCal;
   return out;
 }
@@ -11711,6 +11784,7 @@ function rmAdoptar(r,o){
     medida:o.medida||'',ubicacion:rmUbic(o.ubicacion)});
 }
 function renderRopMat(){
+  setTimeout(()=>{try{renderRopTiempos();}catch(e){}},0);
   const c=document.getElementById('ropMatRows');if(!c)return;
   if(!ropConsumo.length){c.innerHTML='<div class="muted" style="font-size:12px;padding:2px 0 6px">Sin material agregado. Pulsa \u201c+ Material usado\u201d para descontar l\u00e1minas del inventario al guardar.</div>';return;}
   const matOpts=sel=>{const lista=MAT_INV.slice();if(sel&&!lista.includes(sel))lista.push(sel);return lista.map(m=>`<option ${sel===m?'selected':''}>${esc(m)}</option>`).join('');};
