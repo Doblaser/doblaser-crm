@@ -2878,7 +2878,8 @@ function ropAvance(x){
 }
 function ropProgress(x){
   const st=ropStages(x),av=ropAvance(x);
-  const pct=st.length?st.reduce((s,k)=>s+(av[k]||0),0)/st.length:0;
+  /* 'Entrega' (alistado) es solo un chulo: no suma al % de avance (Daniel, 27/11/2026) */
+  const sp=st.filter(k=>k!=='Entrega'),pct=sp.length?sp.reduce((s,k)=>s+(av[k]||0),0)/sp.length:0;
   return{done:st.filter(s=>(av[s]||0)>=100).length,total:st.length,pct:Math.round(pct)};
 }
 const calClass=c=>({'Caliente':'cal-hot','Tibio':'cal-warm','Frio':'cal-cold','NR':'cal-nr'}[c]||'cal-nr');
@@ -11486,7 +11487,7 @@ let ropPinturaFecha='';
 function avSet(s,v){ropAvanceVal[s]=Math.max(0,Math.min(100,+v||0));const e=document.getElementById('avv_'+s);if(e)e.textContent=ropAvanceVal[s]+'%';avPaint();}
 function avPaint(){
   const box=document.getElementById('ropAvanceBox');if(!box)return;
-  const rows=[...box.querySelectorAll('.av-row')];
+  const rows=[...box.querySelectorAll('.av-row')].filter(r=>r.dataset.st!=='Entrega');
   const vals=rows.map(r=>+ropAvanceVal[r.dataset.st]||0);
   const t=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
   const e=document.getElementById('avTot');if(e)e.textContent=t+'%';
@@ -13872,8 +13873,15 @@ function mergePerfiles(base){
 const PERFIL_LIVIANO_COLS='name,role,pass,created_at,lastSeen,views,notifs';
 async function getPerfiles(){
   let base=null;
-  if(USING_SB&&sb){try{const{data,error}=await sb.from('perfiles').select('*');if(!error&&data&&data.length)base=data;}catch(e){}}
-  if(!base)base=LS.get('perfiles',null);
+  /* 27/11/2026: al abrir se bajaban avatares y firmas de todos (~300 KB) en cada
+     carga: ~820 veces en medio día. Ahora se bajan las columnas livianas y las
+     fotos/firmas salen de la copia local; las pesadas se refrescan 1 vez al día. */
+  const loc=LS.get('perfiles',null)||[],pl=Object.fromEntries(loc.map(x=>[x.name,x]));
+  const hoy=new Date().toISOString().slice(0,10),pesado=localStorage.getItem('db_perf_pesado')!==hoy||!loc.length;
+  if(USING_SB&&sb){try{const{data,error}=await sb.from('perfiles').select(pesado?'*':PERFIL_LIVIANO_COLS);
+    if(!error&&data&&data.length){base=pesado?data:data.map(d=>({avatar:(pl[d.name]||{}).avatar,firma:(pl[d.name]||{}).firma,...d}));
+      if(pesado)localStorage.setItem('db_perf_pesado',hoy);}}catch(e){}}
+  if(!base)base=loc.length?loc:null;
   return mergePerfiles(base);
 }
 function userViews(){
