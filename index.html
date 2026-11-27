@@ -2540,12 +2540,17 @@ async function getAll(t){
       return {data:null,error:ult};
     };
     const todo=async s=>{
+      /* 27/11/2026: las páginas se piden de a 4 a la vez (antes una tras otra:
+         ~30 idas y vueltas seguidas al abrir el CRM, la causa de la lentitud).
+         Siguen siendo de 60 filas por el problema de las redes que cortan. */
       const out=[];
-      for(let desde=0;;desde+=60){
-        const r=await pagina(s,desde);
-        if(r.error)return {data:null,error:r.error};
-        out.push(...(r.data||[]));
-        if(!r.data||r.data.length<60)return {data:out,error:null};
+      for(let desde=0;;desde+=240){
+        const rs=await Promise.all([0,60,120,180].map(k=>pagina(s,desde+k)));
+        for(const r of rs){
+          if(r.error)return {data:null,error:r.error};
+          out.push(...(r.data||[]));
+          if(!r.data||r.data.length<60)return {data:out,error:null};
+        }
       }
     };
     ({data,error}=await todo(sel));
@@ -2942,12 +2947,12 @@ function updateCounts(){
   if(crd){const n=(CACHE.redes||[]).filter(p=>p.estado==='Borrador').length;crd.textContent=n;crd.style.display=n?'':'none';}
 }
 async function loadAll(){
-  for(const t of ['ventas','rop','leads','cotizaciones','inventario','piezascli'])CACHE[t]=await getAll(t);
+  /* en paralelo (27/11/2026): antes cada tabla esperaba a la anterior */
+  const _ts=['ventas','rop','leads','cotizaciones','inventario','piezascli'];
+  (await Promise.all(_ts.map(t=>getAll(t)))).forEach((d,i)=>{CACHE[_ts[i]]=d;});
   if(USING_SB&&!CACHE.rop.length&&!CACHE.ventas.length&&!CACHE.cotizaciones.length){
     FALLOS_CARGA.vacio='la nube respondió pero sin datos ('+((SB_CFG&&SB_CFG.url)||'')+')';avisoCarga();}
-  await cargarPapelera();
-  await cargarSugerencias();
-  await cargarRedes();
+  await Promise.all([cargarPapelera(),cargarSugerencias(),cargarRedes()].map(x=>Promise.resolve(x).catch(()=>{})));
   updateCounts();
   loadNotifs();renderNotifBell();scanAlertas();alertarCorreccionesRecientes();await cargarMensajesPendientes();
   await cargarDev();
@@ -12698,8 +12703,10 @@ function subscribeRealtime(){
         const i=lista.findIndex(x=>String(x.id)===String(nuevo.id));
         if(i>=0)lista[i]={...lista[i],...nuevo};else lista.unshift(nuevo);
       }else{CACHE[t]=await getAll(t);}
-      updateCounts();
-      if(!document.getElementById('overlay').classList.contains('show'))render();
+      /* varios cambios seguidos (p. ej. un guardado que toca rop+ventas+inventario)
+         repintaban la vista entera una vez por cada uno: ahora se agrupan */
+      clearTimeout(window._rtPint);window._rtPint=setTimeout(()=>{updateCounts();
+        if(!document.getElementById('overlay').classList.contains('show'))render();},250);
       notifDesdeCambio(t,payload);
       if(t==='rop'||t==='ventas')scanAlertas();
     }).subscribe();
