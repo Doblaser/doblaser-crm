@@ -1144,6 +1144,10 @@ html.side-off .menu-btn{display:grid !important}
 .pg-mn{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
 .pg-mn button{font-size:12px;opacity:.6}.pg-mn button:hover{opacity:1}
 .pg-mp{font-size:11px;color:var(--ink-3)}
+.pg-opl{margin:4px 0 2px;font-size:12px}.pg-opl>summary{cursor:pointer;list-style:none;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--card);display:flex;flex-wrap:wrap;gap:3px;align-items:center}.pg-opl>summary::after{content:'BE';margin-left:auto;color:var(--muted)}
+.pg-opl-c{background:#efe7dc;border-radius:4px;padding:1px 5px;font-weight:600}.pg-opl-l{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:4px;margin-top:3px;display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto}
+.pg-opl-f{display:flex;flex-direction:column;padding:2px 3px;border-radius:4px}.pg-opl-f.on{background:#f6efe5}.pg-opl-f label{display:flex;gap:5px;align-items:center;font-weight:600;cursor:pointer}
+.pg-opl-h{display:flex;gap:3px;align-items:center;padding-left:20px;color:var(--muted)}.pg-opl-h input[type=time]{font-size:11px;padding:1px 2px;border:1px solid var(--line);border-radius:4px;width:92px}
 .pg-op{width:100%;font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;margin:4px 0 2px;background:var(--card)}
 .pg-load{height:5px;background:var(--line-2);border-radius:3px;overflow:hidden;margin-top:4px}
 .pg-load i{display:block;height:100%;background:var(--st-prog)}
@@ -4373,7 +4377,7 @@ function pgDiaHTML(){
     const bloques=bl.map(b=>{const x=pgBloqueHTML(b,f,uso,ed);x.avisos.forEach(a=>avisos.push(a));return x.html;}).join('');
     return `<div class="pg-row">
       <div class="pg-rh"><div class="pg-mn">${esc(m.nombre)}${bl.length?`<button type="button" title="Imprimir la hoja de esta máquina" onclick="pgImprimirHojas('${m.id}',false)">🖨</button>`:''}</div><div class="pg-mp">${esc(m.proc)}</div>
-        ${ed?`<input class="pg-op" list="pgOps" value="${esc(op)}" placeholder="Operario(s)" title="Puedes poner más de uno separados por coma: la máquina queda disponible en la unión de sus turnos" onchange="pgSetOperario('${m.id}',this.value)">`:`<div class="pg-mp"><b>${esc(op)||'sin operario'}</b></div>`}
+        ${ed?pgOpSelHTML(d,m,f):`<div class="pg-mp"><b>${esc(op)||'sin operario'}</b></div>`}
         <div class="pg-load" title="${fmtMin(ocup)} de ${fmtMin(cap)}"><i class="${ocup>cap?'over':''}" style="width:${Math.min(100,pct)}%"></i></div>
         <div class="pg-loadn">${pgHc(ocup)} de ${pgHc(cap)} · ${pct}%</div>${turnoTxt?`<div class="pg-loadn" style="${vt.libre||(vt.sin&&op)?'color:#b45309;font-weight:600':''}">${esc(turnoTxt)}</div>`:''}</div>
       <div class="pg-track ${ed?'ed':''} ${ed&&PG.sel?'tapsel':''}" ${ed?`ondragover="pgOver(event)" ondragleave="pgLeave(event)" ondrop="pgDrop(event,'${m.id}')" onclick="pgClickTrack(event,'${m.id}')"`:''}>
@@ -4603,6 +4607,45 @@ function pgSetOperario(maq,v){
   const m=pgCfg().maquinas.find(x=>x.id===maq);
   if(m&&!m.operario&&v){m.operario=v;pgGuardarCfg();}   /* el primero que se escribe queda como el de siempre */
   pgGuardar(f);
+}
+/* ---- selector de operarios de una máquina (27/11/2026, Daniel) ----
+   Antes era una casilla de texto con datalist: el navegador solo sugería los
+   nombres que casaban con lo escrito, así que con "FREDY" puesto no salía nadie
+   más. Ahora se despliega todo el personal, cada uno con su turno de ESE día,
+   para marcar quién atiende la máquina y corregirle la hora ahí mismo (el cambio
+   es solo para ese día; el horario de la semana se maneja en su pestaña). */
+function pgOpSelHTML(d,m,f){
+  const sel=pgOperarios(d,m),lo=sel.map(x=>x.toLowerCase()),pers=pgCfg().personal||[];
+  const ext=sel.filter(n=>!pers.some(e=>e.nombre.trim().toLowerCase()===n.toLowerCase()));
+  const hm=v=>{v=((+v||0)%1440+1440)%1440;return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');};
+  const fila=e=>{const on=lo.includes(e.nombre.trim().toLowerCase()),t=pgTurnoEmp(e,f),q=JSON.stringify(e.nombre).replace(/"/g,'&quot;');
+    const hor=t?`<input type="time" value="${hm(t.ini)}" onchange="pgOpTurno('${e.id}','ini',this.value)"><span>–</span><input type="time" value="${hm(t.fin)}" onchange="pgOpTurno('${e.id}','fin',this.value)"><button type="button" class="lnk" title="Marcar que no trabaja este día" onclick="pgOpLibre('${e.id}',true)">✕</button>`
+      :`<em>no trabaja</em><button type="button" class="lnk" onclick="pgOpLibre('${e.id}',false)">poner turno</button>`;
+    return `<div class="pg-opl-f ${on?'on':''}"><label><input type="checkbox" ${on?'checked':''} onchange="pgOpToggle('${m.id}',${q},this.checked)"> ${esc(e.nombre)}</label><span class="pg-opl-h">${hor}</span></div>`;};
+  const extras=ext.map(n=>`<div class="pg-opl-f on"><label><input type="checkbox" checked onchange="pgOpToggle('${m.id}',${JSON.stringify(n).replace(/"/g,'&quot;')},this.checked)"> ${esc(n)}</label><span class="pg-opl-h"><em style="color:#b45309">no está en el personal</em></span></div>`).join('');
+  return `<details class="pg-opl" ${PG.opAbierto===m.id?'open':''} ontoggle="if(this.open)PG.opAbierto='${m.id}';else if(PG.opAbierto==='${m.id}')PG.opAbierto=''">
+    <summary>${sel.length?sel.map(n=>`<span class="pg-opl-c">${esc(n)}</span>`).join(''):'<span style="color:var(--muted)">Elegir operario(s)</span>'}</summary>
+    <div class="pg-opl-l">${pers.map(fila).join('')}${extras}
+      <input class="pg-op" placeholder="Otro nombre + Enter" onkeydown="if(event.key==='Enter'&&this.value.trim()){pgOpToggle('${m.id}',this.value.trim(),true)}">
+      ${pers.length?'':'<div style="font-size:11px;color:var(--muted)">No hay personal cargado: agrégalo en «Horarios del personal».</div>'}</div></details>`;
+}
+function pgOpToggle(maq,nombre,on){
+  if(!pgPuede())return;const f=PG.fecha,d=pgDia(f,true),m=pgCfg().maquinas.find(x=>x.id===maq);if(!m)return;
+  let l=pgOperarios(d,m).filter(x=>x.toLowerCase()!==nombre.trim().toLowerCase());if(on)l.push(nombre.trim());
+  PG.opAbierto=maq;pgSetOperario(maq,l.join(', '));render();
+}
+/* turno de una persona solo para el día que se está mirando (no se copia a otros días) */
+function pgOpTurno(id,k,v){
+  if(!pgPuede()||!v)return;const f=PG.fecha,e=(pgCfg().personal||[]).find(x=>x.id===id);if(!e)return;
+  const t=pgTurnoEmp(e,f)||{ini:e.ini,fin:e.fin},n={ini:+t.ini,fin:+t.fin};n[k]=pgMin(v);
+  ['alm','des'].forEach(x=>{if(t[x]&&t[x].no)n[x]={no:1};else if(pgAlmOk(t[x]))n[x]={ini:+t[x].ini,fin:+t[x].fin};});
+  if(n.fin===n.ini){toast('La entrada y la salida no pueden ser la misma hora');render();return;}
+  pgHorSem(id,true)[pgDiaSem(f)]=n;pgGuardarCfg();render();
+  toast(e.nombre+': '+pgHora(n.ini)+'–'+pgHora(n.fin)+' solo el '+pgFechaLarga(f));
+}
+function pgOpLibre(id,libre){
+  if(!pgPuede())return;const f=PG.fecha,e=(pgCfg().personal||[]).find(x=>x.id===id);if(!e)return;
+  const h=pgHorSem(id,true);h[pgDiaSem(f)]=libre?{libre:1}:{ini:+e.ini||360,fin:+e.fin||1080};pgGuardarCfg();render();
 }
 function pgSetNota(v){const f=PG.fecha;pgDia(f,true).nota=(v||'').trim();pgGuardar(f);}
 
