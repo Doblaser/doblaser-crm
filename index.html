@@ -1124,8 +1124,19 @@ html.side-off .menu-btn{display:grid !important}
 .pg-chip.ok span{color:var(--st-proc)}
 .pg-chip.sin{border-style:dashed;color:var(--ink-3);background:var(--card)}
 .pg-chip em{font-style:normal;font-size:9.5px;color:#92400e;margin-left:3px}
-.pg-cals{display:flex;flex-wrap:wrap;gap:4px;flex-basis:100%;margin:-1px 0 2px 12px;padding-left:6px;border-left:2px solid var(--line)}
-.pg-chip.pg-cal{font-size:10.5px;padding:2px 6px 3px}
+.pg-cals{flex-basis:100%;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:4px 6px;margin-top:2px}
+.pg-cals-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:1px 0 3px}
+.pg-cal-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;padding:4px 2px;border-top:1px solid var(--line)}
+.pg-cals-t+.pg-cal-r{border-top:0}
+.pg-cal-r[draggable=true]{cursor:grab}
+.pg-cal-r b{min-width:48px}
+.pg-cal-l{color:var(--ink-3);font-size:10.5px;min-width:38px}
+.pg-cal-f{font-weight:700;color:#92400e}
+.pg-cal-ok{color:var(--st-proc);font-weight:600}
+.pg-cal-sin{color:var(--ink-3);font-style:italic}
+.pg-cal-bs{margin-left:auto;display:flex;gap:4px}
+.pg-cal-b{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--st-proc);color:var(--st-proc);background:var(--st-proc-bg);font-weight:600}
+.pg-cal-b:hover{background:var(--st-proc);color:#fff}
 .pg-mini{min-width:26px;height:26px;border-radius:6px;border:1px solid var(--line);font-size:12px;color:var(--ink-2);background:var(--card);padding:0 6px}
 .pg-mini:hover{background:var(--bg)}
 .pg-acts{display:flex;flex-wrap:wrap;gap:5px}
@@ -4554,15 +4565,40 @@ function pgAvisoSecuencia(b,f,uso){
   return '';
 }
 /* un chip por calibre debajo del Corte: se arrastra a la máquina que lo anida */
+/* ---- corte por calibre en la tarjeta (27/11/2026, v2 "más práctico") ----
+   Una fila por calibre: qué es, cuánto falta y un botón por cada máquina de
+   corte. Un toque manda ese calibre al primer hueco libre de esa máquina en
+   el día que se está viendo. Arrastrar la fila sigue funcionando. */
+function pgDondeCal(ropId,k){
+  const ms=pgCfg().maquinas,n=new Set();
+  Object.keys(PG.dias).forEach(f=>(PG.dias[f].bloques||[]).forEach(b=>{
+    if(b.tipo==='rop'&&String(b.ropId)===String(ropId)&&b.proc==='Corte'&&pgAlcance(b).calibres.indexOf(k)>=0){
+      const m=ms.find(x=>x.id===b.maq);if(m)n.add(m.nombre);}}));
+  return [...n];
+}
 function pgChipsCal(r,ti,uso,ed,sel){
   const cs=pgCortePorCal(r,ti);if(cs.length<2)return '';
-  return '<div class="pg-cals">'+cs.map((c,i)=>{
-    const pe=pgPendienteCal(r,c.k,uso,cs),csel=sel&&PG.sel.proc==='Corte'&&PG.sel.cal===i;
-    const txt=c.min?(pe>0?'faltan '+pgHc(pe):'✓'):'sin tiempo';
-    const tip=c.material+(c.calibre?' cal. '+c.calibre:'')+' · '+fmtMin(c.min)+(c.manual?' (de la orden)':' (repartido del corte total)')+(pe>0?' · faltan '+fmtMin(pe):'')+' — arrástralo a la máquina que corta este calibre';
-    return `<div class="pg-chip pg-cal ${c.min&&pe<=0?'ok':''} ${csel?'sel':''}" title="${esc(tip)}"
-      ${ed&&pe>0?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','Corte',${i})" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','Corte',${i})"`:''}><b>${esc(pgCalTxt(c))}</b> <span>${txt}</span>${c.manual?'':'<em>rep.</em>'}</div>`;
+  const maqs=pgCfg().maquinas.filter(m=>m.proc==='Corte');
+  return '<div class="pg-cals"><div class="pg-cals-t">Corte por calibre</div>'+cs.map((c,i)=>{
+    const pe=pgPendienteCal(r,c.k,uso,cs),donde=pgDondeCal(r.id,c.k),listo=c.min&&pe<=0;
+    const estado=!c.min?'<span class="pg-cal-sin">sin tiempo</span>'
+      :listo?'<span class="pg-cal-ok">✓ '+esc(donde.join(' + ')||'programado')+'</span>'
+      :'<span class="pg-cal-f">'+pgHc(pe)+'</span>';
+    const btns=ed&&!listo?maqs.map(m=>`<button type="button" class="pg-cal-b" title="Mandar ${esc(pgCalTxt(c))} a ${esc(m.nombre)} el ${pgCorta(PG.fecha)}" onclick="event.stopPropagation();pgMandarCal('${r.id}',${i},'${m.id}')">→ ${esc(m.nombre)}</button>`).join(''):'';
+    return `<div class="pg-cal-r ${listo?'ok':''}" title="${esc(c.material+(c.calibre?' cal. '+c.calibre:'')+' · '+fmtMin(c.min)+' en total'+(c.manual?'':' (estimado)'))}"
+      ${ed&&pe>0?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','Corte',${i})" ondragend="pgDragFin()" onclick="event.stopPropagation()"`:''}>
+      <b>${esc(pgCalTxt(c))}</b><span class="pg-cal-l">${c.cant?c.cant+' lám.':''}</span>${estado}<span class="pg-cal-bs">${btns}</span></div>`;
   }).join('')+'</div>';
+}
+/* un toque: ese calibre al primer hueco de esa máquina */
+function pgMandarCal(ropId,i,maq){
+  if(!pgPuede())return;
+  const r=pgRopPorId(ropId);if(!r)return;
+  const c0=pgCortePorCal(r)[i];if(!c0)return;
+  const pe=pgPendienteCal(r,c0.k);if(pe<=0){toast('Ese calibre ya está programado');return;}
+  const h=pgPrimerHueco(PG.fecha,maq,pe);
+  if(!h){toast('Esa máquina ya no tiene espacio ese día');return;}
+  pgColocar(maq,h.ini,{tipo:'rop',id:ropId,proc:'Corte',cal:i});
 }
 function pgLadoHTML(uso,ed){
   const t=PG.busca.trim().toLowerCase(),hoy=pgHoy();
@@ -4586,7 +4622,7 @@ function pgLadoHTML(uso,ed){
       const txt=hecho?'hecho ✓':(tot?(pe>0?'faltan '+pgHc(pe):'programado ✓'):'sin tiempo');
       const tip=hecho?p+' ya está al 100% en la orden':(tot?p+': '+fmtMin(tot)+' en total ('+(x.ti[p].fuente==='cot'?'estimado de la cotización':'de la orden')+')'+(av?' · avance '+av+'%':'')+' · hecho o programado '+fmtMin(u)+(pe>0?' · faltan '+fmtMin(pe):''):p+' sin tiempo cargado: toca ✎ para ponerlo');
       return `<div class="pg-chip ${hecho||(tot&&pe<=0)?'ok':''} ${!tot&&!hecho?'sin':''} ${csel?'sel':''}" title="${esc(tip)}"
-        ${ed&&!hecho?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','${p}')" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','${p}')"`:''}><b>${p}</b> <span>${txt}</span>${x.ti[p].fuente==='cot'&&!hecho?'<em>est.</em>':''}${tot&&!hecho?`<i style="width:${pct}%"></i>`:''}</div>`
+        ${ed&&!hecho&&!(p==='Corte'&&pgCortePorCal(r,x.ti).length>1)?`draggable="true" ondragstart="pgDragIni(event,'rop','${r.id}','${p}')" ondragend="pgDragFin()" onclick="event.stopPropagation();pgElegir('rop','${r.id}','${p}')"`:''}><b>${p}</b> <span>${txt}</span>${x.ti[p].fuente==='cot'&&!hecho?'<em>est.</em>':''}${tot&&!hecho?`<i style="width:${pct}%"></i>`:''}</div>`
       +(p==='Corte'&&!hecho&&tot?pgChipsCal(r,x.ti,uso,ed,sel):'');
     }).join('');
     const tarde=x.ult&&r.entrega&&x.ult>r.entrega;
